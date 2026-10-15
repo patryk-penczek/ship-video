@@ -20,3 +20,4 @@ review/
 *.progress
 *.pid
 .setup.lock
+dist/
