@@ -1,16 +1,25 @@
 // Full-resolution stills at given times.
 // usage: node shots.mjs <film/index.html> <outDir> t1 t2 ... [--label]   -> outDir/<t>.png  (--label stamps the time on each frame)
+// File name = time in seconds, 2 decimals, zero-padded to 6 chars: t=1.5 -> 001.50.png, t=17 -> 017.00.png, t=102.5 -> 102.50.png.
+// Times must be numbers between 0 and the film length.
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { help, args, openFilm } from "./lib/common.mjs";
+import { existsSync } from "node:fs";
+import { help, args, openFilm, die } from "./lib/common.mjs";
 help(import.meta.url);
 
 const a = args();
 const [html, outDir, ...times] = a._;
-if (!html || !outDir || !times.length) { console.error("usage: node shots.mjs <film/index.html> <outDir> t1 t2 ... [--label]"); process.exit(1); }
+if (!html || !outDir || !times.length) die("usage: node shots.mjs <film/index.html> <outDir> t1 t2 ... [--label]");
+const ts = times.map(Number);
+const badT = times.filter((_, i) => !Number.isFinite(ts[i]) || ts[i] < 0);
+if (badT.length) die(`times must be numbers >= 0, got: ${badT.join(" ")}`);
+if (!existsSync(html)) die(`film not found: ${html}`);
+const { browser, page, seek, duration } = await openFilm(html);
+const late = ts.filter((t) => t > duration);
+if (late.length) { await browser.close(); die(`times past the end of the ${duration.toFixed(2)} s film: ${late.join(" ")}`); }
 mkdirSync(outDir, { recursive: true });
-const { browser, page, seek } = await openFilm(html);
-for (const t of times.map(Number)) {
+for (const t of ts) {
   await seek(t);
   if (a.label) await page.evaluate((tt) => {
     let el = document.getElementById("__label");

@@ -1,17 +1,22 @@
-// No-music path: a fixed tempo grid. Prints beat/bar times to cut on and writes a synthetic env.js
-// (a sub pulse on every beat, stronger on bar starts) so audio-reactive effects still move.
-// usage: node music.mjs grid --bpm 120 --duration 20 [--out film/env.js]
-import { writeFileSync } from "node:fs";
-import { help, args } from "../lib/common.mjs";
+// No-music path: a fixed tempo grid. Prints beat/bar times to cut on.
+// usage: node music.mjs grid --bpm 120 --duration 20 [--out film/env.js [--pulse]]   (bpm 30..300, duration 0..600 s)
+// --out alone writes `window.ENV = null;` (a silent film has nothing to react to). Add --pulse to write a synthetic
+// envelope instead (a sub pulse on every beat, stronger on bar starts) for films that want audio-reactive motion anyway.
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { help, args, die, num } from "../lib/common.mjs";
 help(import.meta.url);
 
 const a = args();
-const bpm = Number(a.bpm ?? 120);
-const duration = Number(a.duration);
-if (!duration) { console.error("usage: node grid.mjs --bpm 120 --duration 20 [--out film/env.js]"); process.exit(1); }
+const USAGE = "usage: node music.mjs grid --bpm 120 --duration 20 [--out film/env.js [--pulse]]";
+if (a.duration === undefined) die(USAGE);
+const bpm = num(a, "bpm", 120, { min: 30, max: 300 });
+const duration = num(a, "duration", 0, { min: 0.1, max: 600 });
+if (a.out === true) die("--out needs a file path\n" + USAGE);
+if (a.pulse && !a.out) die("--pulse needs --out <env.js>");
 const beat = 60 / bpm;
 const fps = 60;
-const n = Math.ceil(duration * fps);
+const n = a.pulse ? Math.ceil(duration * fps) : 0;
 const sub = [], mid = [], high = [], rms = [];
 for (let i = 0; i < n; i++) {
   const t = i / fps;
@@ -30,6 +35,7 @@ console.log(`grid ${bpm} bpm  beat ${beat.toFixed(3)}s  bar ${(beat * 4).toFixed
 console.log("bars: ", fmt(beats.filter((_, i) => i % 4 === 0)));
 console.log("beats:", fmt(beats));
 if (a.out) {
-  writeFileSync(a.out, `window.ENV=${JSON.stringify({ fps, sub, mid, high, rms })};`);
-  console.log(`→ ${a.out}`);
+  mkdirSync(path.dirname(path.resolve(a.out)), { recursive: true });
+  writeFileSync(a.out, a.pulse ? `window.ENV=${JSON.stringify({ fps, sub, mid, high, rms })};` : "window.ENV = null; // silent film: no audio-reactive envelope\n");
+  console.log(`→ ${a.out}${a.pulse ? " (synthetic beat pulse)" : " (window.ENV = null)"}`);
 }

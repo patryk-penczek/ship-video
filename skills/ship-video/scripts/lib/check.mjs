@@ -1,6 +1,6 @@
 // Reports whether everything the engine needs is installed. Exit code 1 if anything is missing.
 // usage: node check.mjs [--full]
-// Fast path: setup.sh writes $HOME_DIR/.ready with a hash of engine/package.json; if it matches, nothing else is checked.
+// Fast path: setup.sh writes $HOME_DIR/.ready with a hash of scripts/package.json; if it matches, nothing else is checked.
 // --full (or a missing/stale marker) runs every check and refreshes the marker.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";

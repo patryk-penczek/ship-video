@@ -2,18 +2,20 @@
 // usage: node audit.mjs <film/index.html> [--step 0.125] [--no-crop] [--summary]
 // Ancestors with data-clip-ok (deliberate masks: rotating words, line clamps, tiles) or overflow auto/scroll
 // (scrolling lists) don't count. Text entirely outside a box or the frame is hidden, not cut, and is ignored.
+//   --step      seconds between samples, >= 0.01 (default 0.125)
 //   --no-crop   skip frame-edge checks (films that zoom past big type on purpose)
 //   --summary   one line per clipping box instead of per text
 // Output: "<first>–<last> (<n>x)  <issue>". Fix every hit that isn't a deliberate transition.
-import { help, args, openFilm } from "./lib/common.mjs";
+import { help, args, openFilm, die, num } from "./lib/common.mjs";
 help(import.meta.url);
 
 const a = args();
 const [html] = a._;
-if (!html) { console.error("usage: node audit.mjs <film/index.html> [--step 0.125]"); process.exit(1); }
-const step = Number(a.step ?? 0.125);
+if (!html) die("usage: node audit.mjs <film/index.html> [--step 0.125] [--no-crop] [--summary]");
+const step = num(a, "step", 0.125, { min: 0.01 });
 const noCrop = !!a["no-crop"];
 const { browser, page, duration } = await openFilm(html);
+if (!(await page.$("#scenes"))) { await browser.close(); die("the page has no #scenes element (is this a film built from the starter?)"); }
 const seen = new Map();
 for (let t = 0; t < duration; t += step) {
   const issues = await page.evaluate(({ tt, noCrop }) => {

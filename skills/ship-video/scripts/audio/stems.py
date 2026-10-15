@@ -3,10 +3,15 @@
 # usage: node music.mjs stems stems/htdemucs_6s/<track name>
 import sys, os
 import numpy as np
-import librosa
 
+if not os.environ.get("DEBUG"):
+    sys.excepthook = lambda t, e, tb: (print(f"{os.path.basename(sys.argv[0])[:-3]}: {e}", file=sys.stderr), os._exit(1))
+if len(sys.argv) != 2: sys.exit("usage: node music.mjs stems <demucs_out_dir>")
 d = sys.argv[1]
+if not os.path.isdir(d): sys.exit(f"folder not found: {d}")
+import librosa
 names = sorted(n[:-4] for n in os.listdir(d) if n.endswith(".wav"))
+if not names: sys.exit(f"no .wav stems in {d} (run: node music.mjs separate <track> <out_dir>, then pass out_dir/htdemucs_6s/<track name>)")
 data = {}
 for n in names:
     y, sr = librosa.load(os.path.join(d, n + ".wav"), sr=22050, mono=True)

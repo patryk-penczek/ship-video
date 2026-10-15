@@ -15,14 +15,34 @@ function load(name) {
   return createRequire(path.join(HOME_DIR, "package.json"))(name);
 }
 
-// node x.mjs a b --fps 60 --label  ->  { _: ["a", "b"], fps: "60", label: true }
-export function args(argv = process.argv.slice(2)) {
+// One-line errors instead of stack traces (DEBUG=1 shows them).
+export const die = (msg, code = 1) => { console.error(msg); process.exit(code); };
+const oneLine = (e) => process.env.DEBUG ? (e?.stack ?? String(e)) : String(e?.message ?? e).split("\n")[0];
+process.on("uncaughtException", (e) => die(oneLine(e)));
+process.on("unhandledRejection", (e) => die(oneLine(e)));
+
+// Numeric option with a default; bare flags, NaN and out-of-range values stop the script with one line.
+export function num(a, name, dflt, { min = -Infinity, max = Infinity, int = false } = {}) {
+  if (a[name] === undefined) return dflt;
+  const v = a[name] === true || a[name] === "" ? NaN : Number(a[name]);
+  if (!Number.isFinite(v) || v < min || v > max || (int && !Number.isInteger(v)))
+    die(`--${name} must be ${int ? "an integer" : "a number"}${Number.isFinite(min) ? ` >= ${min}` : ""}${Number.isFinite(max) ? ` and <= ${max}` : ""}, got "${a[name] === true ? "" : a[name]}"`);
+  return v;
+}
+export const mustExist = (p, what) => { if (!existsSync(p)) die(`${what} not found: ${p}`); };
+
+// node x.mjs a b --fps 60 --label  ->  { _: ["a", "b"], fps: "60", label: true }   (also --fps=60)
+// Boolean flags never take the next argument, so `--label t1 t2` keeps both times.
+export const BOOLS = ["label", "no-crop", "summary", "force", "demucs", "pulse", "help"];
+export function args(argv = process.argv.slice(2), bools = BOOLS) {
   const out = { _: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (!a.startsWith("--")) { out._.push(a); continue; }
+    const eq = a.indexOf("=");
+    if (eq > 0) { out[a.slice(2, eq)] = a.slice(eq + 1); continue; }
     const next = argv[i + 1];
-    if (next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
+    if (bools.includes(a.slice(2)) || next === undefined || next.startsWith("--")) out[a.slice(2)] = true;
     else { out[a.slice(2)] = next; i++; }
   }
   return out;
@@ -30,15 +50,29 @@ export function args(argv = process.argv.slice(2)) {
 
 // Opens <film>/index.html?render=1 and waits for window.__ready. scale = deviceScaleFactor (2 → 3840×2160).
 export async function openFilm(html, { scale = 1 } = {}) {
+  mustExist(path.resolve(html), "film");
   const { chromium } = load("playwright");
   const browser = await chromium.launch({ args: ["--force-color-profile=srgb", "--disable-lcd-text", "--allow-file-access-from-files"] });
-  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: scale });
-  page.on("console", (m) => m.type() === "error" && console.error("[page]", m.text()));
-  page.on("pageerror", (e) => console.error("[pageerror]", e.message));
-  await page.goto(`${pathToFileURL(path.resolve(html)).href}?render=1`);
-  await page.waitForFunction(() => window.__ready === true, null, { timeout: 60_000 });
-  const duration = await page.evaluate(() => window.__duration);
-  return { browser, page, duration, seek: (t) => page.evaluate((tt) => window.__seek(tt), t) };
+  try {
+    const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: scale });
+    let loadError = null;
+    page.on("console", (m) => m.type() === "error" && console.error("[page]", m.text()));
+    page.on("pageerror", (e) => { loadError ??= e.message; console.error("[pageerror]", e.message); });
+    await page.goto(`${pathToFileURL(path.resolve(html)).href}?render=1`);
+    let iv;
+    await Promise.race([
+      page.waitForFunction(() => window.__ready === true, null, { timeout: 60_000 }).catch((e) => {
+        throw /Timeout/.test(e.message) ? new Error("window.__ready never became true in 60 s: engine.js or film.js did not run to the end (see [page]/[pageerror] lines above; is film.js loaded by index.html?)") : e;
+      }),
+      new Promise((_, rej) => { iv = setInterval(() => loadError && rej(new Error(`the film threw before window.__ready: ${loadError}`)), 200); }),
+    ]).finally(() => clearInterval(iv));
+    const duration = await page.evaluate(() => window.__duration);
+    if (!Number.isFinite(duration) || duration <= 0) throw new Error(`window.__duration is ${duration}; film.js must set it (seconds, > 0)`);
+    return { browser, page, duration, seek: (t) => page.evaluate((tt) => window.__seek(tt), t) };
+  } catch (e) {
+    await browser.close().catch(() => {});
+    throw e;
+  }
 }
 
 export { load };

@@ -3,7 +3,7 @@
 #   node_modules  Playwright + Chromium, GSAP, fonts
 #   .venv         Python with librosa + matplotlib (add --demucs for stem separation, several GB)
 # Skips whatever is already installed; exits at once if a previous run finished and deps haven't changed.
-# Usage: setup.sh [--demucs] [--force]
+# Usage: setup.sh [--demucs] [--force] [--help]
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -14,6 +14,8 @@ for a in "$@"; do
   case "$a" in
     --demucs) DEMUCS=1 ;;
     --force) FORCE=1 ;;
+    -h|--help) sed -n '2,/^set -/p' "$0" | sed '$d;s/^# \{0,1\}//'; exit 0 ;;
+    *) echo "setup.sh: unknown option $a (try --help)" >&2; exit 2 ;;
   esac
 done
 
@@ -32,15 +34,18 @@ mkdir -p "$HOME_DIR"
 
 # one setup at a time: several sessions may run it at once and share ~/.ship-video
 LOCK="$HOME_DIR/.setup.lock"
-for i in $(seq 1 300); do
-  if mkdir "$LOCK" 2>/dev/null; then break; fi
-  # a lock older than 15 minutes is left over from a killed run
-  if [[ -n "$(find "$LOCK" -maxdepth 0 -mmin +15 2>/dev/null)" ]]; then rmdir "$LOCK" 2>/dev/null; continue; fi
-  (( i == 1 )) && echo "  another setup is running; waiting…"
+# the lock holds its owner's pid: a lock whose owner is gone (SIGKILL, reboot) is reclaimed at once
+for i in $(seq 1 1200); do
+  if mkdir "$LOCK" 2>/dev/null; then echo $$ > "$LOCK/pid"; break; fi
+  owner="$(cat "$LOCK/pid" 2>/dev/null || true)"
+  if [[ -n "$owner" ]] && ! kill -0 "$owner" 2>/dev/null; then rm -rf "$LOCK"; continue; fi
+  # no pid yet: the owner is between mkdir and writing it; a lock older than 2 minutes without one is left over
+  if [[ -z "$owner" && -n "$(find "$LOCK" -maxdepth 0 -mmin +2 2>/dev/null)" ]]; then rm -rf "$LOCK"; continue; fi
+  (( i == 1 )) && echo "  another setup is running (pid ${owner:-?}); waiting up to 20 min…"
   sleep 1
 done
-[[ -d "$LOCK" ]] || fail "could not get the setup lock ($LOCK)"
-trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+[[ -d "$LOCK" && "$(cat "$LOCK/pid" 2>/dev/null)" == "$$" ]] || fail "could not get the setup lock ($LOCK)"
+trap 'rm -rf "$LOCK"' EXIT
 # it may have finished while we waited
 if (( ! FORCE && ! DEMUCS )) && node "$HERE/lib/check.mjs" >/dev/null 2>&1; then echo "ship-video: already set up"; exit 0; fi
 (( FORCE )) && rm -f "$HOME_DIR/.ready"
