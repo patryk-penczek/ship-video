@@ -1,4 +1,4 @@
-![/ship-video: launch films for your app, cut to the beat. A Claude Code + Codex skill.](docs/readme/banner.png)
+[![/ship-video: launch films for your app, cut to the beat. A Claude Code + Codex skill.](docs/readme/banner.png)](#-quick-start)
 
 ### Turn your app into a music-synced launch film, as code.
 
@@ -9,7 +9,7 @@ An agent skill for **Claude Code** and **Codex**. It captures your real UI, cuts
 ![1080p60 MP4 and WebP](https://img.shields.io/badge/output-1080p60_MP4_%2B_WebP-ff6a3d?style=flat-square)
 [![MIT license](https://img.shields.io/badge/license-MIT-6c8cff?style=flat-square)](LICENSE)
 
-[![Typing /ship-video: it asks how long and which music, hears the hits, then Plan, Build, Review, Render, and Iterate: a change typed in, the next version.](docs/hero.webp)](#-quick-start)
+[![Typing /ship-video: it asks how long and which music, hears the hits, then Plan, Build, Review, Render, and Iterate: a change typed in, the next version.](docs/hero.webp)](#-how-it-works)
 
 <sub>This film was made with ship-video itself: one HTML page on a 120 BPM grid. [View the source](docs/hero).</sub>
 
@@ -35,9 +35,9 @@ An agent skill for **Claude Code** and **Codex**. It captures your real UI, cuts
 
 | | |
 |---|---|
-| ![The repo's files scroll past a reading lens; what it found is listed beside them](docs/readme/reads.webp) | ![A timeline: shots above, music below, every shot boundary on a hit](docs/readme/beat.webp) |
+| [![The repo's files scroll past a reading lens; what it found is listed beside them](docs/readme/reads.webp)](docs/guide.md#what-happens-step-by-step) | [![A timeline: shots above, music below, every shot boundary on a hit](docs/readme/beat.webp)](skills/ship-video/references/music.md) |
 | **🔍 Reads your app first.** It reads your repo and opens every view of your running app, then asks only what it can't find: who it's for, how long, which music. | **🥁 Cut to the beat.** It finds the tempo, hits and drop of your track, or writes a beat for you, and lands every cut on one. The payoff hits on the drop. |
-| ![An approved scenario scrolling like a document](docs/readme/plan.webp) | ![A film strip of app frames, 1920×1080 at 60 fps](docs/readme/real.webp) |
+| [![An approved scenario scrolling like a document](docs/readme/plan.webp)](skills/ship-video/references/scenario-template.md) | [![A film strip of app frames, 1920×1080 at 60 fps](docs/readme/real.webp)](skills/ship-video/references/replicas.md) |
 | **📋 You approve the plan first.** A shot-by-shot scenario (seconds, music, picture, exact copy) comes before anything is built. Changing a table costs minutes; a film costs hours. | **🎯 Your real UI, frame-exact.** Your app's own DOM and CSS, captured and animated, never mockups. Rendered frame by frame to a 1080p60 MP4, plus a WebP for READMEs. |
 
 <br>
@@ -107,7 +107,7 @@ Everything on screen is code: one HTML page, one paused GSAP timeline, rendered 
 > [!TIP]
 > **The first render is a first cut.** Films get good the way edits do: you watch, say what bothers you, and it changes that and renders again in minutes. Two to four rounds are normal.
 
-![A film plays; a note is typed; it re-renders and plays again with the change: brand colors, opening on the search, a click on Export, a 15-second cut](docs/readme/iterate.webp)
+[![A film plays; a note is typed; it re-renders and plays again with the change: brand colors, opening on the search, a click on Export, a 15-second cut](docs/readme/iterate.webp)](#-quick-start)
 
 Specific notes work best:
 
