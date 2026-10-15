@@ -1,0 +1,31 @@
+name: Something went wrong
+description: A script failed, a render looks wrong, or the skill went off track
+labels: [bug]
+body:
+  - type: dropdown
+    id: step
+    attributes:
+      label: Step
+      description: Where in the flow did it happen?
+      options: [Setup, Brief, Music / analysis, Scenario, Replicas, Build, Review, QA, Render, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you asked for, what you expected, what you got.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Command and output
+      description: The failing command and what it printed (and `<out>.progress` for renders).
+      render: shell
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Output of `node skills/ship-video/scripts/lib/check.mjs --full`, your OS and Node version.
+      render: shell

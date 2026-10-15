@@ -1,0 +1,11 @@
+name: Idea or lesson
+description: A feature, a better default, or a pitfall the skill should warn about
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea
+      description: What should change, and what film made you want it?
+    validations:
+      required: true
