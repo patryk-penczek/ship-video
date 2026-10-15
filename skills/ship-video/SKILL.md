@@ -189,11 +189,11 @@ node $S/render.mjs <film>/index.html <film>/out/film-motionblur.mp4 --preset mot
 - The render writes `<out>.part` and renames it only on success, so a file at `<out>` is always complete.
 - Stop a render: `node $S/render.mjs --stop <out.mp4>`.
 - A render dies with the session that started it. Before a long motion-blur render, tell the user to keep the session open (or run it with `nohup … &` and give them the `--stop` command).
-A GIF for a README or a post (keep it under ~10 MB; lessons.md #20 for what to turn off first):
+For a README or a post, make an **animated WebP**: it autoplays and loops like a GIF, in full colour and much smaller. GitHub never autoplays video (an uploaded MP4 waits for a click, and its first frame is the cover), so the WebP is the README hero:
 ```
-ffmpeg -i film-crisp.mp4 -vf "fps=15,scale=900:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle" film.gif
-gifsicle -O3 --lossy=15 -o film-small.gif film.gif   # brew install gifsicle
+node $S/webp.mjs <film>/out/film-motionblur.mp4 <film>/out/film.webp --fps 60 --width 1280
 ```
+Aim under ~8 MB; lower `--fps` (30) or `--width` (960) if it's bigger. A silent film for a README also wants lessons.md #16b and #20.
 Use `--preset draft` or `--from/--to` for quick checks while iterating.
 
 Before saying it's done, verify on the crisp MP4:
@@ -218,6 +218,7 @@ Clean up: stop dev servers and processes you started, delete `out/test.mp4` and 
 | `compare.mjs <url> <gallery.html> <dir> --states s.json` | real app above replica, per state |
 | `audit.mjs <html> [--no-crop] [--summary]` | clipped-text scan every 1/8 s |
 | `render.mjs <html> <out.mp4> [--preset crisp\|motionblur\|draft]` | frame-exact MP4 with the track; `--stop <out.mp4>` |
+| `webp.mjs <mp4> <out.webp> [--fps --width]` | autoplaying animated WebP for READMEs and posts |
 | `hits.mjs <mp4> <out.png> t…` | frames at t−0.02 / t / t+0.02 per hit |
 
 ## Gotchas
