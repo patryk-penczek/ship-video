@@ -122,11 +122,11 @@ The one place for silent guidance (SKILL.md, scenario, lessons and motion vocabu
 
 ## Coverage rule
 
-Coverage depends on the film type. A **launch film** shows every major view in PRODUCT.md at least briefly, and every wow moment; if they don't fit in sequence, use a split-screen montage or a 0.8 s-per-view run (shots 6, 8, 10). A **one-feature teaser** covers the feature's view and its payoff; a **how-to** covers the task's views; a **landing page** covers the sections that carry the message. **Error pages are not product.** Real product films almost never show a 404 or an error state, and a viewer learns nothing from one. Discovery still inventories them (they can hide a visual worth borrowing), but leave them out by default. Only if one contains something genuinely striking (an animation, a mini-game, an illustration) may it appear as a **1–2 s aside**, never a scene of its own and never in place of a real feature (shot 13). Empty states ("no tasks yet") are worth showing only when the film is about getting started. **Everything you skip is named in SCENARIO.md with a reason** ("not this feature", "outside the two tasks"); an unexplained gap is a bug.
+Coverage depends on the film type. A **launch film** shows every major view in PRODUCT.md at least briefly, and every wow moment; if they don't fit in sequence, use a split-screen montage or a 0.8 s-per-view run (shots 6, 8, 10). A **one-feature teaser** covers the feature's view and its payoff; a **how-to** covers the task's views; a **landing page** covers the sections that carry the message. Coverage follows PRODUCT.md's core / aside / skip column, not the router: core views carry the film, an aside gets 1–2 s at most, everything else stays out. **Everything you skip is named in SCENARIO.md with a reason** ("not this feature", "outside the two tasks"); an unexplained gap is a bug.
 
 ## Shot library
 
-The 14 shots with code (hook, cursor and typing, counters, scrubbed chart, list stagger, route transition, tall-page scroll, split screen, zoom-through, whip pan, tilt, theme reveal, 404, end card, plus dialog and payoff shots) are in `shots.md`, read at step 6. Shot numbers in this file refer to it.
+The 14 shots with code (hook, cursor and typing, counters, scrubbed chart, list stagger, route transition, tall-page scroll, split screen, zoom-through, whip pan, tilt, theme reveal, quick aside, end card, plus dialog and payoff shots) are in `shots.md`, read at step 6. Shot numbers in this file refer to it.
 
 
 ## Reference film

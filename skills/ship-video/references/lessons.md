@@ -27,7 +27,7 @@ Each one cost real time on a shipped film. Read once before step 5 (replicas); i
 Each of these came from a film that was technically clean and still judged weak. Details and code: `direction.md`, `motion-vocabulary.md`.
 - **A film must say what the product is** to a viewer who doesn't know it: a polished teaser of a price or a feature with no identity is the weakest outcome (`direction.md`, *Identity first*).
 - **Silent is not calm.** Without music the film still needs a new idea every 1–2 s and motion in every frame; screens swapped or held for a bar read as slides (`direction.md`, *Silent films*).
-- **Film the whole product.** A launch film that skips whole views (a map, a compare view, the error page) misses what the product is. Discovery (`PRODUCT.md`) lists them; the scenario's coverage table shows each.
+- **Film the whole product.** A launch film that skips the product's core views (a map, a compare view) misses what the product is. Discovery (`PRODUCT.md`) lists them; the scenario's coverage table shows each.
 - **One concrete case, not a feature list.** Features are the consequences of a story (problem → hero → action → payoff).
 - **Half the frames dark** feels heavy. Mix in a light theme, a bright headline or a white caption.
 - **Captions never cover content,** and are opaque on the hit frame.

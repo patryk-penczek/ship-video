@@ -15,7 +15,7 @@ Read at step 6 (build), after `film-api.md`. 14 shots, each with code that was r
 10. Whip pan
 11. Parallax tilt
 12. Theme reveal
-13. Error page aside (rare, 1–2 s)
+13. Quick aside (1–2 s)
 14. End card with a live input
 Also: dialog or palette shot, payoff shot (after 14), step-bar caption, drag and drop, frame a rect, move a captured overlay into frame (after the payoff shot)
 
@@ -190,15 +190,12 @@ reveal(light, T, t0 + 0.5);                                                    /
 ```
 Keep the reveal short (about 0.45 s) and `tl.set(old, { display: "none" }, end)` afterwards: translucent cards of the old theme ghost the new one while both show. If the toggle and the content are far apart, see `direction.md` (*Theme reveal when the toggle and the content are far apart*). If the zoom is high the disc looks like a flat blob (a pale circle over empty background): reveal at camera scale ≤ 1.2 with the origin on a content-dense area, so the new theme is recognisable inside the disc, or use a diagonal wipe (`clipPath: polygon()`), the safer default on light themes. Give the edge a highlight so it reads as a surface: a ring element at the same centre and radius (1.5 px accent border, `box-shadow: 0 0 40px rgb(0 0 0 / .35)`) that grows with the same tween as the clip circle.
 
-### 13. Error page aside (rare, 1–2 s)
-Only when the app's error page has something striking (see `direction.md`, *Coverage rule*); otherwise skip it. Keep it to 1–2 s, as an aside inside a montage or between acts, with one motion: digits fall, the zero rolls, a line types itself, the cursor goes to "Back" and clicks (the click is the cut out). Keep the digits in frame on the first frame.
+### 13. Quick aside (1–2 s)
+For something PRODUCT.md marks *aside*: a delightful detail that isn't core. One motion, one beat, then back to the story; never a scene of its own. A small card that slides in over the current shot, or a single cut in a montage, is enough.
 ```js
-tl.fromTo($$(s, ".d1, .d3"), { y: -140 }, { y: 0, duration: 0.6, stagger: 0.1, ease: "bounce.out" }, t0);
-tl.fromTo($(s, ".d2"), { y: -140, rotation: -360 }, { y: 0, rotation: 0, duration: 0.9, ease: "back.out(1.4)" }, t0);
-type($(s, ".t404"), "This page didn't ship.", t0 + 0.5, t0 + 1.2, (k) => { if (!k) $(s, ".t404").textContent = ""; });
-cursor(cam, { x: 1500, y: 300 }, [{ to: { x: 1000, y: 800 }, t: t0 + 0.2, dur: 0.5 }, { to: B, t: t0 + 1.3, dur: 0.5, click: true }]);   // B = center of the button
+const a = scene(UI.shot("aside"), t0, t0 + 1.5), ca = wrap(a);
+tl.fromTo(ca, focus(P.detail, 1.6), { ...focus(P.detail, 1.75), duration: 1.5, ease: "power1.out" }, t0);   // P.detail measured before tweens
 ```
-Use the app's real 404 copy and layout (captured by Discovery) and put the joke in one caption, or skip the joke if the real page has none.
 
 ### 14. End card with kinetic type and a live input
 ```js
