@@ -28,9 +28,19 @@ Look in the film folder (ask for it if unclear) and start at the first step whos
 
 The user can skip steps ("I have a scenario already", "no music", "just render it"). Skip what they name, say in one line what you're skipping, and keep the gates: approving a skipped gate needs their explicit words.
 
+## Asking the user
+
+Every decision goes through the **AskUserQuestion** tool, never a list of questions in prose. The user should click, not write an essay: prose questions get partial answers and stall the film.
+- Up to 4 questions per call, 2–4 options each, recommended option first with "(Recommended)" in its label. The tool adds "Other" for free text.
+- Put what they compare into `preview`: copy variants, a scenario act, a frame description. Keep option labels to a few words.
+- Before the call, at most ~6 lines of context: what you made and where it is (`SCENARIO.md`, a stills folder). Details stay in the files.
+- Gates are questions too: "Approve the scenario?" with options like *Approve*, *Change copy*, *Change timing*, *Something else*.
+- Questions about facts you can look up (tokens, copy, routes, track length) are not questions. Look them up.
+- Without AskUserQuestion (other hosts), fall back to one short numbered list of options.
+
 ## Progress checklist
 
-Copy into your first reply and update it as you go:
+Show this at the first reply, at each gate and at the end, not after every step:
 
 ```
 - [ ] 0 Setup: deps ready
@@ -51,11 +61,11 @@ Run `node $S/lib/check.mjs`. It answers instantly once setup has succeeded. Only
 
 ## 1. Brief
 
-Find what you can yourself first (README, package.json, routes, components). Then ask only what's left, at most four short questions in one message:
-- product and audience; goal (launch, one feature, how-to); length (default 20–30 s, 1920×1080);
-- the UI source to recreate (repo path or screenshots);
-- real assets: screenshots, GIFs, avatars, emoji, logo, real copy. Real beats invented every time;
-- music path (step 2).
+Find what you can yourself first (README, package.json, routes, components, existing assets). Then ask what's left in one AskUserQuestion call, typically:
+- goal: launch / one feature / how-to;
+- length: 15–20 s / 20–30 s / 30–45 s;
+- music: own file / Suno / none (step 2);
+- real assets to use, if you found candidates (screenshots, GIFs, avatars, logo). Real beats invented every time.
 
 Create the folder: `node $S/new-film.mjs <film>` (outside the product repo unless the user wants it inside). Put assets in `<film>/img`; keep downloads in their own folder.
 
@@ -63,8 +73,8 @@ Create the folder: `node $S/new-film.mjs <film>` (outside the product repo unles
 
 ## 2. Music
 
-Offer three paths, one line each:
-- **A. Own file.** Ask where it is; if they just downloaded it, take the newest audio file in `~/Downloads` and confirm the name. Copy it to `<film>/track.<ext>`. Ask them to confirm they have the rights.
+If the brief didn't settle it, ask with AskUserQuestion: own file / Suno / no music.
+- **A. Own file.** If they just downloaded it, take the newest audio file in `~/Downloads` and confirm the name. Copy it to `<film>/track.<ext>`. Ask about rights in the same AskUserQuestion call: *I made or licensed it* / *Suno paid plan* / *CC0 or CC BY* / *Not sure*. "Not sure" means it's fine for a private draft but not for publishing; say so. If the film folder is inside a git repo, add `track.*` to its `.gitignore` unless the license allows redistribution.
 - **B. Suno.** Read `references/suno-prompt.md`, pick a BPM so a bar is a round number of seconds, map the planned acts to bars, and give the user the style line and the bracketed structure to paste. They generate 2–4 takes and download the best. **The track is as long as Suno makes it: shape the film to the track.** Free-plan songs can't be used commercially; paid-plan songs can.
 - **C. None.** Pick a BPM (default 120). Cuts snap to the grid, the preview plays a metronome, and music can be added later by re-timing.
 
@@ -85,11 +95,16 @@ Read `references/music-map.md`, Read the plot PNG, and write `<film>/MUSIC.md`: 
 
 ## 4. Scenario
 
-Write `<film>/SCENARIO.md` from `references/scenario-template.md`: acts with exact seconds, the music event under each, what's on screen, the camera, and the **final copy word for word**. Every cut sits on a hit or kick from MUSIC.md. Give 2–3 variants wherever wording matters (headline, end card), and mark placeholder assets.
+Write `<film>/SCENARIO.md` from `references/scenario-template.md`: acts with exact seconds, the music event under each, what's on screen, the camera, and the **final copy word for word**. Every cut sits on a hit or kick from MUSIC.md. Write 2–3 variants wherever wording matters (headline, captions, end card), and mark placeholder assets.
+
+Then one AskUserQuestion call:
+- one question per copy slot with variants (options = the variants, `preview` = the line in context);
+- open choices the scenario depends on (e.g. end-card theme), only if they're real choices;
+- last: "Approve the scenario?" with *Approve*, *Change timing*, *Change scenes*, *Something else*, and `preview` = the act table in 6–10 lines.
 
 <HARD-GATE>
 Nothing gets built until the user approves SCENARIO.md. Building means writing ui.js or film.js, copying app components, or rendering. Reading the product's code is fine.
-When they approve, add `Approved: <date>` at the top of SCENARIO.md.
+When they approve, write the chosen variants into SCENARIO.md and add `Approved: <date>` at the top.
 </HARD-GATE>
 
 **Then:** step 5.
@@ -120,7 +135,7 @@ Look first, then show:
 node $S/sheet.mjs <film>/index.html <from> <to> 0.25 <film>/review/sheet-<act>.png
 node $S/shots.mjs <film>/index.html <film>/review/stills <t1> <t2> … --label
 ```
-Read every PNG yourself and fix what's obviously wrong. Then show the user the contact sheets and full-resolution stills of each hit, each resting frame and the end card, and ask what's wrong or missing.
+Read every PNG yourself and fix what's obviously wrong. Then give the user the paths to the contact sheets and to full-resolution stills of each hit, each resting frame and the end card, and ask with AskUserQuestion: *Approve, render it* / *Fix something* (they describe it in Other) / *Show me more frames*.
 
 <HARD-GATE>
 No full render until the user approves the stills. After each round of fixes, show the changed frames again.
@@ -182,6 +197,7 @@ The ones that cost the most; the full list is in `references/lessons.md`.
 | "Stills look fine to me, render straight away" | The user catches what you miss. Show them first. |
 | "The analysis says 22.0, ship it" | Verify on the MP4 with `hits.mjs`. |
 | "I'll trim the track to fit my plan" | Shape the film to the track. |
+| "I'll list the open questions at the end of my message" | Prose questions get half-answered. Use AskUserQuestion. |
 
 ## References
 

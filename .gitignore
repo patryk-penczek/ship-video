@@ -4,3 +4,12 @@ node_modules/
 *.mp4
 *.wav
 out/
+# music never goes in this public repo unless its license allows it (see README)
+*.mp3
+*.m4a
+*.aac
+*.flac
+*.ogg
+# local test films
+/film/
+/films/
