@@ -17,6 +17,9 @@
      fonts     CSS font shorthands to load before build, e.g. "800 40px 'Inter Variable'"
      images    image URLs to preload before build (layout is measured at build time) */
   window.Film = function Film(cfg) {
+    // <html data-theme="auto"> (the starter): a captured app with a light background switches the film to the light tokens (film.css html.light)
+    const root = document.documentElement, first = Object.values(window.SCREENS_META || {})[0];
+    if (root.dataset.theme === "auto" && first && first.lum != null) root.classList.toggle("light", first.lum > 0.6);
     const waits = [...(cfg.fonts || []).map((f) => document.fonts.load(f)), ...(cfg.images || []).map(preload)];
     Promise.all(waits).then(() => document.fonts.ready).then(() => start(cfg));
   };
@@ -84,30 +87,45 @@
       tl.fromTo(p, { v: from }, { v: to, duration: dur, ease: "power2.out", onUpdate: () => { put(el, fmt(p.v)); }, ...NI }, t0);
     }
     // Stage-space rect of an element ({l, t, r, b}), e.g. as focus()'s box. Measure before tweens.
-    function rect(el) {
-      const s = stage.getBoundingClientRect(), k = s.width / 1920, r = el.getBoundingClientRect();
+    // { text: true } measures the text's own box (Range) instead of the element: a flex-wide <span> or a block as wide as its container otherwise
+    // reports the middle of the strip, not of the words.
+    function rect(el, { text = false } = {}) {
+      const s = stage.getBoundingClientRect(), k = s.width / 1920;
+      let r = el.getBoundingClientRect();
+      if (text) { const g = document.createRange(); g.selectNodeContents(el); const q = g.getBoundingClientRect(); if (q.width) r = q; }
       return { l: (r.left - s.left) / k, t: (r.top - s.top) / k, r: (r.right - s.left) / k, b: (r.bottom - s.top) / k };
     }
     // Stage-space centre of an element. Measure BEFORE adding tweens that move it.
-    function center(el) {
+    function center(el, { text = false } = {}) {
       const s = stage.getBoundingClientRect();
       const k = s.width / 1920;
-      const r = el.getBoundingClientRect();
+      let r = el.getBoundingClientRect();
+      if (text) { const g = document.createRange(); g.selectNodeContents(el); const q = g.getBoundingClientRect(); if (q.width) r = q; }
       return { x: (r.left + r.width / 2 - s.left) / k, y: (r.top + r.height / 2 - s.top) / k };
     }
     // Camera transform that puts stage point p at screen centre at zoom s. App UI is small: 1.4–2.3× on what matters.
     // By default the point is clamped so the frame never shows past the edges of `box` (the 1920×1080 stage);
     // pass the replica's own rect as box when it doesn't fill the stage, or clamp: false to aim anywhere. Targets in the top or bottom
     // third can't be centred at 1.5–2.3× inside the box: use { over: 300 } (allow that many px of empty edge) or clamp: false.
+    // A band() reserves space at the top or bottom of the frame: focus() then centres on the free part (view.cy) and clamps to its height (view.h).
+    const view = { top: 0, bottom: 0, h: 1080, cy: 540 };
     const focus = (p, s, { clamp = true, over = 0, box: b0 = { l: 0, t: 0, r: 1920, b: 1080 } } = {}) => {
       let { x, y } = p;
       const box = { l: b0.l - over, t: b0.t - over, r: b0.r + over, b: b0.b + over };
       if (clamp && s >= 1) {
         // when the box is smaller than the view on an axis, centre on it; otherwise keep the view inside it
         x = (box.r - box.l) * s <= 1920 ? (box.l + box.r) / 2 : Math.min(Math.max(x, box.l + 960 / s), box.r - 960 / s);
-        y = (box.b - box.t) * s <= 1080 ? (box.t + box.b) / 2 : Math.min(Math.max(y, box.t + 540 / s), box.b - 540 / s);
+        y = (box.b - box.t) * s <= view.h ? (box.t + box.b) / 2 : Math.min(Math.max(y, box.t + view.h / 2 / s), box.b - view.h / 2 / s);
       }
-      return { x: -(x - 960) * s, y: -(y - 540) * s, scale: s };
+      return { x: -(x - 960) * s, y: view.cy - 540 - (y - 540) * s, scale: s };
+    };
+    // Camera that frames a stage rect (rect(el), or {l,t,r,b}) edge to edge with `pad` px of air: the zoom is the largest that shows the whole
+    // rect in the free part of the frame. opts: max (zoom cap, default 4), min (default 0.3), plus focus() options (box to clamp).
+    // Use it instead of focus(center, guessedScale) to align a crop to column/card edges: no word sliced at the frame edge.
+    const focusRect = (r, pad = 40, { max = 4, min = 0.3, ...o } = {}) => {
+      const w = r.r - r.l + pad * 2, h = r.b - r.t + pad * 2;
+      const s = Math.max(min, Math.min(max, 1920 / w, view.h / h));
+      return focus({ x: (r.l + r.r) / 2, y: (r.t + r.b) / 2 }, s, { clamp: false, ...o });
     };
     function flash(t, peak = 0.9, dur = 0.35, color = "#fff") {
       tl.set(flashEl, { backgroundColor: color }, t);
@@ -142,15 +160,21 @@
     // ---------- shot helpers (documented in film-api.md; every one is a pure function of t) ----------
     const CUR = '<svg class="cursor" viewBox="0 0 44 44"><path d="M4 2v34l9-8 6 14 6-3-6-13h12z" fill="#fff" stroke="#111" stroke-width="2.5" stroke-linejoin="round"/></svg>';
     // Cursor path with click ripples. host = camera layer, so it zooms with the UI. steps: [{ to:{x,y}, t, dur, click? }], stage-space points (center()).
-    function cursor(host, from, steps) {
+    // The cursor is hidden until opts.appear (default: its first step), so no stray arrow sits in the scene; { appear: 0 } shows it from the start.
+    // A step with hold:true presses at its start and releases at its end (a drag).
+    function cursor(host, from, steps, opts = {}) {
       host.insertAdjacentHTML("beforeend", CUR);
       const cur = host.lastElementChild;
       let at = from;
       tl.set(cur, { x: from.x, y: from.y }, 0);
+      const appear = opts.appear ?? steps[0]?.t ?? 0;
+      if (appear > 0) { tl.set(cur, { opacity: 0 }, 0); tl.set(cur, { opacity: 1 }, appear); }
       for (const s of steps) {
         tl.fromTo(cur, { x: at.x, y: at.y }, { x: s.to.x, y: s.to.y, duration: s.dur, ease: "power2.inOut", ...NI }, s.t);
+        if (s.hold) { tl.to(cur, { scale: 0.86, duration: 0.1, ease: "power2.in" }, s.t); tl.to(cur, { scale: 1, duration: 0.2, ease: "back.out(3)" }, s.t + s.dur); }
         if (s.click) {
           const tc = s.t + s.dur;
+          (window.__clicks ??= []).push({ t: tc, el: cur }); // audit.mjs checks where each press lands in the frame
           host.insertAdjacentHTML("beforeend", `<i class="ripple" style="left:${s.to.x}px;top:${s.to.y}px"></i>`);
           tl.fromTo(host.lastElementChild, { scale: 0.3, opacity: 1 }, { scale: 1.7, opacity: 0, duration: 0.45, ease: "power2.out", ...NI }, tc);
           press(cur, tc);
@@ -162,9 +186,10 @@
     // Caption pill (.cap in base.css), appended to the scene AFTER wrap() so it doesn't zoom. Opaque, enters by offset only: sharp on its first frame.
     // opts.pos: "bl" (default) | "br" | "tl" | "tr" | "bc"; or opts.x / opts.y = stage px of its top-left corner. Pick the corner that
     // leaves the content free. The default offset slides from the left edge (from the right for "br"/"tr").
+    // opts.end = second at which the caption is removed (hard cut, like show()); without it the caption stays to the end of its scene.
     function caption(s, text, t, from, opts = {}) {
-      if (from && ("pos" in from || ("x" in from && "pos" in opts) === false && ("left" in from))) { opts = from; from = undefined; }
-      const { pos = "bl", x, y } = opts;
+      if (from && ("pos" in from || "end" in from || ("x" in from && "pos" in opts) === false && ("left" in from))) { opts = from; from = undefined; }
+      const { pos = "bl", x, y, end } = opts;
       const c = document.createElement("div");
       c.className = "cap";
       c.textContent = text;
@@ -177,13 +202,81 @@
       }
       s.appendChild(c);
       tl.fromTo(c, from || { x: pos[1] === "r" ? 70 : pos[1] === "c" ? 0 : -70, y: pos[1] === "c" ? 40 : 0 }, { x: 0, y: 0, duration: 0.4, ease: "expo.out", ...NI }, t);
+      if (end != null) { tl.set(c, { opacity: 0 }, 0); tl.set(c, { opacity: 1 }, t); tl.set(c, { opacity: 0 }, end); }
       return c;
+    }
+    // Touch pointer for phone UIs: a round translucent finger instead of an arrow. host = camera layer. steps: [{ to, t, dur, tap?, hold? }]:
+    // tap = press + ring on arrival; hold = pressed during the move (swipe, drag), released at its end. Hidden until opts.appear (default: first step).
+    function finger(host, from, steps, opts = {}) {
+      host.insertAdjacentHTML("beforeend", '<i class="finger"></i>');
+      const f = host.lastElementChild;
+      let at = from;
+      tl.set(f, { x: from.x, y: from.y }, 0);
+      const appear = opts.appear ?? steps[0]?.t ?? 0;
+      if (appear > 0) { tl.set(f, { opacity: 0 }, 0); tl.set(f, { opacity: 1 }, appear); }
+      for (const s of steps) {
+        tl.fromTo(f, { x: at.x, y: at.y }, { x: s.to.x, y: s.to.y, duration: s.dur, ease: "power2.inOut", ...NI }, s.t);
+        if (s.hold) { tl.to(f, { scale: 0.8, duration: 0.12, ease: "power2.in" }, s.t); tl.to(f, { scale: 1, duration: 0.2, ease: "back.out(3)" }, s.t + s.dur); }
+        if (s.tap) {
+          const tc = s.t + s.dur;
+          (window.__clicks ??= []).push({ t: tc, el: f });
+          host.insertAdjacentHTML("beforeend", `<i class="ripple" style="left:${s.to.x}px;top:${s.to.y}px"></i>`);
+          tl.fromTo(host.lastElementChild, { scale: 0.3, opacity: 1 }, { scale: 1.5, opacity: 0, duration: 0.5, ease: "power2.out", ...NI }, tc);
+          tl.to(f, { scale: 0.78, duration: 0.07, ease: "power2.in" }, tc - 0.07);
+          tl.to(f, { scale: 1, duration: 0.3, ease: "back.out(3)" }, tc);
+        }
+        at = s.to;
+      }
+      return f;
+    }
+    // Persistent step-caption band for how-tos: a bar at the bottom (or top) of the frame that never covers the UI. It reserves the space:
+    // the scenes are clipped to the free part and focus() / focusRect() centre and clamp on that part (view.cy, view.h), so call band() BEFORE
+    // the focus() calls. Not zoomed by the camera. Returns { el, step(text, t0, t1?, { n }), progress(t0, t1), height }.
+    //   const b = band({ height: 180 });  b.step("Press and hold the card", 2.5, 6, { n: 1 });  b.step("Drop it on In review", 6, 9, { n: 2 });
+    // At zoom 1 the whole 1080 px app no longer fits: use scale <= (1080 - height) / 1080 to see all of it, or frame with focusRect().
+    function band({ height = 180, pos = "bottom", size = 46 } = {}) {
+      const top = pos === "top", el = document.createElement("div");
+      el.className = "band"; el.style.cssText = `height:${height}px;${top ? "top" : "bottom"}:0;font-size:${size}px`;
+      el.innerHTML = '<i class="band-bar"></i>';
+      stage.insertBefore(el, flashEl);
+      view.top = top ? height : 0; view.bottom = top ? 0 : height; view.h = 1080 - height; view.cy = 540 + (view.top - view.bottom) / 2;
+      scenesEl.style.clipPath = top ? `inset(${height}px 0 0 0)` : `inset(0 0 ${height}px 0)`;
+      const api = {
+        el, height,
+        step(text, t0, t1, { n } = {}) {
+          const s = document.createElement("div");
+          s.className = "band-step";
+          s.innerHTML = `${n != null ? `<b class="band-n">${n}</b>` : ""}<span>${text}</span>`;
+          el.appendChild(s);
+          show(s, t0, t1);
+          tl.fromTo(s, { y: top ? -26 : 26 }, { y: 0, duration: 0.35, ease: "expo.out", ...NI }, t0);
+          return s;
+        },
+        progress(t0, t1) { tl.fromTo($(el, ".band-bar"), { scaleX: 0 }, { scaleX: 1, duration: t1 - t0, ease: "none", ...NI }, t0); },
+      };
+      return api;
+    }
+    // Moves an element (a captured toast: tell it from its parent .parentElement when the parent is the fixed wrapper) next to a reference
+    // element or rect, so it lands inside the zoomed frame instead of in the far corner. Measure-time placement: call before tweens, with the
+    // element's parents at scale 1. side: "below" | "above" | "right" | "left" | "inside-br" | "inside-bl" | "inside-tr" | "inside-tl";
+    // align (for below/above): "center" | "start" | "end". Returns the stage-space point of the element's new centre.
+    function dock(el, ref, { side = "below", gap = 24, align = "center" } = {}) {
+      const a = rect(el), b = typeof ref.l === "number" ? ref : rect(ref), w = a.r - a.l, h = a.b - a.t, mid = (u, v, l) => (align === "start" ? u : align === "end" ? v - l : (u + v) / 2 - l / 2);
+      let x, y;
+      if (side === "below" || side === "above") { x = mid(b.l, b.r, w); y = side === "below" ? b.b + gap : b.t - gap - h; }
+      else if (side === "right" || side === "left") { y = (b.t + b.b) / 2 - h / 2; x = side === "right" ? b.r + gap : b.l - gap - w; }
+      else { x = side.endsWith("l") ? b.l + gap : b.r - gap - w; y = side.includes("t") && side[side.length - 2] === "t" ? b.t + gap : b.b - gap - h; }
+      tl.set(el, { x: (gsap.getProperty(el, "x") || 0) + x - a.l, y: (gsap.getProperty(el, "y") || 0) + y - a.t }, 0);
+      return { x: x + w / 2, y: y + h / 2 };
     }
     // Scroll a tall page inside the camera: tweens `main` (the element holding the page, usually the scene's camlayer or the app's
     // main column) up by `y` px between t and t+dur. Returns { y, at(p) }: at() maps a point measured BEFORE the scroll (center()/rect())
     // to where it sits after it, so focus(sc.at(center(el)), 1.8, { over: 300 }) aims at the right place.
-    function scrollTo(main, y, t, dur = 0.8, ease = "power2.inOut") {
+    // Document-scrolling pages (no scroll container; UI.shot(name, { tall: true })): tween the shot's wrapper or the scene's camlayer. `pin` = elements that
+    // must stay put while the page scrolls under them (a position:sticky nav): they are counter-tweened by +y.
+    function scrollTo(main, y, t, dur = 0.8, ease = "power2.inOut", { pin = [] } = {}) {
       tl.fromTo(main, { y: 0 }, { y: -y, duration: dur, ease, ...NI }, t);
+      for (const p of [].concat(pin)) tl.fromTo(p, { y: 0 }, { y, duration: dur, ease, ...NI }, t);
       return { y, at: (p) => ({ x: p.x, y: p.y - y }) };
     }
     // Typing on given times (one absolute second per character: onsets from music.json, or jittered with rnd() for a silent film).
@@ -197,11 +290,36 @@
     function push(el, t0, t1, from = 1, to = 1.06, ease = "power1.out") {
       tl.fromTo(el, { scale: from }, { scale: to, duration: t1 - t0, ease, ...NI }, t0);
     }
+    const endColor = () => {
+      const last = scenesEl.lastElementChild, opaque = (c) => c && !/rgba?\(.*(,\s*0\)|\/\s*0\))$|^transparent$/.test(c) && c !== "rgba(0, 0, 0, 0)";
+      for (const e of last ? [last, ...[...last.querySelectorAll("*")].slice(0, 12)] : []) { const c = getComputedStyle(e).backgroundColor; if (opaque(c) && e.getBoundingClientRect().width >= 1900) return c; }
+      return css("--land") || "#000";
+    };
     // Fade the whole frame to a colour (default the film's --bg) from t0 over dur, fully covered at t0+dur: end the film with
     // land(DURATION - 0.4, 0.4) so the last frame is calm instead of a hard cut. Uses the flash layer (don't flash() during it).
-    function land(t0, dur = 0.4, color = css("--bg")) {
+    // The default colour is the last scene's own background (the end card's flood), else the --land token, else black: a fade to --bg washes a coloured end card out.
+    function land(t0, dur = 0.4, color) {
+      color ??= endColor();
       tl.set(flashEl, { backgroundColor: color }, t0);
       tl.fromTo(flashEl, { opacity: 0 }, { opacity: 1, duration: dur, ease: "power1.inOut", ...NI }, t0);
+    }
+    // The default way to bring something in at t: hidden until t, then a PLAIN fromTo from `from` to the element's own rest values. `from` is any
+    // gsap vars ({ y: 50 }, { scale: 0.8, opacity: 0 }); the rest values are read at build time. Never write tl.fromTo(el, {y:50}, {y:0, ...NI}, t)
+    // for something that is on screen before t: with NI the element sits at rest until t, then jumps to `from` (audit.mjs flags it as a jump).
+    function enter(el, from, t, dur = 0.5, ease) {
+      const to = {};
+      for (const k of Object.keys(from)) to[k] = gsap.getProperty(el, k);
+      tl.set(el, { visibility: "hidden" }, 0);
+      tl.set(el, { visibility: "visible" }, t);
+      tl.fromTo(el, from, { ...to, duration: dur, ...(ease ? { ease } : {}) }, t);
+      return el;
+    }
+    // A pointer (cursor() / finger() element) that follows a recorded path: pts = [{ x, y, t }] in stage space with t in seconds from t0
+    // (UI.recording(name).path(k, ox, oy) builds them). One linear segment per sample, so it is seek-safe and exact.
+    function follow(el, pts, t0) {
+      tl.set(el, { x: pts[0].x, y: pts[0].y }, t0 + pts[0].t);
+      for (let i = 1; i < pts.length; i++) tl.fromTo(el, { x: pts[i - 1].x, y: pts[i - 1].y }, { x: pts[i].x, y: pts[i].y, duration: Math.max(0.001, pts[i].t - pts[i - 1].t), ease: "none", ...NI }, t0 + pts[i - 1].t);
+      return el;
     }
     // Visible from t0 (to t1, optional): opacity 0 at build time, hard switch on the beat. Use for word-per-beat layers and tiles.
     function show(el, t0, t1) {
@@ -211,7 +329,9 @@
     }
     // Circle reveal of a stacked copy (theme change) from point p; starts at r0 > 0 so the first frame already shows a disc.
     // Measure p (center of the toggle) while both copies are displayed. At camera zoom > 1.2 the disc is a flat blob.
-    function reveal(el, p, t0, dur = 0.8, r0 = 70, r1 = 2400) {
+    // opts.below = the copy the disc covers: hidden right after the reveal (a translucent glass UI would show it through, and backdrop-filter ghosts).
+    function reveal(el, p, t0, dur = 0.8, r0 = 70, r1 = 2400, { below } = {}) {
+      if (below) tl.set(below, { display: "none" }, t0 + dur + 0.01);
       const circ = (r) => `circle(${r}px at ${p.x}px ${p.y}px)`;
       tl.set(el, { display: "none" }, 0);
       tl.set(el, { display: "" }, t0);
@@ -239,9 +359,10 @@
       tl.fromTo(p, { v: v0 }, { v: v1, duration: t1 - t0, ease, onUpdate: () => draw(p.v), ...NI }, t0);
     }
 
-    const ctx = { tl, $, $$, rnd, NI, scene, wrap, splitChars, type, put, scrollTo, count, center, rect, focus, flash, press, burst, rings, cursor, caption, typeOn, push, land, show, reveal, scrubChart, stage, cam, hash, css };
+    const ctx = { tl, $, $$, rnd, NI, scene, wrap, splitChars, type, put, scrollTo, count, center, rect, focus, focusRect, enter, follow, view, band, dock, finger, flash, press, burst, rings, cursor, caption, typeOn, push, land, show, reveal, scrubChart, stage, cam, hash, css };
     cfg.build(ctx);
     tl.set({}, {}, DURATION);
+    window.__tl = tl; // audit.mjs reads tween start times from it
 
     // ---------- audio-reactive layer (pure function of t) ----------
     const HITS = cfg.hits || [];

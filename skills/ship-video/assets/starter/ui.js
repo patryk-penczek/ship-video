@@ -26,14 +26,29 @@ window.UI = (() => {
   // pick(scene, name) → the wrapper element; $(pick(scene, name), ".card") is the app's real element, tween it like any other.
   const META = (n) => (window.SCREENS_META || {})[n] || {};
   const attr = (s) => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
-  function shot(name, hidden = false) {
-    const html = (window.SCREENS || {})[name];
+  // shot(name, { tall: true }): a page that scrolls as a document (no inner scroll container) keeps its full height instead of being cut at 1080 px,
+  // so the camera (scrollTo on the wrapper or the scene's camlayer) can reach the sections below. { hidden: true } = display:none (stack()).
+  // Every shot() call gets its own SVG ids (gradients, clip paths, masks): the same state placed in two scenes (or twice in one) would otherwise
+  // share ids, and a gradient defined inside a display:none copy renders nothing in the visible one.
+  const calls = {};
+  const uniq = (html, n) => {
+    const refs = new Set([...html.matchAll(/url\(\s*(?:&quot;|["'])?#([^)"'&\s]+)/g), ...html.matchAll(/<use\b[^>]*href="#([^"]+)"/g)].map((m) => m[1])); // gradients, clip paths, masks, filters, <use>: not skip-link anchors
+    const ids = [...new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]))].filter((id) => refs.has(id));
+    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    for (const id of ids) html = html.replace(new RegExp(`(\\sid=")${esc(id)}(")`, "g"), `$1${id}~${n}$2`).replace(new RegExp(`(url\\((?:&quot;|"|')?#)${esc(id)}(?![\\w-])`, "g"), `$1${id}~${n}`).replace(new RegExp(`((?:xlink:)?href="#)${esc(id)}(")`, "g"), `$1${id}~${n}$2`);
+    return html;
+  };
+  function shot(name, opts = false) {
+    const { hidden = false, tall = false } = typeof opts === "object" ? opts : { hidden: opts };
+    let html = (window.SCREENS || {})[name];
+    if (html != null) html = uniq(html, (calls[name] = (calls[name] || 0) + 1));
     if (html == null) throw new Error(`no captured state "${name}" (have: ${Object.keys(window.SCREENS || {}).join(", ") || "none"})`);
     const at = Object.entries(META(name).attrs || {}).filter(([k]) => k !== "style" && k !== "class").map(([k, v]) => ` ${k}="${attr(v)}"`).join("");
     const cls = META(name).attrs?.class ? " " + attr(META(name).attrs.class) : "", st = META(name).attrs?.style ? ` ${attr(META(name).attrs.style)};` : "";
-    return `<div class="app-shot${cls}"${at} data-shot="${name}" data-clip-ok="box" style="${st}${hidden ? "display:none" : ""}">${html}</div>`;
+    const sch = (META(name).scheme ? ` data-scheme="${META(name).scheme}"` : "") + (META(name).tk ? ` data-tk="${META(name).tk}"` : ""); // data-tk picks the theme block of app.css (capture --css)
+    return `<div class="app-shot${cls}${tall ? " tall" : ""}"${at}${sch} data-shot="${name}" data-clip-ok="box" style="${st}${tall && META(name).height ? `min-height:${META(name).height}px;` : ""}${hidden ? "display:none" : ""}">${html}</div>`;
   }
-  const stack = (names) => names.map((n, i) => shot(n, i > 0)).join("");
+  const stack = (names, opts = {}) => names.map((n, i) => shot(n, { ...opts, hidden: i > 0 })).join("");
   const pick = (scene, name) => scene.querySelector(`[data-shot="${name}"]`);
   // Show one state and hide the others from time t. Use on a scene built with stack(); hide the covered copy after a reveal
   // too (backdrop-filter in a stacked copy blurs what lies beneath and ghosts).
@@ -49,12 +64,44 @@ window.UI = (() => {
     try { return fn(pick(scene, name)); } finally { all.forEach((e, i) => { e.style.display = was[i]; }); }
   }
   // An animated canvas captured with canvas.frames: step its <img> through the saved frames between t0 and t1 (loop = repeat).
-  function frames(tl, img, t0, t1, loop = 1) {
-    const list = (img.dataset.frames || "").split(","), n = list.length, d = (t1 - t0) / (n * loop);
+  // frames(tl, img, t0, t1, loop, { every }): the frames are spread evenly over t0..t1; { every: 0.25 } plays them in REAL time instead
+  // (the capture's canvas.every in seconds: a 10 s loop sampled at 4 fps stays a 10 s loop), repeating until t1.
+  // { from, to } slice the frame list ([from, to), indices): continue a canvas after a click from frame k, or play only a part of it.
+  function frames(tl, img, t0, t1, loop = 1, { every, from = 0, to } = {}) {
+    const list = (img.dataset.frames || "").split(",").slice(from, to), n = list.length;
+    if (every && n > 1) { for (let i = 0, t = t0; t < t1 - 1e-6; i++, t += every) tl.set(img, { attr: { src: list[i % n] } }, t); return; }
+    const d = (t1 - t0) / (n * loop);
     if (n < 2) return;
     for (let i = 0; i < n * loop; i++) tl.set(img, { attr: { src: list[i % n] } }, t0 + i * d);
   }
-  const images = () => [...new Set(Object.values(window.SCREENS_META || {}).flatMap((m) => (m.canvas || []).flat()))]; // for Film({ images })
+  // Keeps live DOM bits of a canvas state moving in sync with its frames (a clock's text, a timeline thumb, a counter): list[i] belongs to frame i
+  // (after { from } slicing). An item is a string (textContent) or a gsap vars object ({ x: 120 }, { width: "40%" }). Same timing options as frames().
+  function frameSync(tl, el, list, t0, t1, loop = 1, { every, from = 0, to } = {}) {
+    const vals = list.slice(from, to), n = vals.length;
+    if (!n) return;
+    const set = (i, t) => { const v = vals[i % n]; tl.set(el, typeof v === "object" ? v : { textContent: v }, t); };
+    if (every) { for (let i = 0, t = t0; t < t1 - 1e-6; i++, t += every) set(i, t); return; }
+    const d = (t1 - t0) / (n * loop);
+    for (let i = 0; i < n * loop; i++) set(i, t0 + i * d);
+  }
+  // Frames with their own times: seq = [{ t, src }] (absolute seconds). A recorded drawing (capture.mjs "record") has uneven frames; this keeps them exact.
+  function frameSeq(tl, img, seq) {
+    tl.set(img, { attr: { src: seq[0].src } }, 0);
+    for (const f of seq) tl.set(img, { attr: { src: f.src } }, f.t);
+  }
+  // A capture.mjs "record" state: { frames: [{ t, src, x, y }] (t from 0, x/y = pointer in css px inside the frame), size: [w, h], dt }.
+  // seq(t0) → frameSeq input with absolute times; path(k, ox, oy, t0) → follow() points: stage = origin + css px * k.
+  function recording(name) {
+    const r = META(name).record;
+    if (!r) throw new Error(`state "${name}" has no record (see capture.mjs "record")`);
+    return {
+      ...r,
+      images: r.frames.map((f) => f.src),
+      seq: (t0 = 0) => r.frames.map((f) => ({ t: t0 + f.t, src: f.src })),
+      path: (k = 1, ox = 0, oy = 0, t0 = 0) => r.frames.map((f) => ({ x: ox + f.x * k, y: oy + f.y * k, t: f.t + t0 })),
+    };
+  }
+  const images = () => [...new Set(Object.values(window.SCREENS_META || {}).flatMap((m) => [...(m.canvas || []).flat(), ...(m.record?.frames || []).map((f) => f.src)]))]; // for Film({ images })
 
-  return { app, check, shot, stack, pick, swap, measure, frames, images };
+  return { app, check, shot, stack, pick, swap, measure, frames, frameSync, frameSeq, recording, images };
 })();

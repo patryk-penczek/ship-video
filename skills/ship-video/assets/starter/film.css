@@ -12,11 +12,25 @@
   --accent-2: #6c8cff;
   --grad: linear-gradient(100deg, #ff6a3d 10%, #ffb36b 45%, #6c8cff 100%);
   --glow: radial-gradient(800px 520px at 82% 6%, rgb(108 140 255 / .18), transparent 70%), radial-gradient(900px 600px at 10% 100%, rgb(255 106 61 / .14), transparent 70%);
+  --cap-bg: #fff; --cap-fg: #111; --accent-ink: #111;
+  --vignette: .5; --grain: .06; --grid-line: rgb(255 255 255 / .045); --land: #000;
+  --finger: rgb(255 255 255 / .55); --finger-edge: rgb(255 255 255 / .9);
   --font-display: "Inter Variable", system-ui, sans-serif;
   --font-body: "Inter Variable", system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 }
 
+/* light products: <html class="light"> (new-film.mjs --theme light, or data-theme="auto" with a light captured app). No black vignette or grain on a light UI. */
+html.light {
+  --bg: #f6f7fb; --fg: #14161c; --muted: #6b7280; --line: #e3e6ee; --card: #ffffff;
+  --accent: #4f46e5; --accent-2: #0ea5e9;
+  --grad: linear-gradient(100deg, #4f46e5 10%, #7c5cff 45%, #0ea5e9 100%);
+  --glow: radial-gradient(800px 520px at 82% 6%, rgb(79 70 229 / .10), transparent 70%), radial-gradient(900px 600px at 10% 100%, rgb(14 165 233 / .08), transparent 70%);
+  --cap-bg: #14161c; --cap-fg: #fff; --accent-ink: #fff;
+  --vignette: 0; --grain: 0; --grid-line: rgb(20 22 28 / .06); --land: #f6f7fb;
+  --cursor-shadow: drop-shadow(0 3px 5px rgb(20 22 28 / .35));
+  --finger: rgb(20 22 28 / .22); --finger-edge: rgb(20 22 28 / .7); --finger-shadow: 0 6px 16px rgb(20 22 28 / .25);
+}
 .eyebrow { font: 600 22px var(--font-mono); letter-spacing: .3em; text-transform: uppercase; color: var(--muted); }
 
 /* ---------- sample app replica (ui.js). In a real film these mirror the product's components. ---------- */

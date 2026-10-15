@@ -170,6 +170,24 @@ For screens captured with `capture.mjs` (`replicas.md`). The captured markup dif
 - **Count a number inside markup** such as `<span class="num">21<sup>°</sup></span>`: `count()` overwrites `textContent` and loses the `<sup>`. Use a text-aware counter (a `countText`-like helper that updates only the first text node), or write the value into a dedicated inner span: `onUpdate: () => { numNode.nodeValue = Math.round(p.v); }` with `numNode = el.firstChild`.
 - **`focus()` without the 1080 clamp.** The clamp pins targets near the top or bottom edge; for those, use `focus(point, scale, { clamp: false })` (the stage margin may show: check the end frame) or scroll the page first (`shots.md` 7). An unclamped, scroll-aware variant may exist in your engine: prefer it when it does.
 
+## Helpers for how-tos, phones, tall pages and recordings
+
+All pure functions of `t`; destructure them from the `build` argument like the others.
+- **`enter(el, from, t, dur = 0.5, ease)`**: the default way to bring something in at `t`. Hidden (visibility) until `t`, then a plain `fromTo` from `from` to the element's own rest values. Do not write `tl.fromTo(el, {y: 50}, {y: 0, ...NI}, t)` for something that is already on screen before `t`: it sits at rest, then jumps to `y: 50` and slides back. `audit.mjs` flags that as `jump 16.30 .tag (y +50 px in 1 frame)`.
+- **`band({ height = 180, pos = "bottom", size = 46 })`**: a persistent step-caption band that never covers the UI. Call it before any `focus()`. It clips the scenes to the free part and `focus()` / `focusRect()` centre and clamp on that part (`view.cy`, `view.h`). Returns `{ step(text, t0, t1, { n }), progress(t0, t1) }`. At zoom 1 the whole 1080 px app no longer fits: use a scale of at most `(1080 - height) / 1080`, or `focusRect`.
+- **`focusRect(rect, pad = 40, { max = 4, min = 0.3 })`**: the camera that frames a stage rect (`rect(el)`) edge to edge with `pad` px of air, so no word is sliced at the frame edge. Same return value as `focus()`.
+- **`dock(el, ref, { side, gap, align })`**: moves an element (a captured toast; use its `.parentElement` if the parent is the fixed wrapper) next to a reference element or rect, so it lands inside the zoomed frame. `side`: `below above right left inside-br inside-bl inside-tr inside-tl`. Call it at build time, before tweens.
+- **`finger(host, from, steps, { appear })`**: a touch pointer (round fingertip). Steps `{ to, t, dur, tap?, hold? }`: `tap` presses and rings on arrival, `hold` stays pressed during the move (swipe, drag). Use it instead of `cursor()` for phone UIs. `cursor()` takes `hold: true` on a step too, and both are hidden until their first step (`{ appear: 0 }` shows them from the start).
+- **`follow(el, pts, t0)`**: a pointer following a recorded path: `pts = [{ x, y, t }]` with `t` from `t0` (`UI.recording(name).path(k, ox, oy)` makes them).
+- **`caption(s, text, t, from, { pos, end })`**: `end` removes the caption at that second.
+- **`land(t0, dur, color)`**: the default colour is the last scene's own background (the end card's flood), else the `--land` token, else black. A fade to `--bg` washes a coloured end card out.
+- **`scrollTo(main, y, t, dur, ease, { pin })`**: for pages that scroll as a document, build the shot with `UI.shot(name, { tall: true })` and tween the wrapper or the scene's camlayer. `pin: [el]` keeps a sticky nav in place. `at(p)` maps a point measured before the scroll to where it is after it.
+- **`center(el, { text: true })`, `rect(el, { text: true })`**: measure the text's own box instead of a flex-wide element.
+- **`reveal(el, p, t0, dur, r0, r1, { below })`**: `below` is hidden right after the reveal (glass and `backdrop-filter` ghosting).
+- **`UI.shot(name, { tall, hidden })`**: `tall` keeps the full page height. Every call gets its own SVG ids (the same state in two scenes no longer shares gradients). **`UI.frames(tl, img, t0, t1, loop, { every, from, to })`**: `every` plays the frames in real time, `from`/`to` slice them. **`UI.frameSync(tl, el, list, t0, t1, loop, opts)`** moves live DOM bits (a clock's text, a timeline thumb) with the frames. **`UI.frameSeq(tl, img, [{ t, src }])`** and **`UI.recording(name)`** replay a `record` state.
+- **Layers.** `.app-shot` is its own stacking context (`isolation: isolate`); the cursor, finger, ripples, captions and the band sit above anything the app does. `audit.mjs` prints `cursor hidden under .modal` if a pointer is still covered.
+- **Theme.** `<html data-theme="auto">` follows the captured app (light app, light tokens, no vignette or grain); `new-film.mjs --theme light|dark` fixes it. Tokens for captions, vignette, grain, grid and the finger live in `film.css` (`--cap-bg`, `--vignette`, `--grain`, `--land`...).
+
 ## Determinism rules
 
 Everything on screen must be a pure function of `t`, or renders differ from the preview and between runs.
