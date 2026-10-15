@@ -161,7 +161,7 @@ if end_mode != "fade" and nbars >= 2:
     if dur - final_t < RING_MIN: final_t = None
     elif moved: warn(f"the end hit moved to bar {int(round(final_t / bar))} ({final_t:.2f} s) so the last chord rings {dur - final_t:.1f} s inside the {dur:g} s film; later sections are cut")
 if final_t is None and end_mode != "fade": end_mode = "fade"
-gap_len = bar * 0.25 if plan.get("silenceBeforeDrop", True) else 0.0
+gap_len = bar * 0.25 if plan.get("gapBeforeDrop", True) else 0.0
 gap_len = min(gap_len, 0.6)
 
 # hits: number = seconds; "bar:N" or {"bar":N,"beat":B} or {"t":S}; optional strength 0..1

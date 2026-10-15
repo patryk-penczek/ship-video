@@ -22,7 +22,7 @@ An agent skill for **Claude Code** and **Codex**. It captures your real UI, cuts
 - [🚀 Quick start](#-quick-start)
 - [🎬 How it works](#-how-it-works)
 - [🔁 Iterate](#-iterate)
-- [🎞️ What you can make](#️-what-you-can-make)
+- [🎥 What you can make](#-what-you-can-make)
 - [🎵 Music](#-music)
 - [📏 Limits](#-limits)
 - [❓ FAQ](#-faq)
@@ -110,7 +110,7 @@ Specific notes work best:
 - *Hold the end card longer.*
 - *Make it 15 seconds.*
 
-## 🎞️ What you can make
+## 🎥 What you can make
 
 | | film | length | for |
 |:---:|---|:---:|---|

@@ -70,7 +70,7 @@ Exclude: vocals, spoken word
 Planned times: intro 0 to 2 s, verse 2 to 6, build 6 to 10, groove 10 to 14, break 14 to 16, drop 16 to 22, final hit 22, tail to 25. Real takes drift.
 
 ## 5. Generate and pick
-- Audition all takes. Pick by the clearest hits and the cleanest ending. The silence before a hit is the most fragile part: Suno rarely makes true silence, so a riser instead of a gap is fine.
+- Audition all takes. Pick by the clearest hits and the cleanest ending. The quiet gap before a hit is the most fragile part: Suno rarely leaves real space there, so a riser instead of a gap is fine.
 - Suno often runs longer than asked and may ignore `[End]`. Use Suno's crop on the take, or cut on a bar line later (`music.md`). Do not leave a long silent tail.
 - While the user generates, work against a `GRID DRAFT` (`music.md`, *No music*). When the take arrives, analyse it, re-time (`music.md`), and tell the user if any act moved by more than a bar.
 - If after 6 takes the structure is wrong, change the prompt: fewer sections, shorter sections, clearer instrument words.
