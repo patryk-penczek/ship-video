@@ -9,7 +9,7 @@ Film({
   fonts: ["800 40px 'Inter Variable'", "500 20px 'Inter Variable'", "500 20px 'JetBrains Mono Variable'"],
   images: [],
 
-  build({ tl, $, $$, NI, scene, wrap, splitChars, type, count, center, rect, focus, flash, press, burst, rings, cursor, caption, push, land, show, css }) {
+  build({ tl, $, $$, NI, scene, wrap, splitChars, type, count, rect, target, autoCam, flash, press, burst, rings, cursor, caption, push, land, show, css }) {
     // 0–2 · hook: the word is sharp on frame 1, the app rises over it, a slow push never stops
     const s0 = scene(`<div style="position:absolute;left:0;right:0;top:40px;text-align:center;font:800 400px/.85 var(--f-font-display);letter-spacing:-.05em;color:var(--f-accent)" class="kw">Ship it.</div>${UI.app()}`, 0, 2);
     const c0 = wrap(s0);
@@ -26,38 +26,39 @@ Film({
       tl.fromTo($(el, ".display"), { scale: 1.35, y: i % 2 ? 50 : -50 }, { scale: 1, y: 0, duration: 0.4, ease: "expo.out" }, t);
     });
 
-    // 4–8 · the app: cursor clicks, text types, the camera follows and lands on what matters (two camera tweens, never overlapping)
+    // 4–8 · the app: the cursor clicks named elements (selectors, no coordinates), the text types, and autoCam frames the clicks:
+    // it zooms in before the first click, keeps every click in the central 60 % and eases back out (a manual focus() tween on c2 would win)
     const s2 = scene(UI.app(), 4, 8);
     const c2 = wrap(s2), app = $(s2, ".demo-app"), box = rect(app);
-    const rows = $$(s2, ".demo-row");
-    const P = { input: center($(s2, ".demo-app-in")), add: center($(s2, ".demo-app-btn")), app: center(app), boxes: rows.map((r) => center($(r, ".demo-box"))) }; // measure before tweening
+    const rows = $$(s2, ".demo-row"), nth = (i) => `.demo-app-list > :nth-child(${i + 1}) .demo-box`;
     const fx = document.createElement("div");
     fx.style.cssText = "position:absolute;inset:0;pointer-events:none";
     c2.appendChild(fx);
     const q = $(s2, ".q"), inp = $(s2, ".demo-app-in");
     tl.fromTo(app, { scale: 1.1, y: 30 }, { scale: 1, y: 0, duration: 0.45 }, 4);
-    tl.fromTo(c2, focus({ x: P.input.x + 120, y: P.input.y }, 1.6, { box }), { ...focus({ x: P.input.x + 160, y: P.input.y }, 1.8, { box }), duration: 1.0, ease: "power1.inOut", ...NI }, 4);
-    cursor(c2, { x: P.input.x + 420, y: P.input.y + 140 }, [
-      { to: { x: P.input.x - 60, y: P.input.y }, t: 4, dur: 0.55, click: true },
-      { to: P.add, t: 5, dur: 0.5, click: true },
-    ]);
+    const ticks = [[1, 6.5], [2, 7], [0, 7.5]]; // [row, click time]: tick a box on every beat
+    const steps = [
+      { to: ".demo-app-in", fx: 0.3, t: 4, dur: 0.55, click: true },
+      { to: ".demo-app-btn", t: 5, dur: 0.5, click: true },
+      ...ticks.map(([ri, tc], i) => ({ to: nth(ri), t: tc - (i ? 0.4 : 0.5), dur: i ? 0.4 : 0.5, click: true })),
+    ];
+    cursor(c2, target(".demo-app-in", { scene: s2, dx: 420, dy: 140 }), steps);
+    autoCam(c2, steps, { box });
     tl.set(inp, { className: "demo-app-in" }, 0);
     tl.set(inp, { className: "demo-app-in on" }, 4.55);
     type(q, "Book flights to Lisbon", 4.6, 5.2, (k) => { if (!k) q.textContent = "Add a task…"; });
-    tl.to(c2, { ...focus(P.add, 2.0, { box, over: 260 }), duration: 0.35, ease: "power3.inOut" }, 5.15);
     press($(s2, ".demo-app-btn"), 5.5);
     tl.set(inp, { className: "demo-app-in" }, 5.5);
     tl.set(q, { textContent: "Add a task…" }, 5.5);
     tl.set($(rows[0], ".demo-txt"), { textContent: "Book flights to Lisbon" }, 5.5);
     tl.fromTo(rows[0], { y: -24, scale: 0.9, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.4, ease: "back.out(2)" }, 5.5); // plain fromTo: absent until Add
-    tl.to(c2, { ...focus({ x: P.app.x, y: P.app.y + 20 }, 1.15, { box }), duration: 0.6, ease: "power3.out" }, 6); // pull back to see the list
-    [1, 2, 0].forEach((ri, i) => {                                                                                  // tick a box on every beat
-      const r = rows[ri], t = 6.5 + i * 0.5;
+    ticks.forEach(([ri, t], i) => {
+      const r = rows[ri];
       tl.set(r, { className: "demo-row" }, 0);
       tl.set(r, { className: "demo-row done" }, t);
       tl.fromTo($(r, "svg"), { opacity: 0, scale: 0 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(3)" }, t);
       press($(r, ".demo-box"), t);
-      burst(fx, P.boxes[ri], t, 10, 50);
+      burst(fx, target(nth(ri), { scene: s2, t }), t, 10, 50);
       tl.set($(s2, ".demo-done-n"), { textContent: String(i + 1) }, t);
     });
     tl.set($(s2, ".demo-done-n"), { textContent: "0" }, 0);

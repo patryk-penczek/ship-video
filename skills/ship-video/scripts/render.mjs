@@ -1,8 +1,11 @@
 // Frame-exact render (output: H.264 yuv420p, limited range, BT.709 tags; check with ffprobe -show_streams): seeks window.__seek(i / fps) for every frame, pipes JPEGs into ffmpeg, muxes the track.
-// usage: node render.mjs <film/index.html> <out.mp4> [--preset crisp|motionblur|draft] [--fps N] [--from s] [--to s] [--scale k] [--audio file|none]
+// usage: node render.mjs <film/index.html> <out.mp4> [--preset crisp|motionblur|selective|draft] [--fps N] [--from s] [--to s] [--scale k] [--audio file|none] [--threshold px]
 //        node render.mjs --stop <out.mp4>        stop that render (and only that one)
 //   crisp       60 fps                                   (measured ~2–3.5 s of render per second of film on an idle machine; 2–3x that when other renders run)
 //   motionblur  240 fps blended 4:1 into 60 fps (tmix)   (measured ~3–4× slower than crisp; 2 subframes ghost, 4 is the minimum)
+//   selective   60 fps; the 4:1 blend only on frames where something moves fast (camera, cursor, cards: > --threshold px per frame, default 2),
+//               one sharp frame everywhere else, so text at rest stays crisp and the render is much cheaper than motionblur. The blur length
+//               ramps in above the threshold (no popping). Needs the engine's window.__speed (starter engine.js of this skill version).
 //   draft       30 fps at half resolution                (fast timing checks)
 // Audio: --audio, else track.(mp3|wav|m4a|aac|flac) next to index.html, else silent.
 // While running: <out>.part (renamed to <out> on success), <out>.progress (frame, elapsed, ETA), <out>.pid (JSON pids).
@@ -17,8 +20,8 @@ import { help, args, openFilm, die, num, known } from "./lib/common.mjs";
 help(import.meta.url);
 
 const a = args();
-known(a, ["preset", "fps", "from", "to", "scale", "audio", "stop"]);
-const USAGE = "usage: node render.mjs <film/index.html> <out.mp4> [--preset crisp|motionblur|draft] [--fps N] [--from s] [--to s] [--scale k] [--audio file|none]\n       node render.mjs --stop <out.mp4>";
+known(a, ["preset", "fps", "from", "to", "scale", "audio", "stop", "threshold"]);
+const USAGE = "usage: node render.mjs <film/index.html> <out.mp4> [--preset crisp|motionblur|selective|draft] [--fps N] [--from s] [--to s] [--scale k] [--audio file|none]\n       node render.mjs --stop <out.mp4>";
 
 const readPid = (f) => { try { const j = JSON.parse(readFileSync(f, "utf8")); return Number.isInteger(j.node) ? j : null; } catch { return null; } };
 // is `pid` alive and really the render.mjs that writes `outAbs` (pids get reused; another render must not be stopped)?
@@ -46,14 +49,17 @@ if (a.stop) {
 
 const [html, outArg] = a._;
 if (!html || !outArg) die(USAGE);
-const PRESETS = { crisp: { fps: 60, scale: 1 }, motionblur: { fps: 240, scale: 1 }, draft: { fps: 30, scale: 0.5 } };
+const PRESETS = { crisp: { fps: 60, scale: 1 }, motionblur: { fps: 240, scale: 1 }, draft: { fps: 30, scale: 0.5 }, selective: { fps: 60, scale: 1 } };
+const SELECTIVE = a.preset === "selective", SUB = 4, thr = num(a, "threshold", 2, { min: 0.1 });
+if (a.threshold !== undefined && !SELECTIVE) die("--threshold only applies to --preset selective");
 const preset = PRESETS[a.preset ?? "crisp"];
 if (!preset) die(`unknown preset ${a.preset === true ? "(missing value)" : a.preset}; use ${Object.keys(PRESETS).join(", ")}`);
 const fps = num(a, "fps", preset.fps, { min: 1, max: 480, int: true });
 const scale = num(a, "scale", preset.scale, { min: 0.25, max: 4 });
 const from = num(a, "from", 0, { min: 0 });
 const toArg = num(a, "to", Infinity, { min: 0 });
-const blend = fps > 60 ? fps / 60 : 1;
+const blend = SELECTIVE ? SUB : fps > 60 ? fps / 60 : 1;
+if (SELECTIVE && a.fps !== undefined && fps !== 60) die("--preset selective renders 60 fps");
 if (!Number.isInteger(blend)) die("--fps above 60 must be a multiple of 60 (it is blended down to 60)");
 if (a.audio === true) die("--audio needs a file path or 'none'");
 
@@ -118,11 +124,11 @@ if (audio && audioLen - from < to - from - 0.05) console.error(`warning: ${path.
 let ffErr = "";
 ff = spawn("ffmpeg", [
   "-y", "-loglevel", "error",
-  "-f", "image2pipe", "-framerate", String(fps), "-c:v", "mjpeg", "-i", "-",
+  "-f", "image2pipe", "-framerate", String(SELECTIVE ? 240 : fps), "-c:v", "mjpeg", "-i", "-",
   ...(audio ? ["-ss", String(from), "-t", String(to - from), "-i", audio, "-map", "0:v", "-map", "1:a", "-af", "apad", "-c:a", "aac", "-b:a", "256k", "-shortest", "-t", String(to - from)] : ["-an"]),
   // JPEG frames are full-range BT.601 (yuvj420p): convert to standard limited-range BT.709 yuv420p, the format social platforms and phones expect
-  "-vf", `crop=trunc(iw/2)*2:trunc(ih/2)*2,${blend > 1 ? `tmix=frames=${blend}:weights=${Array(blend).fill(1).join(" ")},fps=60,` : ""}scale=in_range=full:out_range=limited:in_color_matrix=bt601:out_color_matrix=bt709:flags=accurate_rnd+full_chroma_int,setparams=range=tv:colorspace=bt709:color_primaries=bt709:color_trc=bt709`,
-  "-c:v", "libx264", "-preset", "slow", "-crf", "14", "-pix_fmt", "yuv420p", "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-movflags", "+faststart",
+  "-vf", `crop=trunc(iw/2)*2:trunc(ih/2)*2,${SELECTIVE ? `tmix=frames=${SUB}:weights=${Array(SUB).fill(1).join(" ")},select='eq(mod(n\\,${SUB})\\,${SUB - 1})',setpts=N/60/TB,` : blend > 1 ? `tmix=frames=${blend}:weights=${Array(blend).fill(1).join(" ")},fps=60,` : ""}scale=in_range=full:out_range=limited:in_color_matrix=bt601:out_color_matrix=bt709:flags=accurate_rnd+full_chroma_int,setparams=range=tv:colorspace=bt709:color_primaries=bt709:color_trc=bt709`,
+  ...(SELECTIVE ? ["-fps_mode", "passthrough"] : []), "-c:v", "libx264", "-preset", "slow", "-crf", "14", "-pix_fmt", "yuv420p", "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-movflags", "+faststart",
   "-f", "mp4", part,
 ], { stdio: ["pipe", "ignore", "pipe"] });
 ff.stderr.on("data", (d) => { ffErr += d; });
@@ -147,15 +153,22 @@ const report = (i) => {
 // A browser that dies mid-render (another session's cleanup, a crash) is relaunched and the render resumes at the frame that
 // failed: frames already written stay in ffmpeg's pipe. At most 2 relaunches, then the render fails with a clear line.
 const MAX_RELAUNCH = 2, DEAD = /closed|crash|disconnected|Target page|Browser has been/i;
-let relaunches = 0, at = 0;
+let relaunches = 0, at = 0, blurred = 0;
 try {
   for (let i = 0; i < frames && !finished;) {
     at = i;
     try {
-      await seek(from + i / fps);
-      const buf = await page.screenshot({ type: "jpeg", quality: 95 });
+      const t = from + i / fps, bufs = [];
+      if (SELECTIVE) {
+        // the speed of the fastest mover over this frame decides: slow = one render written 4x (the 4:1 blend of identical frames is that frame), fast = 4 sub-frames
+        const v = await page.evaluate((tt) => (typeof window.__speed === "function" ? window.__speed(tt) : -1), t);
+        if (v < 0) throw new Error("this film's engine.js has no window.__speed: copy engine.js from the current starter to use --preset selective");
+        const sh = Math.min(1, (v - thr) / thr) * 0.75; // shutter in frames: 0 at the threshold, the full 270 degrees from twice the threshold
+        if (v < thr || v * sh < 0.6) { await seek(t); const b = await page.screenshot({ type: "jpeg", quality: 95 }); bufs.push(b, b, b, b); }
+        else { for (let j = 0; j < SUB; j++) { await seek(t + (j * sh) / (SUB - 1) / 60); bufs.push(await page.screenshot({ type: "jpeg", quality: 95 })); } blurred++; }
+      } else { await seek(t); bufs.push(await page.screenshot({ type: "jpeg", quality: 95 })); }
       if (finished) break;
-      if (!ff.stdin.write(buf)) await new Promise((r) => {
+      for (const buf of bufs) if (!ff.stdin.write(buf)) await new Promise((r) => {
         const go = () => { ff.stdin.off("drain", go); ff.off("close", go); r(); };
         ff.stdin.once("drain", go);
         ff.once("close", go);
@@ -188,4 +201,4 @@ finished = true;
 rmSync(pidFile, { force: true });
 rmSync(progressFile, { force: true });
 await browser.close();
-console.log(`\ndone ${outArg}  film ${(to - from).toFixed(2)} s, ${fps} fps${blend > 1 ? ` → 60 blended ${blend}:1` : ""}, ${audio ? path.basename(audio) : "no audio"}, took ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+console.log(`\ndone ${outArg}  film ${(to - from).toFixed(2)} s, ${fps} fps${blend > 1 ? ` → 60 blended ${blend}:1` : ""}, ${audio ? path.basename(audio) : "no audio"}, took ${((Date.now() - t0) / 1000).toFixed(0)} s${SELECTIVE ? `, selective blur on ${blurred} of ${frames} frames` : ""}`);

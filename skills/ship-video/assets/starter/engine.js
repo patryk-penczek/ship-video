@@ -9,6 +9,21 @@
   const hash = (n) => { const s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); };
   const preload = (src) => new Promise((ok) => { const im = new Image(); im.onload = im.onerror = () => ok(); im.src = src; });
 
+  /* Spring eases: the unit step response of a damped spring (freq w in 1/duration units, damping ratio z), normalised to land exactly on 1.
+     z >= 1 never overshoots (critically damped at 1); z < 1 overshoots a little. Registered with GSAP as "focused" and "smooth"
+     (ease: "focused"), so no CustomEase plugin is needed. ctx.spring(w, z) builds others. Pure functions of progress. */
+  function spring(w = 11, z = 1) {
+    const f = (x) => {
+      if (z === 1) return 1 - (1 + w * x) * Math.exp(-w * x);
+      if (z > 1) { const r = Math.sqrt(z * z - 1), s1 = -w * (z - r), s2 = -w * (z + r); return 1 - (s2 * Math.exp(s1 * x) - s1 * Math.exp(s2 * x)) / (s2 - s1); }
+      const wd = w * Math.sqrt(1 - z * z); return 1 - Math.exp(-z * w * x) * (Math.cos(wd * x) + (z * w / wd) * Math.sin(wd * x));
+    }, end = f(1);
+    return (p) => (p <= 0 ? 0 : p >= 1 ? 1 : f(p) / end);
+  }
+  // focused: fast, settles early, no overshoot (UI, how-to). smooth: longer, softer landing (launch films). inDur/outDur = the autoCam defaults.
+  const SPRINGS = { focused: { w: 11, z: 1, inDur: 1.3, outDur: 1.0 }, smooth: { w: 6.5, z: 1, inDur: 1.8, outDur: 1.4 } };
+  if (window.gsap) for (const [k, v] of Object.entries(SPRINGS)) gsap.registerEase(k, spring(v.w, v.z));
+
   /* Film({ duration, bpm, track, hits, fonts, images, seed, build(ctx), react(t, ctx) })
      duration  seconds; the timeline is padded to it
      bpm       tempo; drives the preview metronome when there is no track
@@ -56,14 +71,36 @@
 
     // A scene is a full-frame layer shown from start to end. Hidden scenes get visibility:hidden AND opacity:0
     // (base.css), so a child with visibility:visible can't leak through; they still have layout, so center() works.
-    function scene(html, start, end) {
+    // scene(html, start, end, { frame }): frame: true | { scale, radius, bar, title, bg, shadow } draws the content as a framed window on a backdrop (see frame()).
+    let lastScene = null;
+    function scene(html, start, end, opts = {}) {
       const el = document.createElement("div");
       el.className = "scene";
       el.innerHTML = html;
+      el.__start = start; el.__end = end;
       scenesEl.appendChild(el);
       tl.set(el, { attr: { "data-on": "1" } }, start);
       if (end != null) tl.set(el, { attr: { "data-on": "0" } }, end);
+      lastScene = el;
+      if (opts.frame) frame(el, opts.frame === true ? {} : opts.frame);
       return el;
+    }
+    // Framed stage for landing, hero and README films (NOT feeds: the app gets ~15 % smaller, so its text does too): the scene's content is
+    // drawn as a window (scale 0.85, rounded corners, shadow, optional window bar) on a gradient backdrop built from the film's tokens.
+    // Call it BEFORE wrap(); the camera then zooms window and backdrop together. Returns { win, inner, bg, box, content }: box = the window's
+    // stage rect (pass it as focus()/autoCam's box so the camera stays inside the window), content = the app's own rect.
+    // opts: scale 0.85, radius 18, bar true (or false), title "", bg (any CSS background), shadow (CSS), barH 44.
+    function frame(sc, { scale = 0.85, radius = 18, bar = true, title = "", bg, shadow, barH = 44 } = {}) {
+      if (sc.__frame) return sc.__frame;
+      const W = 1920 * scale, H = 1080 * scale, bh = bar ? barH : 0, x0 = (1920 - W) / 2, y0 = (1080 - H - bh) / 2;
+      const mk = (cls, st = "") => { const d = document.createElement("div"); d.className = cls; d.style.cssText = st; return d; };
+      const bgEl = mk("fbg", bg ? `background:${bg}` : ""), win = mk("fwin", `left:${x0}px;top:${y0}px;width:${W}px;height:${H + bh}px;border-radius:${radius}px;${shadow ? `box-shadow:${shadow}` : ""}`);
+      const clip = mk("fclip", `top:${bh}px;height:${H}px`), inner = mk("finner", `transform:scale(${scale})`);
+      for (const k of [...sc.childNodes]) inner.appendChild(k);
+      if (bar) { const b = mk("fbar", `height:${barH}px`); b.innerHTML = `<i></i><i></i><i></i><span>${title}</span>`; win.appendChild(b); }
+      clip.appendChild(inner); win.appendChild(clip);
+      sc.append(bgEl, win);
+      return (sc.__frame = { win, inner, bg: bgEl, box: { l: x0, t: y0, r: x0 + W, b: y0 + H + bh }, content: { l: x0, t: y0 + bh, r: x0 + W, b: y0 + bh + H } });
     }
     // Moves a scene's children into a camera layer; tween its x/y/scale (see focus()).
     function wrap(el) {
@@ -143,8 +180,9 @@
       tl.fromTo(flashEl, { opacity: peak }, { opacity: 0, duration: dur, ease: "power2.out", ...NI }, t);
     }
     function press(el, t) {
-      tl.to(el, { scale: 0.92, duration: 0.07, ease: "power2.in" }, t - 0.07);
-      tl.to(el, { scale: 1, duration: 0.3, ease: "back.out(3)" }, t);
+      // explicit from-values (rest scale 1): the same picture whether a seek arrives from before or after t (a lazy tl.to records its start on first play)
+      tl.fromTo(el, { scale: 1 }, { scale: 0.92, duration: 0.07, ease: "power2.in", ...NI }, t - 0.07);
+      tl.fromTo(el, { scale: 0.92 }, { scale: 1, duration: 0.3, ease: "back.out(3)", ...NI }, t);
     }
     function burst(host, at, t, n = 12, spread = 60, colors = [css("--f-accent"), "#fff"]) {
       for (let i = 0; i < n; i++) {
@@ -170,30 +208,108 @@
 
     // ---------- shot helpers (documented in film-api.md; every one is a pure function of t) ----------
     const CUR = '<svg class="cursor" viewBox="0 0 44 44"><path d="M4 2v34l9-8 6 14 6-3-6-13h12z" fill="#fff" stroke="#111" stroke-width="2.5" stroke-linejoin="round"/></svg>';
-    // Cursor path with click ripples. host = camera layer, so it zooms with the UI. steps: [{ to:{x,y}, t, dur, click? }], stage-space points (center()).
-    // The cursor is hidden until opts.appear (default: its first step), so no stray arrow sits in the scene; { appear: 0 } shows it from the start.
-    // A step with hold:true presses at its start and releases at its end (a drag).
-    function cursor(host, from, steps, opts = {}) {
-      host.insertAdjacentHTML("beforeend", CUR);
-      const cur = host.lastElementChild;
+
+    // ---------- selector targets: cursor()/finger() steps take { to: ".btn" } or { to: element }; target() / targetRect() work anywhere ----------
+    // The element is found inside a scene (the scene of the camera layer you pass, else the last scene() made) and measured in stage space with
+    // the camera layer neutral and the timeline at the step's time (so an element that an earlier tween moved, scaled or scrolled is measured
+    // where it is at that moment; tweens added AFTER the call are not seen: same rule as center()). Stacked copies (UI.stack): the copy that is
+    // displayed at that time wins; { in: "stateName" } picks one (a hidden copy is shown for the measurement, as UI.measure does).
+    // Options: in, text (measure the text's own box), withText ("Add": the first match whose text contains it), fx/fy (point inside the box,
+    // 0..1, default .5/.5), dx/dy (px offset), t (time to measure at), scene.
+    const sceneOf = (host) => (host?.closest?.(".scene") ?? host?.querySelector?.(".camlayer")?.parentElement ?? host);
+    const camOf = (sc) => (sc.classList.contains("camlayer") ? sc : sc.querySelector(":scope > .camlayer") ?? sc);
+    function atTime(t, fn) {
+      const d = tl.duration(), had = tl.time();
+      if (d <= 0) return fn();
+      tl.time(Math.min(Math.max(t ?? 0, 0.0001), d), true);
+      try { return fn(); } finally { tl.time(Math.max(had, 0.0001), true); tl.invalidate(); } // invalidate: tweens re-record their start values when first played, not at this peek
+    }
+    function bare(host, fn) { // the camera layer at identity while measuring
+      if (!host || !host.classList.contains("camlayer")) return fn();
+      const s = { x: gsap.getProperty(host, "x"), y: gsap.getProperty(host, "y"), scale: gsap.getProperty(host, "scale") };
+      gsap.set(host, { x: 0, y: 0, scale: 1 });
+      try { return fn(); } finally { gsap.set(host, s); }
+    }
+    function findEl(sel, scn, { in: name, withText } = {}) {
+      if (sel instanceof Element) return sel;
+      const hit = (root) => { if (!root) return null; const all = $$(root, sel).filter((e) => !e.closest(".loupe")); return withText ? all.find((e) => e.textContent.includes(withText)) : all[0]; };
+      if (name) return hit(pick(scn, name));
+      const shots = $$(scn, "[data-shot]").filter((s) => !s.closest(".loupe"));
+      for (const s of [...shots.filter((x) => getComputedStyle(x).display !== "none"), ...shots]) { const e = hit(s); if (e) return e; }
+      return hit(scn);
+    }
+    const pick = (scn, name) => scn.querySelector(`[data-shot="${name}"]`);
+    function measureShot(scn, name, fn) { // layout of a hidden stacked copy: show it, run fn, restore (UI.measure)
+      const all = $$(scn, "[data-shot]"), was = all.map((e) => e.style.display);
+      all.forEach((e) => { e.style.display = e.dataset.shot === name ? "block" : "none"; });
+      try { return fn(); } finally { all.forEach((e, i) => { e.style.display = was[i]; }); }
+    }
+    function targetRect(sel, o = {}) {
+      const scn = o.scene ? sceneOf(o.scene) : lastScene;
+      if (!scn) throw new Error("target(): no scene yet (create one with scene() first)");
+      const t = o.t ?? (scn.__start ?? 0) + 0.0001;
+      return atTime(t, () => bare(scn.querySelector(":scope > .camlayer"), () => {
+        const el = findEl(sel, scn, o);
+        if (!el) throw new Error(`target "${sel}" not found in the scene${o.in ? ` (state ${o.in})` : ""}${o.withText ? ` with text "${o.withText}"` : ""}`);
+        const shot = el.closest("[data-shot]"), run = () => rect(el, { text: !!o.text });
+        const r = shot && getComputedStyle(shot).display === "none" ? measureShot(scn, shot.dataset.shot, run) : run();
+        if (r.r - r.l < 1 && r.b - r.t < 1) throw new Error(`target "${sel}" has no size at ${t.toFixed(2)} s (display:none or not laid out?)`);
+        r.el = el;
+        return r;
+      }));
+    }
+    function target(sel, o = {}) {
+      const r = targetRect(sel, o), { fx = 0.5, fy = 0.5, dx = 0, dy = 0 } = o;
+      return { x: r.l + (r.r - r.l) * fx + dx, y: r.t + (r.b - r.t) * fy + dy };
+    }
+    const isPt = (v) => v && typeof v === "object" && !(v instanceof Element) && "x" in v;
+    const resolve = (v, scn, s = {}, t) => (isPt(v) ? v : target(v, { scene: scn, t: t ?? (s.t ?? 0) + (s.dur ?? 0), in: s.in, text: s.text, withText: s.withText, fx: s.fx, fy: s.fy, dx: s.dx, dy: s.dy }));
+
+    // ---------- pointers: cursor() and finger() ----------
+    // A pointer keeps its on-screen size when the camera zooms: the glyph sits in a wrapper that is counter-scaled by 1 / zoom each frame (pure
+    // function of t). Film({ pointer: 1.5 }) or opts.size multiplies the default (cursor 66 px, finger 64 px at any zoom): 1.5-3 for feeds.
+    // opts.scaleWithCamera: true gives the old behaviour (the pointer grows with the camera).
+    const ptrs = [], live = []; // live: per-frame hooks (loupe): fn(t) may return a promise (images to decode)
+    const zoomOf = (host) => (host?.classList?.contains("camlayer") ? Number(gsap.getProperty(host, "scale")) || 1 : 1);
+    const syncPtrs = () => { for (const p of ptrs) p.s.style.scale = String(p.k / zoomOf(p.host)); };
+    function ptrAdd(host, html, k, fixed, at) {
+      host.insertAdjacentHTML("beforeend", `<i class="ptr${at ? " rp" : ""}"${at ? ` style="left:${at.x}px;top:${at.y}px"` : ""}><i class="ptr-s">${html}</i></i>`);
+      const w = host.lastElementChild, s = w.firstElementChild;
+      if (fixed) ptrs.push({ s, host, k });
+      s.style.scale = String(fixed ? k / zoomOf(host) : 1);
+      return w;
+    }
+    const PTR = { cursor: { html: CUR, k: 1.5, press: [0.92, 0.07, 1.7, 0.45] }, finger: { html: '<i class="finger"></i>', k: 1, press: [0.78, 0.07, 1.5, 0.5] } };
+    function pointer(kind, host, from, steps, opts) {
+      const D = PTR[kind], scn = sceneOf(host), k = (opts.size ?? 1) * (cfg.pointer ?? 1) * D.k, fixed = opts.scaleWithCamera !== true;
+      const rs = steps.map((s) => ({ ...s, to: resolve(s.to, scn, s) }));
+      from = resolve(from, scn, { t: rs[0]?.t ?? 0 }, rs[0]?.t ?? 0);
+      const w = ptrAdd(host, D.html, k, fixed), cur = w.firstElementChild.firstElementChild;
+      w.__steps = rs; w.__from = from;
       let at = from;
-      tl.set(cur, { x: from.x, y: from.y }, 0);
-      const appear = opts.appear ?? steps[0]?.t ?? 0;
+      tl.set(w, { x: from.x, y: from.y }, 0);
+      const appear = opts.appear ?? rs[0]?.t ?? 0;
       if (appear > 0) { tl.set(cur, { opacity: 0 }, 0); tl.set(cur, { opacity: 1 }, appear); }
-      for (const s of steps) {
-        tl.fromTo(cur, { x: at.x, y: at.y }, { x: s.to.x, y: s.to.y, duration: s.dur, ease: "power2.inOut", ...NI }, s.t);
-        if (s.hold) { tl.to(cur, { scale: 0.86, duration: 0.1, ease: "power2.in" }, s.t); tl.to(cur, { scale: 1, duration: 0.2, ease: "back.out(3)" }, s.t + s.dur); }
-        if (s.click) {
+      for (const s of rs) {
+        tl.fromTo(w, { x: at.x, y: at.y }, { x: s.to.x, y: s.to.y, duration: s.dur, ease: "power2.inOut", ...NI }, s.t);
+        if (s.hold) { const dn = kind === "finger" ? 0.8 : 0.86; tl.fromTo(cur, { scale: 1 }, { scale: dn, duration: kind === "finger" ? 0.12 : 0.1, ease: "power2.in", ...NI }, s.t); tl.fromTo(cur, { scale: dn }, { scale: 1, duration: 0.2, ease: "back.out(3)", ...NI }, s.t + s.dur); }
+        if (s.click || s.tap) {
           const tc = s.t + s.dur;
           (window.__clicks ??= []).push({ t: tc, el: cur }); // audit.mjs checks where each press lands in the frame
-          host.insertAdjacentHTML("beforeend", `<i class="ripple" style="left:${s.to.x}px;top:${s.to.y}px"></i>`);
-          tl.fromTo(host.lastElementChild, { scale: 0.3, opacity: 1 }, { scale: 1.7, opacity: 0, duration: 0.45, ease: "power2.out", ...NI }, tc);
-          press(cur, tc);
+          const rp = ptrAdd(host, '<i class="ripple"></i>', k, fixed, s.to);
+          tl.fromTo(rp.firstElementChild.firstElementChild, { scale: 0.3, opacity: 1 }, { scale: D.press[2], opacity: 0, duration: D.press[3], ease: "power2.out", ...NI }, tc);
+          if (kind === "finger") { tl.fromTo(cur, { scale: 1 }, { scale: D.press[0], duration: D.press[1], ease: "power2.in", ...NI }, tc - 0.07); tl.fromTo(cur, { scale: D.press[0] }, { scale: 1, duration: 0.3, ease: "back.out(3)", ...NI }, tc); }
+          else press(cur, tc);
         }
         at = s.to;
       }
-      return cur;
+      return w;
     }
+    // Cursor path with click ripples. host = camera layer, so it follows the UI. steps: [{ to, t, dur, click?, hold? }]; `to` is a stage-space point
+    // ({ x, y }, e.g. center()) OR a selector / element inside the scene ({ to: ".btn-add" }, see target()). The cursor is hidden until opts.appear
+    // (default: its first step); { appear: 0 } shows it from the start. hold:true presses at the step's start and releases at its end (a drag).
+    // `from` may be a point or a selector too. Returns the wrapper (tween its x/y, or pass it to follow()); .__steps = the resolved steps.
+    function cursor(host, from, steps, opts = {}) { return pointer("cursor", host, from, steps, opts); }
     // Caption pill (.cap in base.css), appended to the scene AFTER wrap() so it doesn't zoom. Opaque, enters by offset only: sharp on its first frame.
     // opts.pos: "bl" (default) | "br" | "tl" | "tr" | "bc"; or opts.x / opts.y = stage px of its top-left corner. Pick the corner that
     // leaves the content free. The default offset slides from the left edge (from the right for "br"/"tr").
@@ -217,29 +333,149 @@
       if (end != null) tl.set(c, { opacity: 0 }, end);
       return c;
     }
-    // Touch pointer for phone UIs: a round translucent finger instead of an arrow. host = camera layer. steps: [{ to, t, dur, tap?, hold? }]:
-    // tap = press + ring on arrival; hold = pressed during the move (swipe, drag), released at its end. Hidden until opts.appear (default: first step).
-    function finger(host, from, steps, opts = {}) {
-      host.insertAdjacentHTML("beforeend", '<i class="finger"></i>');
-      const f = host.lastElementChild;
-      let at = from;
-      tl.set(f, { x: from.x, y: from.y }, 0);
-      const appear = opts.appear ?? steps[0]?.t ?? 0;
-      if (appear > 0) { tl.set(f, { opacity: 0 }, 0); tl.set(f, { opacity: 1 }, appear); }
+    // Touch pointer for phone UIs: a round translucent finger instead of an arrow. host = camera layer. steps: [{ to, t, dur, tap?, hold? }] (`to` as for cursor():
+    // a point, a selector or an element). tap = press + ring on arrival; hold = pressed during the move (swipe, drag), released at its end.
+    // Hidden until opts.appear (default: first step). Keeps its on-screen size under camera zoom like cursor().
+    function finger(host, from, steps, opts = {}) { return pointer("finger", host, from, steps, opts); }
+
+    // ---------- autoCam: camera keyframes from the cursor's click steps ----------
+    // autoCam(cam, steps, opts) plans the camera tweens of one camera layer from the same steps array you give cursor() / finger()
+    // (or pass the element cursor() returned). Clicks closer than opts.merge (2.5 s) share one framing; the camera is settled opts.pad (0.5 s) before the
+    // first click, zooms in over opts.inDur, holds until the last click, and leaves opts.pad - opts.early after it (never sooner than 0.35 s); the next framing is
+    // reached by a direct pan when the gap is short, else via a zoom-out. Every framing keeps its clicks inside the central opts.safe (60 %) of the frame, zoom
+    // <= opts.max (2.4); a cluster that would need less than opts.min (1.25) zoom, or that moves the camera less than a dead zone, is skipped (stays wide).
+    // Eases are the spring presets ("focused" default, or opts.preset: "smooth"). Manual tweens on the same layer WIN: autoCam sees every tween already on `cam`
+    // (call it after your own focus() tweens; push() counts too), starts from where they leave the camera and drops any framing that would overlap one. It only
+    // ever adds non-overlapping fromTo tweens. Returns the plan: [{ t0, t1, zoom, at, skipped? }] (also cam.__plan).
+    // opts: zoom 1.7, max 2.4, min 1.25, merge 2.5, pad 0.5, early 0.5, safe 0.6, margin 140 (px of context around the click boxes), inDur / outDur (preset),
+    //       preset, ease, box + over (as focus()), from / to (window it may use: default the scene), settle (zoom back out at the end, default true),
+    //       also: [{ t, to }] extra moments to frame (a typing field, a result), start (cursor's start point, for a first drag).
+    function autoCam(cam, steps, o = {}) {
+      const sp = SPRINGS[o.preset ?? "focused"] ?? SPRINGS.focused, scn = sceneOf(cam);
+      const P = { zoom: 1.7, max: 2.4, min: 1.25, merge: 2.5, pad: 0.5, early: 0.5, safe: 0.6, margin: 140, inDur: sp.inDur, outDur: sp.outDur, ease: o.preset ?? "focused", settle: true, ...o };
+      const from = P.from ?? scn.__start ?? 0, to = P.to ?? scn.__end ?? cfg.duration;
+      if (steps instanceof Element) steps = steps.__steps;
+      // 1 · moments to frame
+      const evs = []; let prev = P.start ? resolve(P.start, scn, { t: steps[0]?.t }, steps[0]?.t) : null;
       for (const s of steps) {
-        tl.fromTo(f, { x: at.x, y: at.y }, { x: s.to.x, y: s.to.y, duration: s.dur, ease: "power2.inOut", ...NI }, s.t);
-        if (s.hold) { tl.to(f, { scale: 0.8, duration: 0.12, ease: "power2.in" }, s.t); tl.to(f, { scale: 1, duration: 0.2, ease: "back.out(3)" }, s.t + s.dur); }
-        if (s.tap) {
-          const tc = s.t + s.dur;
-          (window.__clicks ??= []).push({ t: tc, el: f });
-          host.insertAdjacentHTML("beforeend", `<i class="ripple" style="left:${s.to.x}px;top:${s.to.y}px"></i>`);
-          tl.fromTo(host.lastElementChild, { scale: 0.3, opacity: 1 }, { scale: 1.5, opacity: 0, duration: 0.5, ease: "power2.out", ...NI }, tc);
-          tl.to(f, { scale: 0.78, duration: 0.07, ease: "power2.in" }, tc - 0.07);
-          tl.to(f, { scale: 1, duration: 0.3, ease: "back.out(3)" }, tc);
-        }
-        at = s.to;
+        const p = resolve(s.to, scn, s);
+        if (s.hold && prev) evs.push({ t: s.t, p: prev });
+        if (s.click || s.tap || s.hold) evs.push({ t: s.t + s.dur, p });
+        prev = p;
       }
-      return f;
+      for (const e of P.also || []) evs.push({ t: e.t, p: resolve(e.to, scn, { t: e.t }, e.t) });
+      evs.sort((a, b) => a.t - b.t);
+      const sx = 960 * P.safe, sy = (view.h / 2) * P.safe, over = P.over ?? 220;
+      // 3 · the camera state of a cluster: the largest zoom <= zoom/max that keeps every click in the safe area (and inside the clamp box + over)
+      const fit = (c) => {
+        const xs = c.ev.map((e) => e.p.x), ys = c.ev.map((e) => e.p.y), cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+        const hw = (Math.max(...xs) - Math.min(...xs)) / 2 + P.margin, hh = (Math.max(...ys) - Math.min(...ys)) / 2 + P.margin;
+        c.at = { x: cx, y: cy }; c.st = null;
+        for (let z = Math.min(P.zoom, P.max, sx / hw, sy / hh); z >= P.min - 1e-9; z *= 0.94) {
+          const f = focus(c.at, z, { box: P.box, over });
+          if (c.ev.every(({ p }) => Math.abs(960 + (p.x - 960) * z + f.x - 960) <= sx + 0.5 && Math.abs(540 + (p.y - 540) * z + f.y - view.cy) <= sy + 0.5)) { c.st = f; break; }
+        }
+        return c;
+      };
+      const mk = (ev) => fit({ ta: ev[0].t, tb: ev[ev.length - 1].t, ev });
+      // 2 · clusters (clicks closer than merge share a framing); a cluster that cannot be framed (too spread out) is split at its longest pause
+      const split = (c) => {
+        if (c.st || c.ev.length < 2) return [c];
+        let k = 1; for (let i = 2; i < c.ev.length; i++) if (c.ev[i].t - c.ev[i - 1].t > c.ev[k].t - c.ev[k - 1].t) k = i;
+        return [...split(mk(c.ev.slice(0, k))), ...split(mk(c.ev.slice(k)))];
+      };
+      const cl = []; let grp = [];
+      for (const e of [...evs, null]) {
+        if (grp.length && (!e || e.t - grp[grp.length - 1].t > P.merge)) { cl.push(...split(mk(grp))); grp = []; }
+        if (e) grp.push(e);
+      }
+      // 4 · what is already on the layer (manual tweens win) and the planned moves share one list; state after each entry = its end values
+      const rest = { x: 0, y: 0, scale: 1 }, num = (v, d) => (typeof v === "number" ? v : d), list = [];
+      let S = rest;
+      for (const tw of tl.getChildren(false, true, false).filter((w) => w.targets().includes(cam)).sort((a, b) => a.startTime() - b.startTime())) {
+        S = { x: num(tw.vars.x, S.x), y: num(tw.vars.y, S.y), scale: num(tw.vars.scale, S.scale) };
+        list.push({ a: tw.startTime(), b: tw.startTime() + tw.duration(), end: S });
+      }
+      const stateAt = (t) => { let best = null; for (const e of list) if (e.b <= t + 1e-6 && (!best || e.a >= best.a)) best = e; return best ? best.end : rest; };
+      const busy = (a, b) => list.some((e) => e.a < b - 1e-6 && e.b > a + 1e-6);
+      const moves = [], add = (a, d, st) => { const m = { a, b: a + d, fr: stateAt(a), end: st, d }; list.push(m); moves.push(m); return m; };
+      const near = (u, v) => Math.abs(u.scale - v.scale) < 0.1 && Math.abs(u.x - v.x) < 50 && Math.abs(u.y - v.y) < 50;
+      // 5 · chain the framings
+      const plan = []; let prevC = null, free = from;
+      for (const c of cl) {
+        const info = { t0: c.ta, t1: c.tb, zoom: c.st ? +c.st.scale.toFixed(2) : null, at: c.at };
+        plan.push(info);
+        if (!c.st) { info.skipped = "too spread out or too close to an edge for the safe area"; continue; }
+        const arrive = c.ta - P.pad, leave = c.tb + Math.max(P.pad - P.early, 0.35);
+        let f0 = prevC ? prevC.leave : from, out = null;
+        if (prevC && arrive - prevC.leave >= P.outDur + 0.8 * P.inDur && !busy(prevC.leave, prevC.leave + P.outDur)) { out = add(prevC.leave, P.outDur, rest); f0 = out.b; }
+        let s0 = Math.max(arrive - P.inDur, f0, free), d = arrive - s0;
+        if (d < 0.5) { d = 0.5; s0 = Math.max(f0, free, arrive - 0.5); }
+        const cur = stateAt(s0);
+        if (near(cur, c.st)) { info.skipped = "already framed (dead zone)"; prevC = { leave, st: cur }; continue; }
+        if (busy(s0, s0 + d)) { info.skipped = "overlaps a manual camera tween"; if (out) { list.splice(list.indexOf(out), 1); moves.splice(moves.indexOf(out), 1); } continue; }
+        add(s0, d, c.st); info.move = [+s0.toFixed(2), +(s0 + d).toFixed(2)];
+        prevC = { leave, st: c.st }; free = leave;
+      }
+      if (P.settle && prevC) {
+        const d = Math.min(P.outDur, to - prevC.leave);
+        if (d >= 0.6 && !busy(prevC.leave, prevC.leave + d) && !near(stateAt(prevC.leave), rest)) add(prevC.leave, d, rest);
+      }
+      for (const m of moves) tl.fromTo(cam, { x: m.fr.x, y: m.fr.y, scale: m.fr.scale }, { x: m.end.x, y: m.end.y, scale: m.end.scale, duration: m.d, ease: P.ease, ...NI }, m.a);
+      cam.__plan = plan;
+      return plan;
+    }
+
+    // ---------- spot() and loupe(): crisp overlays inside the camera layer (they zoom with the UI) ----------
+    // spot(scene, target, t0, t1, { dim: 0.6, pad: 14, radius, ring, in, text }): dims everything except the target (a rect {l,t,r,b}, a selector or an element)
+    // between t0 and t1: an opaque-edge scrim with a hole, so the target stays at full brightness and sharp. Put the caption above it (captions sit over the scrim).
+    // The target should stand still while the spot is on.
+    function spot(sc, tgt, t0, t1, { dim = 0.6, pad = 14, radius, ring = false, ...o } = {}) {
+      const host = camOf(sc), r = typeof tgt.l === "number" ? tgt : targetRect(tgt, { scene: sc, t: t0, ...o });
+      const el = document.createElement("div");
+      el.className = "spot"; el.setAttribute("data-clip-ok", "");
+      const rad = radius ?? (r.el ? parseFloat(getComputedStyle(r.el).borderRadius) || 10 : 10);
+      el.style.cssText = `left:${r.l - pad}px;top:${r.t - pad}px;width:${r.r - r.l + pad * 2}px;height:${r.b - r.t + pad * 2}px;border-radius:${rad + pad * 0.6}px;box-shadow:0 0 0 6000px rgb(0 0 0 / ${dim})${ring ? ", 0 0 0 3px var(--f-accent)" : ""}`;
+      host.appendChild(el);
+      const f = Math.min(0.3, (t1 - t0) / 3);
+      tl.set(el, { opacity: 0 }, 0);
+      tl.fromTo(el, { opacity: 0 }, { opacity: 1, duration: f, ease: "power2.out", ...NI }, t0);
+      tl.fromTo(el, { opacity: 1 }, { opacity: 0, duration: f, ease: "power2.in", ...NI }, t1 - f);
+      return el;
+    }
+    // loupe(scene, target, t0, t1, { scale: 2, size: 360, shape: "circle"|"round", side, gap, at, in, text }): a magnified inset of the target for tiny UI (a badge, a price, a
+    // field label) without a camera move. The lens shows the live scene (a clone of the camera layer, refreshed every frame from the timeline: typing, counters and
+    // tweens inside it move), cropped to a circle (or a rounded rect) next to the target; side: "above" | "below" | "left" | "right" (default: where there is room),
+    // at: { x, y } = centre of the lens in stage px. Appears with a small pop at t0, gone at t1. Marked data-clip-ok (the clone repeats the scene's text on purpose).
+    function loupe(sc, tgt, t0, t1, { scale = 2, size = 360, shape = "circle", side, gap = 28, at, ...o } = {}) {
+      const host = camOf(sc), r = typeof tgt.l === "number" ? tgt : targetRect(tgt, { scene: sc, t: t0, ...o });
+      const w = shape === "round" ? Math.round(size * 1.5) : size, h = shape === "round" ? Math.round(size * 0.9) : size;
+      const cx = (r.l + r.r) / 2, cy = (r.t + r.b) / 2, m = 24;
+      let x, y;
+      if (at) { x = at.x - w / 2; y = at.y - h / 2; }
+      else {
+        const sd = side ?? (r.t - gap - h >= m ? "above" : r.b + gap + h <= 1080 - m ? "below" : r.r + gap + w <= 1920 - m ? "right" : "left");
+        x = sd === "right" ? r.r + gap : sd === "left" ? r.l - gap - w : cx - w / 2;
+        y = sd === "above" ? r.t - gap - h : sd === "below" ? r.b + gap : cy - h / 2;
+      }
+      x = Math.min(Math.max(x, m), 1920 - m - w); y = Math.min(Math.max(y, m), 1080 - m - h);
+      const el = document.createElement("div");
+      el.className = "loupe"; el.setAttribute("data-clip-ok", "");
+      el.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;border-radius:${shape === "round" ? 28 : 999}px`;
+      el.innerHTML = `<div class="loupe-in" style="transform:translate(${w / 2 - cx * scale}px,${h / 2 - cy * scale}px) scale(${scale})"></div>`;
+      host.appendChild(el);
+      const inner = el.firstElementChild;
+      live.push((t) => {
+        if (t < t0 - 0.001 || t > t1 + 0.001) return;
+        inner.replaceChildren(...[...host.children].filter((k) => !k.classList.contains("loupe") && !k.classList.contains("spot")).map((k) => k.cloneNode(true)));
+        const imgs = [...inner.querySelectorAll("img")];
+        return imgs.length ? Promise.all(imgs.map((i) => (i.decode ? i.decode().catch(() => {}) : null))) : null;
+      });
+      tl.set(el, { visibility: "hidden" }, 0);
+      tl.set(el, { visibility: "visible" }, t0);
+      tl.fromTo(el, { scale: 0.82 }, { scale: 1, duration: 0.35, ease: "focused", ...NI }, t0);
+      tl.set(el, { visibility: "hidden" }, t1);
+      return el;
     }
     // Persistent step-caption band for how-tos: a bar at the bottom (or top) of the frame that never covers the UI. It reserves the space:
     // the scenes are clipped to the free part and focus() / focusRect() centre and clamp on that part (view.cy, view.h), so call band() BEFORE
@@ -416,7 +652,7 @@
       tl.fromTo(p, { v: v0 }, { v: v1, duration: t1 - t0, ease, onUpdate: () => draw(p.v), ...NI }, t0);
     }
 
-    const ctx = { tl, $, $$, rnd, NI, scene, wrap, splitChars, type, put, scrollTo, count, center, rect, focus, focusRect, enter, follow, view, band, dock, finger, flash, press, burst, rings, cursor, caption, keycap, panels, edge, typeOn, push, land, show, reveal, scrubChart, stage, cam, hash, css };
+    const ctx = { tl, $, $$, rnd, NI, scene, frame, wrap, target, targetRect, autoCam, spot, loupe, spring, splitChars, type, put, scrollTo, count, center, rect, focus, focusRect, enter, follow, view, band, dock, finger, flash, press, burst, rings, cursor, caption, keycap, panels, edge, typeOn, push, land, show, reveal, scrubChart, stage, cam, hash, css };
     cfg.build(ctx);
     tl.set({}, {}, DURATION);
     window.__tl = tl; // audit.mjs reads tween start times from it
@@ -427,9 +663,10 @@
     ctx.env = env;
     const sprites = $$(document, ".sprite");
     function react(t) {
+      syncPtrs();
       let sx = 0, sy = 0, sr = 0;
       const f = Math.floor(t * 60);
-      for (const [h, a] of HITS) {
+      for (const [h, a] of window.__measure ? [] : HITS) {
         const d = t - h;
         if (d < 0 || d > 0.6) continue;
         const k = a * Math.exp(-d * 9);
@@ -443,15 +680,33 @@
         const fr = Math.floor(t * Number(sp.dataset.fps || 15)) % n;
         sp.style.backgroundPosition = `${(fr / (n - 1)) * 100}% 0`;
       }
-      const sub = env("sub", t);
+      const sub = window.__measure ? 0 : env("sub", t);
       cam.style.transform = `translate(${sx}px, ${sy}px) rotate(${sr}deg) scale(${1 + sub * 0.014})`;
       if (bgGlow) bgGlow.style.filter = `brightness(${0.75 + sub * 0.7})`;
       const g = Math.floor(t * 24);
       grain.style.transform = `translate(${(hash(g) - 0.5) * 300}px, ${(hash(g + 9) - 0.5) * 300}px)`;
       cfg.react && cfg.react(t, ctx);
+      const wait = window.__measure ? [] : live.map((fn) => fn(t)).filter(Boolean);
+      return wait.length ? Promise.all(wait) : undefined; // __seek returns it: the renderer waits for the loupe's images
     }
     // a paused timeline doesn't render tl.set(..., 0) when asked for time 0, so the first frame would be blank: clamp to 0.0001
-    function seek(t) { tl.time(Math.min(Math.max(t, 0.0001), DURATION - 0.0001), false); react(t); }
+    function seek(t) { tl.time(Math.min(Math.max(t, 0.0001), DURATION - 0.0001), false); return react(t); }
+
+    // Motion per frame, for render.mjs --preset selective: the largest on-screen displacement (px) between t and t + dt of every element a tween is moving
+    // (x/y/scale/rotation/size) at that moment: the camera layer, cursor, cards. Beat shake and the sub pulse are left out (they are not motion to blur).
+    const MOVES = ["x", "y", "xPercent", "yPercent", "scale", "scaleX", "scaleY", "rotation", "rotate", "rotationX", "rotationY", "skewX", "skewY", "left", "top", "width", "height", "right", "bottom"];
+    const movers = tl.getChildren(false, true, false).filter((w) => w.duration() > 0 && MOVES.some((k) => k in w.vars) && w.targets().some((e) => e instanceof Element));
+    window.__speed = (t, dt = 1 / 60) => {
+      const act = movers.filter((w) => w.startTime() < t + dt && w.startTime() + w.duration() > t);
+      const els = [...new Set(act.flatMap((w) => w.targets().filter((e) => e instanceof Element)))];
+      if (!els.length) return 0;
+      const pts = () => els.map((e) => { const r = e.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom, (r.left + r.right) / 2, (r.top + r.bottom) / 2]; });
+      window.__measure = true;
+      try { seek(t + dt); var b = pts(); seek(t); var a = pts(); } finally { window.__measure = false; }
+      let v = 0;
+      a.forEach((p, i) => p.forEach((u, k) => { v = Math.max(v, Math.abs(u - b[i][k])); }));
+      return v;
+    };
 
     window.__seek = seek;
     window.__duration = DURATION;
