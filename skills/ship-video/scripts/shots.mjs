@@ -18,7 +18,7 @@ if (dupe) die(`two times map to the same file ${dupe} (names have 2 decimals); u
 const badT = times.filter((_, i) => !Number.isFinite(ts[i]) || ts[i] < 0);
 if (badT.length) die(`times must be numbers >= 0, got: ${badT.join(" ")}`);
 if (!existsSync(html)) die(`film not found: ${html}`);
-const { browser, page, seek, duration } = await openFilm(html);
+const { browser, page, seek, duration } = await openFilm(html, { logs: true });
 const late = ts.filter((t) => t > duration);
 if (late.length) { await browser.close(); die(`times past the end of the ${duration.toFixed(2)} s film: ${late.join(" ")}`); }
 mkdirSync(outDir, { recursive: true });
