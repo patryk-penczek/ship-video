@@ -14,3 +14,9 @@ out/
 /film/
 /films/
 /docs/hero/out/
+# render and review leftovers, wherever a film folder lives
+review/
+*.part
+*.progress
+*.pid
+.setup.lock
