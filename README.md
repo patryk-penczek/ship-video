@@ -144,7 +144,7 @@ Specific notes work best:
 | 🔇 | **None** | nothing: cuts sit on a tempo grid, add music later |
 
 > [!IMPORTANT]
-> **Suno licensing:** songs made on Suno's **free plan can't be used commercially**, and upgrading later doesn't change that. Generate on a paid plan for anything public, and check [Suno's terms](https://suno.com). The skill asks where the film will be shown before you generate anything.
+> **Suno licensing:** per Suno's terms at the time of writing, songs made on the **free plan can't be used commercially**, and upgrading later doesn't change that. Generate on a paid plan for anything public, and check [Suno's terms](https://suno.com). The skill asks where the film will be shown before you generate anything.
 
 <br>
 
