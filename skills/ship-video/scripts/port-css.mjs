@@ -8,11 +8,13 @@
 //   overlays anchor to the 1920×1080 wrapper; vh/vw/vmin/vmax → px; font and image files copied to <film>/fonts and <film>/img.
 // Add <link rel="stylesheet" href="app.css"> before film.css (the starter has it). Prints the font faces to list in film.js `fonts:`.
 import path from "node:path";
-import { help, args, load, die, mustExist } from "./lib/common.mjs";
+import { help, args, load, die, mustExist, known } from "./lib/common.mjs";
 import { W, H, detectRoot, pageInfo, collectSheets, sheetsFromFiles, portCss } from "./lib/port.mjs";
 help(import.meta.url);
 
 const a = args();
+known(a, ["path", "root"]);
+if (a.path === true || a.root === true) die("--path and --root need a value");
 const out = a._.at(-1), inputs = a._.slice(0, -1);
 if (!inputs.length || !out?.endsWith(".css")) die("usage: node port-css.mjs <app-url> <film>/app.css   |   node port-css.mjs <a.css> … <film>/app.css");
 const film = path.dirname(out);
@@ -25,6 +27,7 @@ try {
     await page.goto(new URL(a.path ?? "", inputs[0]).href, { waitUntil: "networkidle" });
     await page.evaluate(() => document.fonts.ready);
     sel = a.root ?? await detectRoot(page);
+    if (a.root && !(await page.$(a.root))) die(`--root "${a.root}" matches nothing on ${page.url()}`);
     sheets = await collectSheets(page);
   } else {
     inputs.forEach((f) => mustExist(f, "css file"));
@@ -36,5 +39,6 @@ try {
   await page.close();
   const r = await portCss(browser, sheets, info, film, out);
   console.log(`css → ${r.out} (${sheets.length} stylesheets; ${r.copied.length} font/image files copied; ${r.stats.keyframes} @keyframes dropped, ${r.stats.media} @media branches skipped, ${r.stats.fixed} position:fixed → absolute)`);
-  console.log(`fonts (list in film.js "fonts:"): ${JSON.stringify(r.fonts)}`);
+  console.log(`fonts (list in film.js "fonts:"): ${JSON.stringify(r.fonts)}${r.variable.length ? `\n  variable fonts (weight range; any weight inside it loads the same file): ${r.variable.join(", ")}` : ""}`);
+  if (r.failed.length) process.exitCode = 1;
 } finally { await browser.close(); }

@@ -9,7 +9,7 @@ Film({
   fonts: ["800 40px 'Inter Variable'", "500 20px 'Inter Variable'", "500 20px 'JetBrains Mono Variable'"],
   images: [],
 
-  build({ tl, $, $$, NI, scene, wrap, splitChars, type, count, center, rect, focus, flash, press, burst, rings, cursor, caption, push, show, css }) {
+  build({ tl, $, $$, NI, scene, wrap, splitChars, type, count, center, rect, focus, flash, press, burst, rings, cursor, caption, push, land, show, css }) {
     // 0–2 · hook: the word is sharp on frame 1, the app rises over it, a slow push never stops
     const s0 = scene(`<div style="position:absolute;left:0;right:0;top:40px;text-align:center;font:800 400px/.85 var(--font-display);letter-spacing:-.05em;color:var(--accent)" class="kw">Ship it.</div>${UI.app()}`, 0, 2);
     const c0 = wrap(s0);
@@ -76,14 +76,15 @@ Film({
     caption(s3, "Frame-exact.", 8);
     push(c3, 8, 10, 1, 1.05);
 
-    // 10–12 · end card: letters rise from an offset (sharp, opaque), a line types, the push keeps going until the last frame
+    // 10–12 · end card: letters rise from an offset (sharp, opaque), the line is complete 1.2 s before the end, the push eases to rest, a short fade lands the film
     const s4 = scene(`<div class="center"><div style="display:flex;flex-direction:column;align-items:center;gap:36px">
         <div class="display s4t" style="font-size:180px;white-space:nowrap">Your film here.</div>
         <div class="eyebrow"><span class="s4e"></span><span class="caret"></span></div></div></div>`, 10, null);
     const c4 = wrap(s4);
     flash(10, 0.3, 0.35, css("--accent"));
     tl.fromTo(splitChars($(s4, ".s4t")), { y: 60, scale: 1.1 }, { y: 0, scale: 1, duration: 0.6, stagger: 0.02 }, 10);
-    type($(s4, ".s4e"), "ship-video · claude code", 10.5, 11.4);
-    push(c4, 10, 12, 1, 1.06);
+    type($(s4, ".s4e"), "ship-video · claude code", 10.2, 10.8);
+    push(c4, 10, 11.6, 1, 1.06); // out-ease: at rest before the fade
+    land(11.6, 0.4);
   },
 });

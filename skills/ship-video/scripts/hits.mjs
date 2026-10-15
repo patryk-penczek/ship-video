@@ -6,10 +6,12 @@ import { mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
-import { help, die } from "./lib/common.mjs";
+import { help, die, onExit } from "./lib/common.mjs";
 help(import.meta.url);
 
 const [mp4, out, ...times] = process.argv.slice(2);
+const flag = process.argv.slice(2).find((x) => /^--?[a-z]/i.test(x));
+if (flag) die(`unknown option ${flag} (hits.mjs takes only <film.mp4> <out.png> t1 t2 ...)`);
 if (!mp4 || !out || !times.length) die("usage: node hits.mjs <film.mp4> <out.png> t1 t2 ...");
 if (!existsSync(mp4)) die(`video not found: ${mp4}`);
 let dur;
@@ -20,6 +22,7 @@ const bad = times.filter((t) => !Number.isFinite(Number(t)) || Number(t) < 0 || 
 if (bad.length) die(`times out of range (video is ${dur.toFixed(2)} s, usable 0 to ${(dur - 0.03).toFixed(2)}): ${bad.join(" ")}`);
 mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
 const tmp = mkdtempSync(path.join(os.tmpdir(), "ship-video-hits-"));
+onExit(() => rmSync(tmp, { recursive: true, force: true })); // die() skips `finally`
 try {
   let i = 0;
   for (const t of times.map(Number)) for (const d of [-0.02, 0, 0.02]) {

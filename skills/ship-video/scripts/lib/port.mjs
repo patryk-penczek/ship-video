@@ -41,7 +41,7 @@ export const pageInfo = (page, rootSel) => page.evaluate((sel) => {
 // for sheets without source (CSS-in-JS insertRule, constructed sheets).
 export async function collectSheets(page) {
   const raw = await page.evaluate(() => [...document.styleSheets, ...(document.adoptedStyleSheets ?? [])]
-    .filter((s) => !s.disabled && (!s.media?.mediaText || matchMedia(s.media.mediaText).matches))
+    .filter((s) => !s.disabled && !s.ownerNode?.hasAttribute?.("data-ship-video-freeze") && (!s.media?.mediaText || matchMedia(s.media.mediaText).matches))
     .map((s) => ({ href: s.href, base: s.href || document.baseURI, text: s.ownerNode instanceof HTMLStyleElement && s.ownerNode.textContent.trim() ? s.ownerNode.textContent : null,
       css: (() => { try { return [...s.cssRules].map((r) => r.cssText).join("\n"); } catch { return null; } })() })));
   const out = [];
@@ -132,7 +132,7 @@ ${SC} { position: absolute; left: 0; top: 0; width: ${W}px; height: ${H}px; marg
 
 // Copies every url("http…"/"file:…") in `css` into <film>/fonts or <film>/img and points the css at the copy.
 export async function localize(css, film, { quiet = false } = {}) {
-  const used = new Map(), names = new Set(), copied = [];
+  const used = new Map(), names = new Set(), copied = [], failed = [];
   // bundlers inline small fonts as data: URIs; move them out so app.css stays readable and fonts can be listed
   css = css.replace(/url\("data:(?:font|application)\/([\w.+-]+);base64,([^"]+)"\)/g, (m, kind, b64) => {
     const ext = /woff2/.test(kind) ? "woff2" : /woff/.test(kind) ? "woff" : /ttf|truetype/.test(kind) ? "ttf" : /otf|opentype/.test(kind) ? "otf" : null;
@@ -154,9 +154,9 @@ export async function localize(css, film, { quiet = false } = {}) {
       if (url.protocol === "file:") copyFileSync(fileURLToPath(url), dest);
       else { const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); writeFileSync(dest, Buffer.from(await r.arrayBuffer())); }
       names.add(`${dir}/${name}`); used.set(u, `${dir}/${name}`); copied.push(`${dir}/${name}`);
-    } catch (e) { if (!quiet) console.error(`port-css: could not copy ${u}: ${e.message}`); }
+    } catch (e) { failed.push(u); if (!quiet) console.error(`port-css: could not copy ${u}: ${e.message}`); }
   }
-  return { css: css.replace(/url\("((?:https?|file):[^"]+)"\)/g, (m, u) => used.has(u) ? `url("${used.get(u)}")` : m), copied };
+  return { css: css.replace(/url\("((?:https?|file):[^"]+)"\)/g, (m, u) => used.has(u) ? `url("${used.get(u)}")` : m), copied, failed };
 }
 
 // Main entry: sheets → <film>/app.css. Returns a summary and the font faces to list in film.js `fonts:`.
@@ -172,9 +172,11 @@ export async function portCss(browser, sheets, info, film, out = path.join(film,
   // variable fonts declare a range ("font-weight: 200 800"): list the heaviest weight (one file covers the whole range) and report the range
   const ranges = [];
   const fontList = [...loc.css.matchAll(/@font-face\s*\{[^}]*\}/g)].map((m) => {
+    if (/url\("(?:https?|file):/.test(m[0])) return null; // its file was not copied: don't list a face that cannot load offline
     const fam = m[0].match(/font-family:\s*"?([^";]+?)"?\s*;/)?.[1], ws = (m[0].match(/font-weight:\s*([^;]+);/)?.[1] ?? "400").trim().split(/\s+/);
     if (fam && ws.length > 1 && ws[0] !== ws.at(-1)) ranges.push(`${fam} ${ws[0]}-${ws.at(-1)}`);
     return fam && `${ws.at(-1)} 40px '${fam}'`;
   }).filter(Boolean);
-  return { out, rules: r.css.split("\n").length, fontFaces: faces.length, copied: loc.copied, stats: r.stats, fonts: [...new Set(fontList)], variable: [...new Set(ranges)] };
+  if (loc.failed.length) console.error(`port-css: ${loc.failed.length} file(s) could not be copied; app.css still points at them (absolute URLs): fix the paths, the film would not render offline`);
+  return { out, rules: r.css.split("\n").length, fontFaces: faces.length, copied: loc.copied, stats: r.stats, fonts: [...new Set(fontList)], variable: [...new Set(ranges)], failed: loc.failed };
 }

@@ -15,21 +15,28 @@
 //   screenshotted into review/discovery/ plus inventory.json (heights, scroll containers, canvases, buttons, links).
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { help, args, load, die, mustExist } from "./lib/common.mjs";
-import { drive, readStates, runActions, FREEZE } from "./lib/drive.mjs";
+import { help, args, load, die, mustExist, known, num } from "./lib/common.mjs";
+import { drive, readStates, runActions, freezePage } from "./lib/drive.mjs";
 import { detectRoot, pageInfo, collectSheets, portCss } from "./lib/port.mjs";
 help(import.meta.url);
 
 const a = args(undefined, ["css", "full", "discover", "help"]);
+known(a, ["css", "full", "discover", "root", "only", "routes", "depth"]);
+for (const k of ["root", "only", "routes"]) if (a[k] === true) die(`--${k} needs a value`);
 const url = a._[0], W = 1920, H = 1080;
 const { chromium } = load("playwright");
 
 async function discover(film) {
+  mustExist(film, "film folder (create it with new-film.mjs)");
   const dir = path.join(film, "review/discovery");
   mkdirSync(dir, { recursive: true });
   const browser = await chromium.launch();
-  const errors = [], rows = [], queue = a.routes ? String(a.routes).split(",").map((r) => r.trim()) : ["/"];
-  const seen = new Set(), depth = Number(a.depth ?? 2), origin = new URL(url).origin;
+  const norm = (r) => (r.length > 1 ? r.replace(/\/+$/, "") : r) || "/"; // /radar and /radar/ are one view
+  const queue = (a.routes ? String(a.routes).split(",").map((r) => r.trim()).filter(Boolean) : ["/"]).map(norm);
+  const badRoute = queue.find((r) => !r.startsWith("/") || r.startsWith("//"));
+  if (badRoute) die(`--routes: "${badRoute}" must be a path on the app starting with a single /`);
+  const errors = [], rows = [];
+  const seen = new Set(), depth = num(a, "depth", 2, { min: 0, max: 6, int: true }), origin = new URL(url).origin;
   const level = new Map(queue.map((r) => [r, 0]));
   try {
     while (queue.length && rows.length < 40) {
@@ -39,7 +46,7 @@ async function discover(film) {
       page.on("pageerror", (e) => errors.push(`[${route}] ${e.message}`));
       const res = await page.goto(new URL(route, url).href, { waitUntil: "networkidle" }).catch((e) => (errors.push(`[${route}] ${e.message.split("\n")[0]}`), null));
       if (!res) { await page.close(); continue; }
-      await page.addStyleTag({ content: FREEZE });
+      await freezePage(page);
       await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(300);
       const info = await page.evaluate(() => {
         const vis = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
@@ -58,7 +65,7 @@ async function discover(film) {
       rows.push({ route, status: res.status(), file: `${name}.png`, ...info });
       for (const l of info.links) {
         let u; try { u = new URL(l, new URL(route, url)); } catch { continue; }
-        const r = u.pathname + u.search;
+        const r = norm(u.pathname) + u.search;
         if (u.origin === origin && !seen.has(r) && !level.has(r) && (level.get(route) ?? 0) < depth && !/\.\w{2,5}$/.test(u.pathname)) { level.set(r, (level.get(route) ?? 0) + 1); queue.push(r); }
       }
       // SPA tabs are often buttons, not links: click each nav/tab control and note where the URL goes
@@ -76,10 +83,11 @@ async function discover(film) {
     if (!a.routes || !a.routes.split(",").some((r) => /404|nope|missing/.test(r))) { // an unknown route is a view too
       const probe = "/__no-such-page__", page = await browser.newPage({ viewport: { width: W, height: H }, reducedMotion: "reduce" });
       const res = await page.goto(new URL(probe, url).href, { waitUntil: "networkidle" }).catch(() => null);
-      if (res) { await page.addStyleTag({ content: FREEZE }); await page.waitForTimeout(300); await page.screenshot({ path: path.join(dir, "not-found.png"), fullPage: true }); rows.push({ route: probe, status: res.status(), file: "not-found.png", title: await page.title(), height: await page.evaluate(() => document.documentElement.scrollHeight), note: "unknown route" }); }
+      if (res) { await freezePage(page); await page.waitForTimeout(300); await page.screenshot({ path: path.join(dir, "not-found.png"), fullPage: true }); rows.push({ route: probe, status: res.status(), file: "not-found.png", title: await page.title(), height: await page.evaluate(() => document.documentElement.scrollHeight), note: "unknown route" }); }
       await page.close();
     }
   } finally { await browser.close(); }
+  if (!rows.length) { console.error(errors.join("\n")); die(`nothing could be loaded from ${url}: is the app running?`); }
   writeFileSync(path.join(dir, "inventory.json"), JSON.stringify(rows, null, 1));
   for (const r of rows) console.log(`${r.route.padEnd(22)} ${r.status}  h=${String(r.height).padEnd(5)} ${r.file.padEnd(16)} ${r.h1 ?? ""}${r.scrollers?.length ? `  scroll:${r.scrollers.join(", ")}` : ""}${r.canvases ? `  canvas:${r.canvases}` : ""}`);
   console.log(`inventory → ${path.join(dir, "inventory.json")}  (buttons/links per route are in the json; states that need clicks are not crawled)`);
@@ -145,17 +153,26 @@ async function main(statesFile, film) {
   mkdirSync(path.join(film, "img"), { recursive: true });
   const disc = path.join(film, "review/discovery");
   mkdirSync(disc, { recursive: true });
-  const SCREENS = {}, META = {}, errors = [], usedImg = new Set(), allImages = [];
+  const lastCaptured = states.filter((s) => s.capture !== false && (!only || only.has(s.name))).at(-1);
+  const SCREENS = Object.create(null), META = Object.create(null), errors = [], usedImg = new Set(), allImages = [];
   const browser = await chromium.launch();
   let cssSummary = null;
   try {
     await drive(browser, url, states, { width: W, height: H, errors }, async (page, st) => {
       if (st.capture === false || (only && !only.has(st.name))) return;
       const sel = st.root ?? a.root ?? await detectRoot(page);
+      if (!(await page.$(sel))) throw new Error(`state ${st.name}: root "${sel}" matches nothing on ${page.url()} (set "root" in the state or --root)`);
       const key = st.name.replace(/[^\w]+/g, "-");
       // canvases: N frames over time (or one frame per step), saved as PNGs
       const cv = st.canvas ?? {}, nFrames = Math.max(1, cv.steps?.length ?? cv.frames ?? 1);
-      const grab = () => page.evaluate((s) => [...document.querySelector(s).querySelectorAll("canvas")].map((c) => { try { return c.toDataURL("image/png"); } catch { return ""; } }), sel);
+      // a WebGL canvas without preserveDrawingBuffer exports fully transparent PNGs: report those as blank too
+      const grab = () => page.evaluate((s) => [...document.querySelector(s).querySelectorAll("canvas")].map((c) => {
+        try {
+          const d = c.toDataURL("image/png"), t = document.createElement("canvas"); t.width = t.height = 32;
+          const x = t.getContext("2d"); x.drawImage(c, 0, 0, 32, 32);
+          return x.getImageData(0, 0, 32, 32).data.some((v, i) => i % 4 === 3 && v) ? d : "";
+        } catch { return ""; }
+      }), sel);
       const frames = [];
       for (let f = 0; f < nFrames; f++) {
         if (cv.steps) { await runActions(page, cv.steps[f], { name: st.name, base: url }); await page.waitForTimeout(cv.every ?? 150); }
@@ -168,7 +185,7 @@ async function main(statesFile, film) {
         else if (distinct < list.length) console.error(`note [${st.name}] canvas ${k}: ${distinct} distinct of ${list.length} frames (some repeat; raise canvas.every if the motion is slow)`);
       });
       const frameSrc = frames.map((list, k) => list.map((d, n) => {
-        if (!d) { errors.push(`[${st.name}] canvas ${k} is blank or tainted (WebGL without preserveDrawingBuffer?)`); return ""; }
+        if (!d) { errors.push(`[${st.name}] canvas ${k} is blank or tainted (WebGL needs preserveDrawingBuffer: true, or a screenshot of the area instead)`); return ""; }
         const rel = `img/${st.name}-c${k}-${n}.png`;
         writeFileSync(path.join(film, rel), Buffer.from(d.split(",")[1], "base64"));
         allImages.push(rel);
@@ -178,29 +195,35 @@ async function main(statesFile, film) {
       await page.screenshot({ path: path.join(disc, `${st.name}.png`), fullPage: !!(st.full ?? a.full) });
       const snap = await page.evaluate(snapshot, { sel, key, canvasSrc: frameSrc.map((l) => l[0]), frameSrc });
       let html = snap.html;
-      for (const u of snap.assets) {
-        try { const rel = await save(u, "img", film, usedImg); html = html.split(u).join(rel); allImages.push(rel); }
+      for (const u of [...snap.assets].sort((x, y) => y.length - x.length)) { // longest first: ?id=12 before ?id=1
+        try {
+          const rel = await save(u, "img", film, usedImg);
+          for (const v of new Set([u, u.replace(/&/g, "&amp;")])) html = html.split(v).join(rel); // outerHTML escapes & in attributes
+          allImages.push(rel);
+        }
         catch (e) { errors.push(`[${st.name}] asset ${u}: ${e.message}`); }
       }
       SCREENS[st.name] = html;
       META[st.name] = { attrs: info.attrs, height: snap.height, root: sel, ...(frameSrc.length ? { canvas: frameSrc } : {}) };
       console.log(`${st.name.padEnd(18)} ${String(html.length).padStart(7)} chars  page height ${snap.height}  → ${path.join(disc, `${st.name}.png`)}`);
-      if (a.css && st === states.at(-1)) { // collect after the last state so rules injected by earlier views are in the CSSOM
+      if (a.css && st === lastCaptured) { // collect after the last state so rules injected by earlier views are in the CSSOM
         cssSummary = await portCss(browser, await collectSheets(page), info, film);
       }
     });
-    if (a.css && !cssSummary) die("--css: the last state in states.json is not captured, so there is nothing to read the CSS from");
+    if (a.css && !cssSummary && !errors.length) errors.push("--css: no state was captured, so there is nothing to read the CSS from");
   } finally { await browser.close(); }
   const names = Object.keys(SCREENS);
-  if (!names.length) die("no state captured");
+  if (!names.length) { console.error(errors.join("\n")); die(only ? `no state captured: --only ${a.only} matches none, or it failed` : "no state captured"); }
   writeFileSync(path.join(film, "screens.js"), `// generated by scripts/capture.mjs: regenerate, don't hand-edit\nwindow.SCREENS = ${JSON.stringify(SCREENS)};\nwindow.SCREENS_META = ${JSON.stringify(META)};\n`);
   console.log(`screens → ${path.join(film, "screens.js")} (${names.length} states)`);
   if (allImages.length) console.log(`images (list in film.js "images:"): ${JSON.stringify([...new Set(allImages)])}`);
+  if (cssSummary?.failed.length) errors.push(`--css: ${cssSummary.failed.length} font/image file(s) could not be copied (see above)`);
   if (cssSummary) console.log(`css → ${cssSummary.out} (${cssSummary.copied.length} files copied; ${cssSummary.stats.keyframes} @keyframes dropped, ${cssSummary.stats.fixed} position:fixed → absolute)\nfonts (list in film.js "fonts:"): ${JSON.stringify(cssSummary.fonts)}${cssSummary.variable.length ? `\n  variable fonts (weight range; any weight inside it loads the same file): ${cssSummary.variable.join(", ")}` : ""}`);
   if (errors.length) { console.error(errors.join("\n")); process.exit(1); }
 }
 
 if (a.discover) {
+  if (a._.length > 2) die("usage: node capture.mjs <app-url> <film> --discover [--routes /,/radar] [--depth 2]");
   if (!url || !a._[1]) die("usage: node capture.mjs <app-url> <film> --discover [--routes /,/radar]");
   await discover(a._[1]);
 } else {

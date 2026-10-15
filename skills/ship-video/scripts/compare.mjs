@@ -11,17 +11,20 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { help, args, load, die, mustExist } from "./lib/common.mjs";
-import { drive, readStates } from "./lib/drive.mjs";
+import { help, args, load, die, mustExist, known, num } from "./lib/common.mjs";
+import { drive, readStates, freezePage } from "./lib/drive.mjs";
 help(import.meta.url);
 
 const a = args(undefined, ["full", "help"]);
+known(a, ["states", "width", "height", "scale", "full", "max-diff"]);
 const [url, gallery, outDir] = a._;
+if (a.states === true) die("--states needs a file");
 if (!url || !gallery || !outDir || !a.states) die("usage: node compare.mjs <app-url> <gallery.html> <outDir> --states states.json [--scale 1] [--full]");
 mustExist(gallery, "gallery"); mustExist(a.states, "states file");
 const states = readStates(a.states);
-const W = Number(a.width ?? 1920), H = Number(a.height ?? 1080), scale = Number(a.scale ?? 0.5), max = Number(a["max-diff"] ?? 2);
-mkdirSync(outDir, { recursive: true });
+const W = num(a, "width", 1920, { min: 320, max: 7680, int: true }), H = num(a, "height", 1080, { min: 240, max: 4320, int: true });
+const scale = num(a, "scale", 0.5, { min: 0.1, max: 2 }), max = num(a, "max-diff", 2, { min: 0, max: 100 });
+if (W !== 1920 || H !== 1080) console.error(`note: the gallery frames are 1920x1080; a ${W}x${H} app will differ everywhere`);
 
 // Runs in a blank page: per-pixel diff of two PNGs (a channel differing by more than 24/255 counts) and a diff image.
 async function diff(page, real, replica) {
@@ -42,6 +45,7 @@ async function diff(page, real, replica) {
   }, [real, replica]);
 }
 
+mkdirSync(outDir, { recursive: true });
 const { chromium } = load("playwright");
 const browser = await chromium.launch({ args: ["--allow-file-access-from-files"] });
 const errors = [], rows = [];
@@ -54,15 +58,21 @@ try {
   await gal.waitForTimeout(300);
   const tool = await browser.newPage({ viewport: { width: 400, height: 300 } });
 
-  await drive(browser, url, states, { width: W, height: H, errors }, async (app, st) => {
-    const realBuf = await app.screenshot({ fullPage: !!a.full });
+  await drive(browser, url, states, { width: W, height: H, errors, animate: false }, async (app, st) => {
+    if (st.capture === false) return; // drive-only state, same meaning as in capture.mjs
+    const fullPage = !!(st.full ?? a.full);
+    // a click may have scrolled the real page (the replica is captured at scroll 0): put window and scroll containers back first
+    await app.evaluate(() => { window.scrollTo(0, 0); for (const e of document.querySelectorAll("*")) if (e.scrollTop || e.scrollLeft) { e.scrollTop = 0; e.scrollLeft = 0; } });
+    await app.waitForTimeout(100);
+    if (st.canvas) console.error(`note [${st.name}] canvas state: pixels inside animated canvases differ from the captured frame; judge the rest`);
+    const realBuf = await app.screenshot({ fullPage });
     const real = realBuf.toString("base64");
     const frame = await gal.$(`.frame[data-state="${st.name}"]`);
     if (!frame) { errors.push(`gallery has no .frame[data-state="${st.name}"]`); return; }
-    const full = a.full ? await app.evaluate(() => document.documentElement.scrollHeight) : H;
-    if (a.full) await frame.evaluate((f, h) => { f.style.height = `${h}px`; f.querySelectorAll(".app-shot").forEach((s) => { s.style.height = `${h}px`; }); }, full);
+    const full = fullPage ? await app.evaluate(() => document.documentElement.scrollHeight) : H;
+    if (fullPage) await frame.evaluate((f, h) => { f.style.height = `${h}px`; f.querySelectorAll(".app-shot").forEach((s) => { s.style.height = `${h}px`; }); }, full);
     const replica = (await frame.screenshot()).toString("base64");
-    if (a.full) await frame.evaluate((f) => { f.style.height = ""; f.querySelectorAll(".app-shot").forEach((s) => { s.style.height = ""; }); });
+    if (fullPage) await frame.evaluate((f) => { f.style.height = ""; f.querySelectorAll(".app-shot").forEach((s) => { s.style.height = ""; }); });
     const d = await diff(tool, real, replica);
     writeFileSync(path.join(outDir, `${st.name}-diff.png`), Buffer.from(d.png, "base64"));
 

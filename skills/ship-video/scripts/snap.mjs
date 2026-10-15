@@ -6,7 +6,8 @@ import { existsSync } from "node:fs";
 import { help, load, die } from "./lib/common.mjs";
 help(import.meta.url);
 
-const [html, out] = process.argv.slice(2);
+const [html, out, ...extra] = process.argv.slice(2);
+if (extra.length) die(`unexpected argument ${extra[0]} (usage: node snap.mjs <page.html> <out.png>)`);
 if (!html || !out) die("usage: node snap.mjs <page.html> <out.png>");
 if (!/\.png$/i.test(out)) die("out must end in .png");
 if (!existsSync(html)) die(`page not found: ${html}`);

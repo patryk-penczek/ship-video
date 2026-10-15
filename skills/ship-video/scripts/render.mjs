@@ -8,30 +8,39 @@
 // While running: <out>.part (renamed to <out> on success), <out>.progress (frame, elapsed, ETA), <out>.pid (JSON pids).
 // All three are removed on success; after a failure only <out>.progress stays, holding the error.
 // --from/--to are seconds of film (0 <= from < to); --fps 1..480 (above 60: multiple of 60); --scale 0.25..4; --stop needs the same <out.mp4> path as the render.
+// A browser that dies mid-render is relaunched and the render resumes at the failed frame (max 2 times); then it fails with "browser closed at frame N".
 // Exit code ≠ 0 on any failure; a failed or stopped render never leaves a file at <out>.
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { help, args, openFilm, die, num } from "./lib/common.mjs";
+import { help, args, openFilm, die, num, known } from "./lib/common.mjs";
 help(import.meta.url);
 
 const a = args();
+known(a, ["preset", "fps", "from", "to", "scale", "audio", "stop"]);
+known(a, ["preset", "fps", "from", "to", "scale", "audio", "stop"]);
+known(a, ["preset", "fps", "from", "to", "scale", "audio", "stop"]);
 const USAGE = "usage: node render.mjs <film/index.html> <out.mp4> [--preset crisp|motionblur|draft] [--fps N] [--from s] [--to s] [--scale k] [--audio file|none]\n       node render.mjs --stop <out.mp4>";
 
 const readPid = (f) => { try { const j = JSON.parse(readFileSync(f, "utf8")); return Number.isInteger(j.node) ? j : null; } catch { return null; } };
-// is `pid` alive and really a render.mjs process (pids get reused)?
-const isRender = (pid) => {
+// is `pid` alive and really the render.mjs that writes `outAbs` (pids get reused; another render must not be stopped)?
+const isRender = (pid, outAbs) => {
   try { process.kill(pid, 0); } catch { return false; }
-  try { return /render\.mjs/.test(execFileSync("ps", ["-o", "command=", "-p", String(pid)], { encoding: "utf8" })); } catch { return false; }
+  try {
+    const cmd = execFileSync("ps", ["-o", "command=", "-p", String(pid)], { encoding: "utf8" });
+    return /render\.mjs/.test(cmd) && cmd.includes(path.basename(outAbs));
+  } catch { return false; }
 };
 
 if (a.stop) {
   const target = a.stop === true ? a._[0] : a.stop;
   if (!target) die("usage: node render.mjs --stop <out.mp4>   (the same path the render was started with)");
   const pidFile = `${path.resolve(String(target))}.pid`;
+  const outAbs = pidFile.replace(/\.pid$/, "");
   const info = existsSync(pidFile) ? readPid(pidFile) : null;
+  if (info && info.out && path.resolve(info.out) !== outAbs) { rmSync(pidFile, { force: true }); die(`the pid file names another output (${info.out}); nothing stopped`); }
   if (!info) { rmSync(pidFile, { force: true }); die(`no render running for ${pidFile.replace(/\.pid$/, "")}`); }
-  if (!isRender(info.node)) { rmSync(pidFile, { force: true }); console.log("render already finished (stale pid file removed)"); process.exit(0); }
+  if (!isRender(info.node, outAbs)) { rmSync(pidFile, { force: true }); console.log("render already finished (stale pid file removed)"); process.exit(0); }
   process.kill(info.node, "SIGTERM");
   console.log(`stopping render (pid ${info.node})`);
   process.exit(0);
@@ -75,7 +84,7 @@ const claim = () => {
     catch (e) {
       if (e.code !== "EEXIST") throw e;
       const info = readPid(pidFile);
-      if (info && isRender(info.node)) return false;
+      if (info && isRender(info.node, out)) return false;
       rmSync(pidFile, { force: true });
     }
   }
@@ -99,9 +108,10 @@ const halt = async (code, msg) => { cleanup(code, msg); await new Promise(() => 
 process.on("SIGTERM", () => cleanup(143, "render stopped"));
 process.on("SIGINT", () => cleanup(130, "render stopped"));
 
-const film = await openFilm(html, { scale }).catch((e) => halt(1, `could not open the film: ${e.message}`));
+let film = await openFilm(html, { scale }).catch((e) => halt(1, `could not open the film: ${e.message}`));
 browser = film.browser;
-const { duration, seek, page } = film;
+let { seek, page } = film;
+const { duration } = film;
 const to = Math.min(toArg, duration);
 const frames = Math.round((to - from) * fps);
 if (from >= duration || frames < 1) await halt(1, `empty range: from ${from} s to ${to} s of a ${duration.toFixed(2)} s film`);
@@ -111,7 +121,7 @@ let ffErr = "";
 ff = spawn("ffmpeg", [
   "-y", "-loglevel", "error",
   "-f", "image2pipe", "-framerate", String(fps), "-c:v", "mjpeg", "-i", "-",
-  ...(audio ? ["-ss", String(from), "-t", String(to - from), "-i", audio, "-map", "0:v", "-map", "1:a", "-af", "apad", "-c:a", "aac", "-b:a", "256k", "-shortest"] : ["-an"]),
+  ...(audio ? ["-ss", String(from), "-t", String(to - from), "-i", audio, "-map", "0:v", "-map", "1:a", "-af", "apad", "-c:a", "aac", "-b:a", "256k", "-shortest", "-t", String(to - from)] : ["-an"]),
   ...(blend > 1 ? ["-vf", `tmix=frames=${blend}:weights=${Array(blend).fill(1).join(" ")},fps=60`] : []),
   "-c:v", "libx264", "-preset", "slow", "-crf", "14", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
   "-f", "mp4", part,
@@ -135,20 +145,39 @@ const report = (i) => {
   writeFileSync(progressFile, line + "\n");
   if (process.stdout.isTTY) process.stdout.write(`\r${line}`);
 };
+// A browser that dies mid-render (another session's cleanup, a crash) is relaunched and the render resumes at the frame that
+// failed: frames already written stay in ffmpeg's pipe. At most 2 relaunches, then the render fails with a clear line.
+const MAX_RELAUNCH = 2, DEAD = /closed|crash|disconnected|Target page|Browser has been/i;
+let relaunches = 0, at = 0;
 try {
-  for (let i = 0; i < frames && !finished; i++) {
-    await seek(from + i / fps);
-    const buf = await page.screenshot({ type: "jpeg", quality: 95 });
-    if (finished) break;
-    if (!ff.stdin.write(buf)) await new Promise((r) => {
-      const go = () => { ff.stdin.off("drain", go); ff.off("close", go); r(); };
-      ff.stdin.once("drain", go);
-      ff.once("close", go);
-    });
-    if (i % fps === 0) report(i);
+  for (let i = 0; i < frames && !finished;) {
+    at = i;
+    try {
+      await seek(from + i / fps);
+      const buf = await page.screenshot({ type: "jpeg", quality: 95 });
+      if (finished) break;
+      if (!ff.stdin.write(buf)) await new Promise((r) => {
+        const go = () => { ff.stdin.off("drain", go); ff.off("close", go); r(); };
+        ff.stdin.once("drain", go);
+        ff.once("close", go);
+      });
+      if (i % fps === 0) report(i);
+      i++;
+    } catch (e) {
+      if (finished) break;
+      if (!DEAD.test(e.message)) throw e;
+      if (relaunches >= MAX_RELAUNCH) throw new Error(`browser closed at frame ${i}/${frames}; gave up after ${MAX_RELAUNCH} relaunches (is another process killing Chrome?)`);
+      relaunches++;
+      const note = `browser closed at frame ${i}/${frames}: relaunching and resuming at this frame (${relaunches}/${MAX_RELAUNCH})`;
+      console.error(`\n${note}`);
+      writeFileSync(progressFile, `${note}\n`);
+      await browser.close().catch(() => {});
+      film = await openFilm(html, { scale }).catch((err) => { throw new Error(`browser closed at frame ${i}/${frames} and could not be relaunched: ${err.message}`); });
+      browser = film.browser; ({ seek, page } = film);
+    }
   }
 } catch (e) {
-  cleanup(1, `render failed: ${e.message}`);
+  cleanup(1, DEAD.test(e.message) && !/^browser closed at frame/.test(e.message) ? `failed: browser closed at frame ${at}/${frames}: ${e.message}` : `render failed: ${e.message}`);
 }
 if (finished) await new Promise(() => {}); // cleanup() exits the process
 ff.stdin.end();

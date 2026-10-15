@@ -31,7 +31,7 @@ window.UI = (() => {
     if (html == null) throw new Error(`no captured state "${name}" (have: ${Object.keys(window.SCREENS || {}).join(", ") || "none"})`);
     const at = Object.entries(META(name).attrs || {}).filter(([k]) => k !== "style" && k !== "class").map(([k, v]) => ` ${k}="${attr(v)}"`).join("");
     const cls = META(name).attrs?.class ? " " + attr(META(name).attrs.class) : "", st = META(name).attrs?.style ? ` ${attr(META(name).attrs.style)};` : "";
-    return `<div class="app-shot${cls}"${at} data-shot="${name}" data-clip-ok style="${st}${hidden ? "display:none" : ""}">${html}</div>`;
+    return `<div class="app-shot${cls}"${at} data-shot="${name}" data-clip-ok="box" style="${st}${hidden ? "display:none" : ""}">${html}</div>`;
   }
   const stack = (names) => names.map((n, i) => shot(n, i > 0)).join("");
   const pick = (scene, name) => scene.querySelector(`[data-shot="${name}"]`);

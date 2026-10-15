@@ -8,10 +8,11 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { HOME_DIR, args, help, die, num } from "./lib/common.mjs";
+import { HOME_DIR, args, help, die, num, known } from "./lib/common.mjs";
 help(import.meta.url);
 
 const a = args();
+known(a, ["fps", "width", "quality", "max-mb", "from", "to"]);
 const [mp4, out] = a._;
 if (!mp4 || !out) die("usage: node webp.mjs <film.mp4> <out.webp> [--fps 30] [--width 960] [--quality 70] [--max-mb 8] [--from s] [--to s]");
 const fps = num(a, "fps", 30, { min: 1, max: 120, int: true });

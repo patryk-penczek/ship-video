@@ -63,15 +63,25 @@
       el.innerHTML = [...el.textContent].map((c) => `<span class="ch">${c}</span>`).join("");
       return $$(el, ".ch");
     }
-    // Typing via a proxy tween: seek-safe in both directions.
+    // Writes text into an element of captured markup without destroying it: an <input>/<textarea> gets its value (property AND attribute),
+    // an element with children (<span class="num">21<sup>°</sup></span>) gets only its first text node changed, a plain element its textContent.
+    function put(el, str) {
+      if (el.matches("input, textarea")) { el.value = str; el.setAttribute("value", str); }
+      else if (el.children.length) {
+        const n = [...el.childNodes].find((c) => c.nodeType === 3);
+        if (n) n.nodeValue = str; else el.insertBefore(document.createTextNode(str), el.firstChild);
+      } else el.textContent = str;
+    }
+    // Typing via a proxy tween: seek-safe in both directions. el may be a captured <input> (its value is typed).
     function type(el, full, t0, t1, onUpd) {
       const p = { n: 0 };
-      tl.fromTo(p, { n: 0 }, { n: full.length, duration: t1 - t0, ease: "none", onUpdate: () => { const k = Math.round(p.n); el.textContent = full.slice(0, k); onUpd && onUpd(k); } }, t0);
+      tl.fromTo(p, { n: 0 }, { n: full.length, duration: t1 - t0, ease: "none", onUpdate: () => { const k = Math.round(p.n); put(el, full.slice(0, k)); onUpd && onUpd(k); } }, t0);
     }
     // Number tween. Before t0 the element shows its own HTML text: write the start value there (or tl.set it at 0).
+    // On captured markup with child elements only the first text node counts (the <sup>° stays).
     function count(el, from, to, t0, dur, fmt = (v) => Math.round(v).toLocaleString("en-US")) {
       const p = { v: from };
-      tl.fromTo(p, { v: from }, { v: to, duration: dur, ease: "power2.out", onUpdate: () => { el.textContent = fmt(p.v); }, ...NI }, t0);
+      tl.fromTo(p, { v: from }, { v: to, duration: dur, ease: "power2.out", onUpdate: () => { put(el, fmt(p.v)); }, ...NI }, t0);
     }
     // Stage-space rect of an element ({l, t, r, b}), e.g. as focus()'s box. Measure before tweens.
     function rect(el) {
@@ -87,9 +97,11 @@
     }
     // Camera transform that puts stage point p at screen centre at zoom s. App UI is small: 1.4–2.3× on what matters.
     // By default the point is clamped so the frame never shows past the edges of `box` (the 1920×1080 stage);
-    // pass the replica's own rect as box when it doesn't fill the stage, or clamp: false to aim anywhere.
-    const focus = (p, s, { clamp = true, box = { l: 0, t: 0, r: 1920, b: 1080 } } = {}) => {
+    // pass the replica's own rect as box when it doesn't fill the stage, or clamp: false to aim anywhere. Targets in the top or bottom
+    // third can't be centred at 1.5–2.3× inside the box: use { over: 300 } (allow that many px of empty edge) or clamp: false.
+    const focus = (p, s, { clamp = true, over = 0, box: b0 = { l: 0, t: 0, r: 1920, b: 1080 } } = {}) => {
       let { x, y } = p;
+      const box = { l: b0.l - over, t: b0.t - over, r: b0.r + over, b: b0.b + over };
       if (clamp && s >= 1) {
         // when the box is smaller than the view on an axis, centre on it; otherwise keep the view inside it
         x = (box.r - box.l) * s <= 1920 ? (box.l + box.r) / 2 : Math.min(Math.max(x, box.l + 960 / s), box.r - 960 / s);
@@ -148,23 +160,48 @@
       return cur;
     }
     // Caption pill (.cap in base.css), appended to the scene AFTER wrap() so it doesn't zoom. Opaque, enters by offset only: sharp on its first frame.
-    function caption(s, text, t, from = { x: -70 }) {
+    // opts.pos: "bl" (default) | "br" | "tl" | "tr" | "bc"; or opts.x / opts.y = stage px of its top-left corner. Pick the corner that
+    // leaves the content free. The default offset slides from the left edge (from the right for "br"/"tr").
+    function caption(s, text, t, from, opts = {}) {
+      if (from && ("pos" in from || ("x" in from && "pos" in opts) === false && ("left" in from))) { opts = from; from = undefined; }
+      const { pos = "bl", x, y } = opts;
       const c = document.createElement("div");
       c.className = "cap";
       c.textContent = text;
+      const st = c.style, m = 96;
+      if (x != null || y != null) { st.left = `${x ?? m}px`; st.top = `${y ?? 900}px`; st.bottom = "auto"; }
+      else {
+        if (pos[0] === "t") { st.top = `${m}px`; st.bottom = "auto"; }
+        if (pos[1] === "r") { st.right = `${m}px`; st.left = "auto"; }
+        if (pos[1] === "c") { st.left = "0"; st.right = "0"; st.margin = "0 auto"; st.width = "fit-content"; }
+      }
       s.appendChild(c);
-      tl.fromTo(c, from, { x: 0, y: 0, duration: 0.4, ease: "expo.out", ...NI }, t);
+      tl.fromTo(c, from || { x: pos[1] === "r" ? 70 : pos[1] === "c" ? 0 : -70, y: pos[1] === "c" ? 40 : 0 }, { x: 0, y: 0, duration: 0.4, ease: "expo.out", ...NI }, t);
       return c;
+    }
+    // Scroll a tall page inside the camera: tweens `main` (the element holding the page, usually the scene's camlayer or the app's
+    // main column) up by `y` px between t and t+dur. Returns { y, at(p) }: at() maps a point measured BEFORE the scroll (center()/rect())
+    // to where it sits after it, so focus(sc.at(center(el)), 1.8, { over: 300 }) aims at the right place.
+    function scrollTo(main, y, t, dur = 0.8, ease = "power2.inOut") {
+      tl.fromTo(main, { y: 0 }, { y: -y, duration: dur, ease, ...NI }, t);
+      return { y, at: (p) => ({ x: p.x, y: p.y - y }) };
     }
     // Typing on given times (one absolute second per character: onsets from music.json, or jittered with rnd() for a silent film).
     function typeOn(el, text, times, onUpd) {
       const a = times[0] - 0.001, p = { t: a };
       tl.fromTo(p, { t: a }, { t: times[times.length - 1] + 0.001, duration: times[times.length - 1] - times[0], ease: "none",
-        onUpdate: () => { const k = times.filter((x) => x <= p.t).length; el.textContent = text.slice(0, k); onUpd && onUpd(k); }, ...NI }, times[0]);
+        onUpdate: () => { const k = times.filter((x) => x <= p.t).length; put(el, text.slice(0, k)); onUpd && onUpd(k); }, ...NI }, times[0]);
     }
-    // Slow continuous camera drift (scale from→to) so a shot is never still. Don't combine with a focus() tween on the same layer at the same time.
-    function push(el, t0, t1, from = 1, to = 1.06) {
-      tl.fromTo(el, { scale: from }, { scale: to, duration: t1 - t0, ease: "none", ...NI }, t0);
+    // Slow camera drift (scale from→to) so a shot is never still. Default ease "power1.out": it eases to rest at t1, so the last frame
+    // of the film (or a cut) is not mid-move; pass "none" for a constant drift that ends at a cut. Don't combine with a focus() tween on the same layer at once.
+    function push(el, t0, t1, from = 1, to = 1.06, ease = "power1.out") {
+      tl.fromTo(el, { scale: from }, { scale: to, duration: t1 - t0, ease, ...NI }, t0);
+    }
+    // Fade the whole frame to a colour (default the film's --bg) from t0 over dur, fully covered at t0+dur: end the film with
+    // land(DURATION - 0.4, 0.4) so the last frame is calm instead of a hard cut. Uses the flash layer (don't flash() during it).
+    function land(t0, dur = 0.4, color = css("--bg")) {
+      tl.set(flashEl, { backgroundColor: color }, t0);
+      tl.fromTo(flashEl, { opacity: 0 }, { opacity: 1, duration: dur, ease: "power1.inOut", ...NI }, t0);
     }
     // Visible from t0 (to t1, optional): opacity 0 at build time, hard switch on the beat. Use for word-per-beat layers and tiles.
     function show(el, t0, t1) {
@@ -202,7 +239,7 @@
       tl.fromTo(p, { v: v0 }, { v: v1, duration: t1 - t0, ease, onUpdate: () => draw(p.v), ...NI }, t0);
     }
 
-    const ctx = { tl, $, $$, rnd, NI, scene, wrap, splitChars, type, count, center, rect, focus, flash, press, burst, rings, cursor, caption, typeOn, push, show, reveal, scrubChart, stage, cam, hash, css };
+    const ctx = { tl, $, $$, rnd, NI, scene, wrap, splitChars, type, put, scrollTo, count, center, rect, focus, flash, press, burst, rings, cursor, caption, typeOn, push, land, show, reveal, scrubChart, stage, cam, hash, css };
     cfg.build(ctx);
     tl.set({}, {}, DURATION);
 

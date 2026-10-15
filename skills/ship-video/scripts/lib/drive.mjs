@@ -15,16 +15,28 @@ export function readStates(file) {
   if (!Array.isArray(s) || !s.length) die(`${file}: expected a non-empty array of { name, path?, actions? }`);
   const seen = new Set();
   for (const st of s) {
+    if (!st || typeof st !== "object") die(`${file}: every state must be an object`);
     if (!st.name || !/^[\w.-]+$/.test(st.name)) die(`${file}: every state needs a "name" of letters, digits, - _ . (got ${JSON.stringify(st.name)})`);
-    if (seen.has(st.name)) die(`${file}: duplicate state "${st.name}"`);
-    seen.add(st.name);
+    if (["__proto__", "constructor", "prototype"].includes(st.name) || /^\.+$/.test(st.name)) die(`${file}: state name "${st.name}" is reserved`);
+    // names become file names (<name>.png, img/<name>-c0-0.png): compare case-insensitively, macOS would overwrite
+    if (seen.has(st.name.toLowerCase())) die(`${file}: duplicate state "${st.name}" (names are compared case-insensitively: their files would collide)`);
+    seen.add(st.name.toLowerCase());
+    if (st.canvas) {
+      const f = st.canvas.frames;
+      if (f !== undefined && !(Number.isInteger(f) && f >= 1 && f <= 60)) die(`${file}: state ${st.name}: canvas.frames must be an integer 1..60 (got ${JSON.stringify(f)})`);
+      if (st.canvas.steps !== undefined && !(Array.isArray(st.canvas.steps) && st.canvas.steps.length)) die(`${file}: state ${st.name}: canvas.steps must be a non-empty array of action lists`);
+    }
+    for (const act of st.actions ?? []) if (!act || typeof act !== "object" || Object.keys(act).length !== 1) die(`${file}: state ${st.name}: each action needs exactly one key, got ${JSON.stringify(act)} (put "wait" in its own action)`);
   }
   return s;
 }
 
+// The freeze rule is tagged so port.mjs collectSheets can leave it out of a ported app.css (it would disable every transition in the film).
+export const freezePage = (page) => page.evaluate((css) => { const s = document.createElement("style"); s.setAttribute("data-ship-video-freeze", ""); s.textContent = css; document.head.append(s); }, FREEZE);
+
 async function open(page, href, freeze) {
   await page.goto(href, { waitUntil: "networkidle" });
-  if (freeze) await page.addStyleTag({ content: FREEZE });
+  if (freeze) await freezePage(page);
 }
 
 export const ACTION_TIMEOUT = 5000; // a wrong selector fails in 5 s instead of Playwright's 30 s
@@ -60,25 +72,32 @@ export async function runActions(page, actions, { name, base, freeze = true } = 
 }
 
 // Visits each state in order; calls onState(page, state) once its actions are done and fonts/layout settled.
-export async function drive(browser, url, states, { width = 1920, height = 1080, freeze = true, errors = [], settle = 150 } = {}, onState) {
+// A state that fails (bad selector, page error, onState throws) is recorded in `errors` and skipped; the run goes on with the next
+// state, so one typo doesn't lose every other state. animate: false keeps reduced motion for every state (compare.mjs).
+export async function drive(browser, url, states, { width = 1920, height = 1080, freeze = true, errors = [], settle = 150, animate = true } = {}, onState) {
   let page = null;
   try {
     for (const st of states) {
-      if (!(st.continue && page)) {
-        await page?.close();
-        // A state with canvas.frames > 1 needs a running animation: most apps pause it under prefers-reduced-motion, so that
-        // state gets "no-preference" and a controllable clock (page.clock.runFor advances rAF/timers deterministically).
-        const animated = (st.canvas?.frames ?? 0) > 1;
-        page = await browser.newPage({ viewport: { width, height }, reducedMotion: animated ? "no-preference" : "reduce" });
-        page.clocked = false;
-        if (animated) { try { await page.clock.install(); page.clocked = true; } catch {} }
-        page.on("pageerror", (e) => errors.push(`[app ${st.name}] ${e.message}`));
-        await open(page, new URL(st.path ?? "", url).href, freeze);
-      } else if (st.path) await open(page, new URL(st.path, url).href, freeze);
-      await runActions(page, st.actions, { name: st.name, base: url, freeze });
-      await page.evaluate(() => document.fonts.ready);
-      await page.waitForTimeout(settle);
-      await onState(page, st);
+      try {
+        if (!(st.continue && page)) {
+          await page?.close();
+          // A state with canvas.frames > 1 needs a running animation: most apps pause it under prefers-reduced-motion, so that
+          // state gets "no-preference" and a controllable clock (page.clock.runFor advances rAF/timers deterministically).
+          const animated = animate && (st.canvas?.frames ?? 0) > 1;
+          page = await browser.newPage({ viewport: { width, height }, reducedMotion: animated ? "no-preference" : "reduce" });
+          page.clocked = false;
+          if (animated) { try { await page.clock.install(); page.clocked = true; } catch {} }
+          page.on("pageerror", (e) => errors.push(`[app ${st.name}] ${e.message}`));
+          await open(page, new URL(st.path ?? "", url).href, freeze);
+        } else if (st.path) await open(page, new URL(st.path, url).href, freeze);
+        await runActions(page, st.actions, { name: st.name, base: url, freeze });
+        await page.evaluate(() => document.fonts.ready);
+        await page.waitForTimeout(settle);
+        await onState(page, st);
+      } catch (e) {
+        { const m = String(e.message).split("\n")[0]; errors.push(/^state /.test(m) ? m : `[${st.name}] ${m}`); }
+        if (page?.isClosed()) page = null;
+      }
     }
   } finally {
     await page?.close();

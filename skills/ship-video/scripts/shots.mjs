@@ -5,13 +5,16 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { existsSync } from "node:fs";
-import { help, args, openFilm, die } from "./lib/common.mjs";
+import { help, args, openFilm, die, known } from "./lib/common.mjs";
 help(import.meta.url);
 
 const a = args();
+known(a, ["label"]);
 const [html, outDir, ...times] = a._;
 if (!html || !outDir || !times.length) die("usage: node shots.mjs <film/index.html> <outDir> t1 t2 ... [--label]");
 const ts = times.map(Number);
+const names = ts.map((t) => `${t.toFixed(2).padStart(6, "0")}.png`), dupe = names.find((n, i) => names.indexOf(n) !== i);
+if (dupe) die(`two times map to the same file ${dupe} (names have 2 decimals); use times at least 0.01 s apart`);
 const badT = times.filter((_, i) => !Number.isFinite(ts[i]) || ts[i] < 0);
 if (badT.length) die(`times must be numbers >= 0, got: ${badT.join(" ")}`);
 if (!existsSync(html)) die(`film not found: ${html}`);

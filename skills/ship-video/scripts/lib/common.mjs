@@ -16,7 +16,10 @@ function load(name) {
 }
 
 // One-line errors instead of stack traces (DEBUG=1 shows them).
-export const die = (msg, code = 1) => { console.error(msg); process.exit(code); };
+// die() calls process.exit, which skips `finally`: register cleanups (temp dirs) with onExit() so they still run.
+const cleanups = [];
+export const onExit = (fn) => { cleanups.push(fn); };
+export const die = (msg, code = 1) => { console.error(msg); for (const f of cleanups) { try { f(); } catch {} } process.exit(code); };
 const oneLine = (e) => process.env.DEBUG ? (e?.stack ?? String(e)) : String(e?.message ?? e).split("\n")[0];
 process.on("uncaughtException", (e) => die(oneLine(e)));
 process.on("unhandledRejection", (e) => die(oneLine(e)));
@@ -29,11 +32,16 @@ export function num(a, name, dflt, { min = -Infinity, max = Infinity, int = fals
     die(`--${name} must be ${int ? "an integer" : "a number"}${Number.isFinite(min) ? ` >= ${min}` : ""}${Number.isFinite(max) ? ` and <= ${max}` : ""}, got "${a[name] === true ? "" : a[name]}"`);
   return v;
 }
+// A misspelled flag must not be ignored (`--too 1` would render the whole film): stop on any option not in `allowed`.
+export function known(a, allowed) {
+  const bad = Object.keys(a).filter((k) => k !== "_" && k !== "help" && !allowed.includes(k));
+  if (bad.length) die(`unknown option${bad.length > 1 ? "s" : ""} ${bad.map((k) => `--${k}`).join(" ")} (allowed: ${allowed.map((k) => `--${k}`).join(" ") || "none"})`);
+}
 export const mustExist = (p, what) => { if (!existsSync(p)) die(`${what} not found: ${p}`); };
 
 // node x.mjs a b --fps 60 --label  ->  { _: ["a", "b"], fps: "60", label: true }   (also --fps=60)
 // Boolean flags never take the next argument, so `--label t1 t2` keeps both times.
-export const BOOLS = ["label", "no-crop", "summary", "force", "demucs", "pulse", "help"];
+export const BOOLS = ["label", "no-crop", "summary", "force", "demucs", "pulse", "help", "css", "full", "discover"];
 export function args(argv = process.argv.slice(2), bools = BOOLS) {
   const out = { _: [] };
   for (let i = 0; i < argv.length; i++) {
@@ -51,6 +59,7 @@ export function args(argv = process.argv.slice(2), bools = BOOLS) {
 // Opens <film>/index.html?render=1 and waits for window.__ready. scale = deviceScaleFactor (2 → 3840×2160).
 export async function openFilm(html, { scale = 1 } = {}) {
   mustExist(path.resolve(html), "film");
+  if (!/\.html?$/i.test(html)) die(`${html} is not an HTML file (expected <film>/index.html)`);
   const { chromium } = load("playwright");
   const browser = await chromium.launch({ args: ["--force-color-profile=srgb", "--disable-lcd-text", "--allow-file-access-from-files"] });
   try {

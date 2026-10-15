@@ -5,10 +5,11 @@ import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { help, args, openFilm, die, num } from "./lib/common.mjs";
+import { help, args, openFilm, die, num, known, onExit } from "./lib/common.mjs";
 help(import.meta.url);
 
 const a = args();
+known(a, ["cols"]);
 const [html, fromS, toS, stepS, out] = a._;
 if (!out) die("usage: node sheet.mjs <film/index.html> <from> <to> <step> <out.png> [--cols 6]");
 const [from, to0, step] = [fromS, toS, stepS].map(Number);
@@ -18,6 +19,7 @@ if (!/\.(png|jpe?g)$/i.test(out)) die("out must end in .png or .jpg");
 if (Math.floor((to0 - from) / step + 1e-9) + 1 > 600) die("more than 600 frames; raise <step>");
 mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
 const tmp = mkdtempSync(path.join(os.tmpdir(), "ship-video-sheet-"));
+onExit(() => rmSync(tmp, { recursive: true, force: true })); // die() skips `finally`
 try {
   const { browser, page, seek, duration } = await openFilm(html);
   try {
