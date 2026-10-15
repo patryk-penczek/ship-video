@@ -1,5 +1,7 @@
-![/ship-video](docs/readme/logo-light.png#gh-light-mode-only)
-![/ship-video](docs/readme/logo-dark.png#gh-dark-mode-only)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/readme/logo-dark.png">
+  <img src="docs/readme/logo-light.png" alt="/ship-video">
+</picture>
 
 ### Turn your app into a music-synced launch film, as code.
 
@@ -8,7 +10,6 @@ An agent skill for **Claude Code** and **Codex**. It captures your real UI, cuts
 [![Claude Code skill](https://img.shields.io/badge/Claude_Code-skill-D97757?style=flat-square)](https://code.claude.com/docs/en/skills)
 [![Codex skill](https://img.shields.io/badge/Codex-skill-10A37F?style=flat-square)](#install-in-codex)
 ![1080p60 MP4 and WebP](https://img.shields.io/badge/output-1080p60_MP4_%2B_WebP-ff6a3d?style=flat-square)
-[![Check](https://github.com/patryk-penczek/ship-video/actions/workflows/check.yml/badge.svg)](https://github.com/patryk-penczek/ship-video/actions/workflows/check.yml)
 [![MIT license](https://img.shields.io/badge/license-MIT-6c8cff?style=flat-square)](LICENSE)
 
 [![Typing /ship-video: it asks how long and which music, hears the hits, then Plan, Build, Review, Render, and Iterate: a change typed in, the next version.](docs/hero.webp)](#-quick-start)
@@ -26,15 +27,16 @@ An agent skill for **Claude Code** and **Codex**. It captures your real UI, cuts
 - [📏 Limits](#-limits)
 - [❓ FAQ](#-faq)
 - [🩺 Troubleshooting](#-troubleshooting)
+- [⭐ Like it?](#-like-it)
 - [🤝 Contributing](#-contributing)
 
 ## ✨ What you get
 
 | | |
 |---|---|
-| ![It asks how long the film should be](docs/readme/ask.webp) | ![A waveform with the hits marked](docs/readme/hear.webp) |
-| **💬 Asks only what it can't find.** It reads your repo and opens every view of your running app first, then asks a few clickable questions: who it's for, how long, which music. | **🥁 Cut to the beat.** It finds the tempo, hits and drop of your track, or writes a beat for you, and lands every cut on one. The payoff hits on the drop. |
-| ![Plan, stamped approved](docs/readme/plan.webp) | ![Render, with a frame counter racing](docs/readme/render.webp) |
+| ![The repo's files scroll past a reading lens; what it found is listed beside them](docs/readme/reads.webp) | ![A timeline: shots above, music below, every shot boundary on a hit](docs/readme/beat.webp) |
+| **🔍 Reads your app first.** It reads your repo and opens every view of your running app, then asks only what it can't find: who it's for, how long, which music. | **🥁 Cut to the beat.** It finds the tempo, hits and drop of your track, or writes a beat for you, and lands every cut on one. The payoff hits on the drop. |
+| ![An approved scenario scrolling like a document](docs/readme/plan.webp) | ![A film strip of app frames, 1920×1080 at 60 fps](docs/readme/real.webp) |
 | **📋 You approve the plan first.** A shot-by-shot scenario (seconds, music, picture, exact copy) comes before anything is built. Changing a table costs minutes; a film costs hours. | **🎯 Your real UI, frame-exact.** Your app's own DOM and CSS, captured and animated, never mockups. Rendered frame by frame to a 1080p60 MP4, plus a WebP for READMEs. |
 
 ## 🚀 Quick start
@@ -79,26 +81,15 @@ cp -R ship-video/skills/ship-video ~/.claude/skills/
 
 ```mermaid
 flowchart LR
-    A["💬 Brief"] --> B["🔍 Discovery"]
-    B --> C["🎵 Music"]
-    C --> D{"📋 Scenario<br/>you approve"}
-    D --> E["🧩 Replicas"]
-    E --> F["🛠️ Build"]
-    F --> G["👀 Review"]
-    G --> H["🎞️ Render"]
+    A["💬 Brief<br/><small>a few questions</small>"] --> B["🔍 Discovery<br/><small>every view of your app</small>"]
+    B --> C["🎵 Music<br/><small>tempo, hits, drop</small>"]
+    C --> D{"📋 Scenario<br/><small>you approve</small>"}
+    D --> E["🧩 Replicas<br/><small>your real DOM + CSS</small>"]
+    E --> F["🛠️ Build<br/><small>animated on the beat</small>"]
+    F --> G["👀 Review<br/><small>critique + audit</small>"]
+    G --> H["🎞️ Render<br/><small>you watch</small>"]
     H -. "your notes" .-> F
 ```
-
-| | step | what happens | you |
-|:---:|---|---|---|
-| 1 | **Brief** | reads your README, routes and components | answer a few clicks |
-| 2 | **Discovery** | screenshots every view, finds the moments worth filming | glance at the product map |
-| 3 | **Music** | tempo, hits and drop of your track, or a beat, or a silent grid | pick the music |
-| 4 | **Scenario** | seconds, music, picture and exact copy, shot by shot | **approve it** ✋ |
-| 5 | **Replicas** | captures your running app's real DOM and CSS, compares each screen | |
-| 6 | **Build** | animates those screens on the beat | |
-| 7 | **Review** | critiques its own frames like a director, gets a second opinion, audits | |
-| 8 | **Render** | crisp 60 fps MP4, checks every cut lands on its hit | **watch it** 👀 |
 
 Everything on screen is code: one HTML page, one paused GSAP timeline, rendered frame by frame with Playwright and ffmpeg, so the MP4 matches the preview exactly. Stopped halfway? It picks up from the files in the film folder.
 
@@ -109,7 +100,7 @@ Everything on screen is code: one HTML page, one paused GSAP timeline, rendered 
 > [!TIP]
 > **The first render is a first cut.** Films get good the way edits do: you watch, say what bothers you, and it changes that and renders again in minutes. Two to four rounds are normal.
 
-![Iterate: a change typed into the input, the version climbs to v3](docs/readme/iterate.webp)
+![A film plays; a note is typed; it re-renders and plays again with the change: dark mode, a longer end card, a snappier intro](docs/readme/iterate.webp)
 
 Specific notes work best:
 
@@ -155,39 +146,69 @@ Specific notes work best:
 
 ## ❓ FAQ
 
-#### Does my app have to be running?
+<details>
+<summary><b>Does my app have to be running?</b></summary>
 
 It's best if it is: the skill captures the real DOM and CSS of each screen, so the film looks exactly like your app. Without a running app it rebuilds screens from your components and says which ones are approximated.
 
-#### How long does a render take?
+</details>
+
+<details>
+<summary><b>How long does a render take?</b></summary>
 
 A crisp render takes about 2–3.5 seconds per second of film on an idle machine, so a 20 s film is about a minute. Motion blur is 3–4× slower and is offered after you've seen the crisp cut.
 
-#### Can I edit the film myself?
+</details>
+
+<details>
+<summary><b>Can I edit the film myself?</b></summary>
 
 Yes. A film is a folder with `index.html`, `film.js` and `film.css`. Open `index.html` to preview it (Space plays, the arrows scrub, Shift+arrow steps a frame), change anything, and render again.
 
-#### Does anything leave my machine?
+</details>
+
+<details>
+<summary><b>Does anything leave my machine?</b></summary>
 
 No. Capture, analysis and rendering run locally; setup downloads its dependencies once. Only the agent you're using sees your code, as it always does.
 
-#### Is it free?
+</details>
+
+<details>
+<summary><b>Is it free?</b></summary>
 
 The skill is MIT and everything it installs is free. You pay only for the agent you run it in, and for Suno if you want a Suno track for public use.
 
+</details>
+
 ## 🩺 Troubleshooting
 
-#### The agent doesn't use the skill
+<details>
+<summary><b>The agent doesn't use the skill</b></summary>
 
 Start a new session after installing (or reload plugins), then type `/ship-video` (Codex: `$ship-video`). It does not trigger for editing existing footage.
 
-#### Setup fails installing librosa
+</details>
+
+<details>
+<summary><b>Setup fails installing librosa</b></summary>
 
 Your Python may be too new for librosa's dependencies. Install [uv](https://docs.astral.sh/uv/) (`brew install uv`) and run `scripts/setup.sh --force` from the skill folder; uv uses Python 3.12.
 
-#### The render uses the wrong font
+</details>
+
+<details>
+<summary><b>The render uses the wrong font</b></summary>
 
 Every font face must be listed in `fonts:` in `film.js` and declared with `@font-face` in `film.css`. Some bundlers ship broken `@font-face` rules: point at the font files directly.
+
+</details>
+
+## ⭐ Like it?
+
+![A star with a shine sweeping across it](docs/readme/star.webp)
+
+If ship-video made you a film you like, **star the repo**: it's the simplest way to help other people find it. And show us the film: [open a discussion or an issue](https://github.com/patryk-penczek/ship-video/issues/new/choose) with a link.
 
 ## 🤝 Contributing
 
@@ -199,4 +220,3 @@ The most useful contributions come from making a real film with it. [Open an iss
 
 Films you make are yours; music, fonts and assets you add keep their own licenses. The hero uses Inter and JetBrains Mono (SIL OFL) and [GSAP](https://gsap.com/standard-license).
 
-If it made you a film you like, a ⭐ helps others find it.
