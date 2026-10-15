@@ -30,9 +30,9 @@ docs/               the guide and the README hero's source
 
 ## Change the code
 
-1. Install once: `bash skills/ship-video/scripts/setup.sh`.
+1. Install once: `node skills/ship-video/scripts/setup.mjs`.
 2. Make a test film: `node skills/ship-video/scripts/new-film.mjs /tmp/film`, then run `audit.mjs` and a short `render.mjs --preset draft` on it.
-3. Keep scripts dependency-free beyond what `setup.sh` installs, give each one a `--help` header, and make failures exit non-zero with a clear message.
+3. Keep scripts dependency-free beyond what `setup.mjs` installs, give each one a `--help` header, and make failures exit non-zero with a clear message.
 4. If you change the flow, update `SKILL.md` and, where it matters, `evals/evals.json` (prompts, files and what a good run does, including prompts that should not trigger the skill).
 5. Run each prompt in `evals/evals.json` with the skill installed and check its expectations (`app/` and `site/` in the prompts stand for any small web app or marketing page you put or link there; the repo ships none), and run `node .github/scripts/validate.mjs` before a PR.
 6. Keep `SKILL.md` small (about 12 KB): it is loaded on every activation, so details go in `references/`, flags stay in each script's `--help`, and each rule lives in one file that the others link to. Prefer a principle with its reason over another rule; remove what no longer earns its place. Use `$S/...` for script paths in every reference.

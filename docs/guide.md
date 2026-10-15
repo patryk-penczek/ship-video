@@ -45,7 +45,7 @@ Stopped halfway? It picks up from the files in the film folder. You can also tel
 
 ## Requirements
 
-macOS or Linux (Windows: WSL) with **Node 20+**, **ffmpeg** and **Python 3** ([uv](https://docs.astral.sh/uv/) recommended). The setup script installs the rest into `~/.ship-video`, so it survives skill updates, and skips anything already there:
+macOS, Linux or Windows with **Node 20+**, **ffmpeg** and **Python 3** ([uv](https://docs.astral.sh/uv/) recommended). The setup script installs the rest into `~/.ship-video`, so it survives skill updates, and skips anything already there:
 
 | installed | used for |
 |---|---|

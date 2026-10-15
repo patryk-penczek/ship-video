@@ -9,7 +9,7 @@
       ],
       "expected_output": "In this turn: a film folder with PRODUCT.md, MUSIC.md from a tempo grid and a SCENARIO.md awaiting approval, ending at the scenario gate; nothing built.",
       "expectations": [
-        "Runs scripts/lib/check.mjs before anything else and only runs setup.sh if it reports missing deps",
+        "Runs scripts/lib/check.mjs before anything else and only runs setup.mjs if it reports missing deps",
         "Reads app/src (components, tokens, copy) before asking questions",
         "Runs Discovery: writes PRODUCT.md (views, wow moments, promise) and shows the product map to the user before drafting the scenario",
         "Chooses the no-music path and runs `music.mjs grid` with a BPM and a duration of about 20 s",

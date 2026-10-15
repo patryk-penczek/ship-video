@@ -2,7 +2,7 @@
 name: ship-video
 description: Makes a launch video, trailer, teaser, demo or how-to clip of the user's own web app, as code. Recreates the app's real UI in HTML, animates it with GSAP to a music track or silent, and renders a frame-exact 1080p60 16:9 MP4 (plus a WebP for READMEs). Use when the user wants a video, promo, trailer, teaser, demo or product film of their app, site or product, a film cut to a track, a Suno prompt or generated beat for such a film, or to change or re-render an existing ship-video film. Not for editing existing footage or screen recordings, generic explainers unrelated to their app, vertical 9:16 video, or Remotion and After Effects projects.
 license: MIT
-allowed-tools: Bash(node ${CLAUDE_SKILL_DIR}/scripts/*), Bash(bash ${CLAUDE_SKILL_DIR}/scripts/setup.sh*)
+allowed-tools: Bash(node ${CLAUDE_SKILL_DIR}/scripts/*)
 ---
 
 # ship-video
@@ -17,7 +17,7 @@ You direct and build a 10–45 s film of the user's product. Everything on scree
 
 ## Limits
 
-Say it up front if the request hits one: 16:9 only (no 9:16); web UI (a native app can only be rebuilt from screenshots, less exactly); 10–45 s; macOS or Linux (Windows via WSL); output MP4 and animated WebP, no GIF. Setup downloads Chromium and Python packages into `~/.ship-video`: a sandboxed host (Codex) needs network access and write access there; if a command is blocked, tell the user which permission it needs instead of retrying.
+Say it up front if the request hits one: 16:9 only (no 9:16); web UI (a native app can only be rebuilt from screenshots, less exactly); 10–45 s; macOS, Linux or Windows; output MP4 and animated WebP, no GIF. Setup downloads Chromium and Python packages into `~/.ship-video`: a sandboxed host (Codex) needs network access and write access there; if a command is blocked, tell the user which permission it needs instead of retrying.
 
 ## Start or resume
 
@@ -45,7 +45,7 @@ Show this checklist in the first reply and when you deliver:
 
 ## 0. Setup
 
-`node $S/lib/check.mjs`: instant once setup has run. Only if it reports something missing: `bash $S/setup.sh` (installs into `~/.ship-video`, skips what's there).
+`node $S/lib/check.mjs`: instant once setup has run. Only if it reports something missing: `node $S/setup.mjs` (installs into `~/.ship-video`, skips what's there).
 
 ## 1. Brief
 

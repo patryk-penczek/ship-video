@@ -17,7 +17,7 @@ Read at steps 7 and 8. Also: *Sharing the machine*, before starting a dev server
 
 ## Render
 
-Run every full render **in the background** (Claude Code: `run_in_background`; elsewhere `nohup … > <out>.log 2>&1 &`), since long ones outlive a tool call's time limit. Always render **crisp first**: it is several times cheaper and the checks run on it.
+Run every full render **in the background** (Claude Code: `run_in_background`; elsewhere `nohup … > <out>.log 2>&1 &`, or `Start-Process` on Windows), since long ones outlive a tool call's time limit. Always render **crisp first**: it is several times cheaper and the checks run on it.
 ```
 node $S/render.mjs <film>/index.html <film>/out/film-crisp.mp4
 node $S/render.mjs <film>/index.html <film>/out/film-motionblur.mp4 --preset motionblur

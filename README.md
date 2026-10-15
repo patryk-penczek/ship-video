@@ -60,7 +60,7 @@ An agent skill for **Claude Code** and **Codex**. It captures your real UI, cuts
 **3. Answer, approve, watch.** It asks what it can't find in your code, shows you a scenario to approve, then renders a first cut into the film folder's `out/`.
 
 > [!NOTE]
-> The first run installs the engine into `~/.ship-video` (Chromium, GSAP, a Python audio toolkit; about 2 minutes, once). You need **Node 20+**, **ffmpeg** and **Python 3** on macOS or Linux.
+> The first run installs the engine into `~/.ship-video` (Chromium, GSAP, a Python audio toolkit; about 2 minutes, once). You need **Node 20+** on macOS, Linux or Windows; setup installs ffmpeg (Homebrew or winget) and the rest.
 
 ### Install in Codex
 
@@ -71,7 +71,7 @@ npx skills add patryk-penczek/ship-video -a codex -g
 Or copy `skills/ship-video` into `~/.agents/skills/`. Then type `$ship-video`.
 
 > [!WARNING]
-> Codex's sandbox blocks network access and writes outside your project by default, and the first-run setup needs both. Approve it when Codex asks, or run `bash ~/.agents/skills/ship-video/scripts/setup.sh` once yourself.
+> Codex's sandbox blocks network access and writes outside your project by default, and the first-run setup needs both. Approve it when Codex asks, or run `node ~/.agents/skills/ship-video/scripts/setup.mjs` once yourself.
 
 ### Install in Claude Code without the plugin system
 
@@ -155,7 +155,7 @@ Specific notes work best:
 | **Format** | 16:9 at 1920×1080. No vertical (Reels, Shorts). |
 | **Length** | 10–45 s. Longer tracks are cut to a section. |
 | **Apps** | Web apps and sites, phone-sized PWAs included. A native app only from screenshots. |
-| **System** | macOS or Linux (Windows: WSL). Node 20+, ffmpeg, Python 3. |
+| **System** | macOS, Linux or Windows. Node 20+; setup installs the rest. |
 
 <br>
 
@@ -210,7 +210,7 @@ Start a new session after installing (or reload plugins), then type `/ship-video
 <details>
 <summary><b>Setup fails installing librosa</b></summary>
 
-Your Python may be too new for librosa's dependencies. Install [uv](https://docs.astral.sh/uv/) (`brew install uv`) and run `scripts/setup.sh --force` from the skill folder; uv uses Python 3.12.
+Your Python may be too new for librosa's dependencies. Install [uv](https://docs.astral.sh/uv/) (`brew install uv`) and run `node scripts/setup.mjs --force` from the skill folder; uv uses Python 3.12.
 
 </details>
 
