@@ -289,12 +289,13 @@ async function save(url, dir, film, used) { // downloads one asset into <film>/i
 // move to the first point, press, one frame every `px` px along the polyline, release. Frame times are n * dt (default 1/13 s) unless a step has "t".
 async function recordFrames(page, st, film, sel, allImages) {
   const r = st.record, root = r.root ?? sel, dt = r.dt ?? 1 / 13, crop = r.crop ?? null, out = [];
+  if (!(dt > 0 && dt <= 1)) throw new Error(`state ${st.name}: record.dt must be seconds per frame, 0 < dt <= 1 (got ${JSON.stringify(r.dt)})`);
   if (!(await page.$(root))) throw new Error(`state ${st.name}: record root "${root}" matches nothing`);
   await page.evaluate(CANVAS_SRC);
   const o = await page.evaluate((s) => { const b = document.querySelector(s).getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; }, root);
   const steps = (r.steps ?? []).flatMap((s) => {
     if (!s.stroke) return [s];
-    const pts = s.stroke, px = s.px ?? 24, acts = [{ mouse: { move: pts[0], steps: 1 } }, { mouse: { down: true } }];
+    const pts = s.stroke, px = Math.max(4, Number(s.px) || 24), acts = [{ mouse: { move: pts[0], steps: 1 } }, { mouse: { down: true } }];
     for (let i = 1; i < pts.length; i++) {
       const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / px));
       for (let k = 1; k <= n; k++) acts.push({ mouse: { move: [x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n], steps: 1 } });
@@ -303,6 +304,7 @@ async function recordFrames(page, st, film, sel, allImages) {
     return acts;
   });
   if (!steps.length) throw new Error(`state ${st.name}: record.steps is empty`);
+  if (steps.length > 1500) throw new Error(`state ${st.name}: record has ${steps.length} steps (max 1500: every one is a PNG); raise "px" on strokes or split the recording`);
   let size = null, prev = null;
   for (const [n, act] of steps.entries()) {
     await runActions(page, [act], { name: st.name, base: url });

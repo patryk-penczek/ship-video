@@ -27,6 +27,7 @@ export function envOptions(a) {
     const m = String(a.viewport).match(/^(\d{2,5})x(\d{2,5})$/);
     if (!m) die(`--viewport must look like 390x844, got "${a.viewport === true ? "" : a.viewport}"`);
     o.width = +m[1]; o.height = +m[2];
+    if (o.width < 200 || o.height < 200 || o.width > 7680 || o.height > 4320) die(`--viewport ${a.viewport}: width 200..7680 and height 200..4320 (a larger page makes a huge screenshot)`);
   }
   if (a.dpr !== undefined) { const v = Number(a.dpr); if (!(v >= 1 && v <= 4)) die(`--dpr must be 1..4, got "${a.dpr === true ? "" : a.dpr}"`); o.dpr = v; o.dprGiven = true; }
   if (a.scheme !== undefined) { if (!/^(light|dark)$/.test(a.scheme)) die("--scheme must be light or dark"); o.scheme = a.scheme; }
@@ -102,10 +103,12 @@ export const hiddenContent = (page, rootSel = "body") => page.evaluate((sel) => 
 
 export function readStates(file) {
   let s;
-  try { s = JSON.parse(readFileSync(file, "utf8")); } catch (e) { die(`${file}: ${e.message}`); }
+  try { s = JSON.parse(readFileSync(file, "utf8").replace(/^\uFEFF/, "")); } catch (e) { die(`${file}: ${e.message}`); }
   let init = {}, setup = null;
   if (s && !Array.isArray(s) && typeof s === "object" && Array.isArray(s.states)) { init = s.init ?? {}; setup = s.setup ?? init.setup ?? null; s = s.states; }
   if (setup && Array.isArray(setup)) setup = { actions: setup };
+  if (init.date !== undefined && (typeof init.date !== "string" || Number.isNaN(new Date(init.date).getTime()))) die(`${file}: init.date ${JSON.stringify(init.date)} is not a date (use "2026-01-15T10:00:00Z")`);
+  if (init.seed !== undefined && !Number.isInteger(init.seed)) die(`${file}: init.seed must be an integer, got ${JSON.stringify(init.seed)}`);
   if (!Array.isArray(s) || !s.length) die(`${file}: expected a non-empty array of { name, path?, actions? } (or { init, states })`);
   const seen = new Set();
   for (const st of s) {
@@ -180,6 +183,7 @@ async function pointOf(page, target, name, act) {
 // One finger/pointer stroke. With touch emulation it is a real touch sequence (CDP), so touch- and pointer-event apps both see it;
 // without, a mouse press-move-release. hold:true leaves the finger/button down (a "held" state to capture).
 async function gesture(page, a, z, { steps = 10, hold = false } = {}) {
+  steps = Math.min(200, Math.max(1, Math.round(Number(steps)) || 10));
   if (page.touch) {
     const cdp = page.cdp ??= await page.context().newCDPSession(page);
     const send = (type, p) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: p ? [{ x: p.x, y: p.y, id: 1 }] : [] });
@@ -222,15 +226,17 @@ export async function runActions(page, actions, { name, base, freeze = true } = 
       else if (k === "eval") await page.evaluate(v);
       else if (k === "tap") { const loc = await pick(page, v, name, act); await (page.touch ? loc.tap(T) : loc.click(T)); }
       else if (k === "swipe") {
+        if (!Array.isArray(v)) throw new Error('swipe needs ["<selector>", dx, dy, {steps, hold}]');
         const [sel, dx = 0, dy = 0, o = {}] = v, loc = await pick(page, sel, name, act);
         await loc.scrollIntoViewIfNeeded(T);
         const b = await loc.boundingBox(); if (!b) throw new Error(`swipe: ${sel} has no box`);
         await gesture(page, { x: b.x + b.width / 2, y: b.y + b.height / 2 }, { x: b.x + b.width / 2 + dx, y: b.y + b.height / 2 + dy }, o);
       } else if (k === "drag") {
+        if (!Array.isArray(v) || v.length < 2) throw new Error('drag needs [<from>, <to>, {steps, hold}] (a selector or [x, y] each)');
         const [from, to, o = {}] = v, a = await pointOf(page, from, name, act), z = await pointOf(page, to, name, act);
         await page.mouse.move(a.x, a.y); await page.mouse.down();
         await page.mouse.move(a.x + Math.sign(z.x - a.x) * 4, a.y + Math.sign(z.y - a.y) * 4, { steps: 2 }); // pass the drag threshold
-        await page.mouse.move(z.x, z.y, { steps: o.steps ?? 14 });
+        await page.mouse.move(z.x, z.y, { steps: Math.min(200, Math.max(1, Math.round(Number(o.steps)) || 14)) });
         if (!o.hold) { await page.waitForTimeout(o.settle ?? 60); await page.mouse.up(); }
       } else if (k === "mouse") {
         if (v && typeof v === "object" && !Array.isArray(v)) { // { move: [x, y] | sel, steps, down: true, up: true }, or { x, y }: move, then press, then release
@@ -267,7 +273,7 @@ export async function drive(browser, url, states, { width = 1920, height = 1080,
       await runActions(pg, setup.actions, { name: "setup", base: url, freeze });
       await pg.waitForTimeout(setup.settle ?? 300);
       env.storageState = await ctx.storageState({ indexedDB: true });
-    } catch (e) { errors.push(`setup: ${String(e.message).split("\n")[0]}`); }
+    } catch (e) { errors.push(`setup: ${String(e.message).split("\n")[0]} (setup failed: no state was captured, they would all show the login/onboarding page)`); await ctx.close().catch(() => {}); return; }
     finally { await ctx.close().catch(() => {}); }
   }
   try {
