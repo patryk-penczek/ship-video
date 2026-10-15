@@ -122,7 +122,8 @@ function transform({ sheets, info, W, H, SC, tail: withTail }) {
     let m = s.match(lead);
     if (m) { let rest = s.slice(m[0].length), n; while ((n = rest.match(/^\s+(?:body|#root)(?![\w-])|^\s*>\s*body(?![\w-])/))) rest = rest.slice(n[0].length); return SC + rest; }
     if (attrNames.some((a) => s.startsWith(`[${a}`) && /^\[[\w-]+[\]~|^$*=]/.test(s))) return SC + s;
-    if ((m = s.match(/^\.([\w-]+)/)) && (classes.includes(m[1]) || THEME_CLS.test(m[1]))) return SC + s; // .dark / .light on <html>: the class sits on the wrapper (set per state from the captured attrs)
+    // a class of <html>/<body> (.dark, Tailwind's [--header-height:..] utilities, escaped names included): the wrapper carries it. Also keep the descendant form: the same class may sit on an inner element
+    if ((m = s.match(/^\.((?:\\.|[\w-])+)/)) && (classes.includes(m[1].replace(/\\(.)/g, "$1")) || THEME_CLS.test(m[1]))) return `${SC}${s}, :where(${SC}) ${s}`;
     return `:where(${SC}) ${s}`;
   }
   // tiny CSS tokenizer: [{ prelude, body }] at one nesting level (comments stripped; strings and (…) respected)

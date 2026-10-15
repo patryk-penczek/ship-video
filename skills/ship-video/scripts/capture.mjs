@@ -278,13 +278,16 @@ function swapAssets(html, urls, rel) {
 }
 
 async function save(url, dir, film, used) { // downloads one asset into <film>/img, returns the film-relative path
-  const u = new URL(url); let name = path.basename(u.pathname) || "asset", n = 1;
-  const ext = path.extname(name);
-  while (used.has(name)) name = `${path.basename(u.pathname, ext)}-${++n}${ext}`;
-  used.add(name);
-  if (u.protocol === "file:") { writeFileSync(path.join(film, dir, name), readFileSync(fileURLToPath(u))); return `${dir}/${name}`; }
+  const u = new URL(url);
+  const take = (base, ext) => { let name = `${base}${ext}`, n = 1; while (used.has(name)) name = `${base}-${++n}${ext}`; used.add(name); return name; };
+  const ext0 = path.extname(path.basename(u.pathname)), base0 = path.basename(u.pathname, ext0) || "asset";
+  if (u.protocol === "file:") { const name = take(base0, ext0); writeFileSync(path.join(film, dir, name), readFileSync(fileURLToPath(u))); return `${dir}/${name}`; }
   const r = await fetch(url); if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  if (/^text\/html/.test(r.headers.get("content-type") ?? "")) { used.delete(name); throw new Error("not an image (the server answered with an HTML page)"); } // a dev server's index.html fallback
+  const ct = r.headers.get("content-type") ?? "";
+  if (/^text\/html/.test(ct)) throw new Error("not an image (the server answered with an HTML page)"); // a dev server's index.html fallback
+  // an image endpoint without an extension (/_next/image?url=...): name it by its content type
+  const byType = { "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp", "image/avif": ".avif", "image/gif": ".gif", "image/svg+xml": ".svg" }[ct.split(";")[0].trim()];
+  const name = take(base0, ext0 || byType || "");
   writeFileSync(path.join(film, dir, name), Buffer.from(await r.arrayBuffer()));
   return `${dir}/${name}`;
 }
