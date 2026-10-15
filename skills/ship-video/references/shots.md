@@ -1,301 +1,207 @@
 # Shot library
 
-Read at step 6 (build), after `film-api.md`. 14 shots, each with code that was rendered and checked in stills. Structure, pacing and framing rules are in `direction.md`; type and camera techniques are in `motion-vocabulary.md`.
+Read at step 6 after `film-api.md`. Each recipe was rendered and checked in stills. `s` is the scene, `cam = wrap(s)`, `box = rect(app)`, `t0` the scene start, `beat = 60 / bpm`, `D` the film's duration; selectors are placeholders for the replica's own classes. Why each shot works is in `direction.md`.
 
 ## Contents
-1. Hook: kinetic word, app rising (also a captured 1920x1080 replica)
-2. Cursor, click ripple, live typing (also typing in a captured input)
-3. Numbers count, bars grow
-4. Chart scrubbed continuously (also hover-scrub on a captured chart)
-5. List staggers in, toast slides
-6. Route transition
-7. Scroll a tall page
-8. Split-screen montage
-9. Zoom through, match cut
-10. Whip pan
-11. Parallax tilt
-12. Theme reveal
-13. Quick aside (1–2 s)
-14. End card with a live input (and *Into the end card* below)
-Also: dialog or palette shot, key number over dimmed UI, payoff shot (after 14), step-bar caption, drag and drop, frame a rect, move a captured overlay into frame (after the payoff shot)
+- Type: flood + word, word per beat, letter drop, caret ending
+- Hook: app rising under a word
+- Pointer and typing (also into a captured input)
+- Numbers and bars
+- Chart scrub
+- Route transition
+- Scroll a tall page
+- Montage and screen wall
+- Zoom-through, whip pan, tilt
+- Focus zoom, pull back on the hit
+- Theme reveal
+- Dialog or palette
+- Key number over dense UI
+- Drag and drop, file drop
+- Data over time
+- Turn-based games
+- Into the end card
+- Sound-coded effects (music films only)
 
-All snippets are from a proof film rendered on a placeholder app and checked in stills. `s` is the scene element, `cam = wrap(s)`, `box = rect($(s, ".app"))`. Times are absolute seconds; `t0` is the scene start. Selectors (`.o-in`, `.o-stat`, …) are placeholders: use the replica's classes.
+## Type
 
-**Entrances:** bring things in with the engine's `enter(el, from, t)` (hidden until `t`, then a plain `fromTo`); `NI` is for moves that start from where the element already is. The rule is explained once, in `film-api.md` (*Entrances*). Comments below say "plain fromTo" where it matters.
-
-### Helpers used by several shots
-
-`cursor`, `caption`, `scrubChart`, `push`, `show` and `reveal` are engine helpers (`film-api.md`, *Shot helpers*): destructure them from the `build` argument. Their CSS (`.cursor`, `.ripple`, `.cap`) is in `base.css`; override it in `film.css` to match the product.
-
-### 1. Hook: kinetic word with the app rising over it
-The word is fully visible and sharp on frame 1; the app is parked below the frame and rises over it.
+**Flood + word** (hook, chapter). The word is full size and sharp on the hit frame, then keeps moving.
 ```js
-const s = scene(`<div style="position:absolute;left:0;right:0;top:10px;text-align:center;font:800 400px/.85 var(--f-font-display);color:var(--f-accent)"><span class="kw">Ask</span></div>${UI.app()}`, 0, 1.6);
-const cam = wrap(s), app = $(s, ".app");
+const s = scene(`<div style="position:absolute;inset:0;background:var(--f-accent)"></div><div class="center"><div class="display w" style="font-size:420px">Slow.</div></div>`, t0, t0 + 2);
+tl.fromTo($(s, ".w"), { scale: 1.5 }, { scale: 1, duration: 0.5, ease: "expo.out" }, t0);
+tl.to($(s, ".w"), { scale: 1.06, duration: 1.5, ease: "none" }, t0 + 0.5);
+```
+
+**Word per beat** (the promise in rhythm): each word its own layer, hard swap on the beat, alternating direction.
+```js
+const words = ["Plan", "it.", "Cut", "it."];
+const s = scene(words.map((w) => `<div class="center"><div class="display" style="font-size:380px">${w}</div></div>`).join(""), t0, t0 + words.length * beat);
+$$(s, ".center").forEach((el, i) => {
+  const t = t0 + i * beat;
+  show(el, t, i < words.length - 1 ? t + beat : null);
+  tl.fromTo($(el, ".display"), { scale: 1.35, y: i % 2 ? 50 : -50 }, { scale: 1, y: 0, duration: 0.4, ease: "expo.out" }, t);
+});
+```
+
+**Letter drop** (a name with weight): `tl.fromTo(splitChars($(s, ".title")), { y: -420 }, { y: 0, duration: 0.7, stagger: 0.04, ease: "bounce.out" }, t0);`
+
+**Caret ending**: the tagline types, the caret blinks (`ease: "steps(1)"`, a finite `repeat`), then stretches across the frame into the end card's flood on the final hit.
+```js
+type($(s, ".tag"), "Ship the film.", t0 + 0.1, t0 + 1.0);
+tl.fromTo($(s, ".cc"), { opacity: 1 }, { opacity: 0, duration: 0.25, ease: "steps(1)", repeat: 3, yoyo: true, ...NI }, t0 + 1.0);
+tl.to($(s, ".cc"), { scaleX: 160, scaleY: 3, duration: 0.5, ease: "power4.in" }, t0 + 2.0);
+```
+
+## Hook: app rising under a word
+
+```js
+const s = scene(`<div class="kw" style="position:absolute;inset:10px 0 auto;text-align:center;font:800 400px/.85 var(--f-font-display)">Ask</div>
+  <div class="pop" style="position:absolute;inset:0;transform-origin:50% 0;transform:scale(.72)">${UI.shot("home")}</div>`, 0, 1.6);
+const cam = wrap(s);
 tl.fromTo(splitChars($(s, ".kw")), { y: 50, scale: 1.2 }, { y: 0, scale: 1, duration: 0.7, stagger: 0.06, ease: "back.out(1.6)" }, 0);
-tl.fromTo(app, { y: 760 }, { y: 250, duration: 1.0, ease: "expo.out" }, 0);   // plain fromTo: parked from frame 1
+tl.fromTo($(s, ".pop"), { y: 1080 }, { y: 300, duration: 1.0, ease: "expo.out" }, 0);   // parked below from frame 1
 push(cam, 0, 1.6, 1, 1.07);
 ```
-**With a captured replica** (a full 1920x1080 `UI.shot(name)`, not the small `UI.app()` window): put it in a scaled box so it fits under the word and still rises.
-```js
-// scene html: the word + a wrapper around the captured screen, scaled to 72% from its top centre
-const pop = `<div class="pop" style="position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:50% 0;transform:scale(.72)">${UI.shot("home")}</div>`;
-tl.fromTo($(s, ".pop"), { y: 1080 }, { y: 300, duration: 1.0, ease: "expo.out" }, 0);   // plain fromTo: parked below from frame 1
-```
-Check the end frame in a still: the app's header must not touch the word.
+Check the end frame: the app's header must not touch the word.
 
-### 2. Cursor, click ripple, live typing
-Touch apps: use a finger (round dot, ripple, press) instead of the arrow cursor; a swipe moves the dot with the row.
-```js
-const IN = rect($(s, ".search")), P = { go: center($(s, ".go")) };         // measure first
-cursor(cam, { x: 1500, y: 640 }, [
-  { to: { x: IN.l + 300, y: (IN.t + IN.b) / 2 }, t: t0, dur: 0.6, click: true },
-  { to: P.go, t: t0 + 1.35, dur: 0.35, click: true },
-]);
-tl.set($(s, ".search"), { className: "search" }, 0);
-tl.set($(s, ".search"), { className: "search on" }, t0 + 0.6);               // focus ring on the click
-type($(s, ".q"), "revenue", t0 + 0.65, t0 + 1.25, (k) => { if (!k) $(s, ".q").textContent = "Search…"; });  // placeholder when empty, both scrub directions
-// camera: input left third in frame, so the typed text is visible
-tl.fromTo(cam, focus({ x: IN.l + 560, y: IN.t + 200 }, 1.5, { box }), { ...focus({ x: IN.l + 640, y: IN.t + 230 }, 1.7, { box }), duration: 1.8, ease: "power1.inOut", ...NI }, t0);
-```
+## Pointer and typing
 
-**Typing into a captured input.** Don't swap a "typed" state for an empty one. Keep one state (the input focused, empty) and run `typeOn()` (or `type()`) with the input's `value` set in the `onUpdate` callback:
 ```js
-const inp = $(UI.pick(s, "palette"), "input"), word = "Reykjavik";
-typeOn(inp, word, times, (k) => { inp.value = word.slice(0, k); });             // k = characters typed so far; seek-safe both ways
+const steps = [
+  { to: ".search", fx: 0.3, t: t0, dur: 0.6, click: true },
+  { to: ".go", t: t0 + 1.35, dur: 0.35, click: true },
+];
+cursor(cam, { x: 1500, y: 640 }, steps);
+autoCam(cam, steps, { box });                        // frames each burst of clicks
+const inp = $(UI.pick(s, "search"), "input"), q = "revenue";
+const times = [...q].map((_, i) => t0 + 0.65 + i * 0.09 + (rnd() - 0.5) * 0.05);
+typeOn(inp, q, times, (k) => { inp.value = q.slice(0, k); });   // seek-safe both ways
 ```
-If the app renders results from the value, capture the 1-2 result states (`fill` in `states.json`) and `UI.swap` to them on the beat the results should appear; only the typing runs on the input.
+Type into one captured state (input focused, empty); never swap an "empty" and a "typed" capture. If the app renders results from the value, capture the result state and `UI.swap` to it on the beat the results should appear. For a phone UI use `finger` with `tap`.
 
-### 3. Numbers count, bars grow (real tweens inside the captured screen)
-Counters start from ~70% of the end value, not 0, so the cut frame shows a real number. All start on the cut frame.
+## Numbers and bars
+
 ```js
-count($(s, ".stat-1 .v"), 900, 1284, t0, 1.2);
-count($(s, ".stat-3 .v"), 3.9, 4.8, t0, 1.0, (v) => v.toFixed(1));
-tl.fromTo($$(s, ".bars i"), { scaleY: 0.12 }, { scaleY: 1, duration: 0.7, stagger: 0.05, ease: "back.out(1.5)" }, t0);  // css: transform-origin: 50% 100%
-// slow push on the middle of stats+bars, never on empty margin
+count($(s, ".stat .v"), 900, 1284, t0, 1.2);                   // starts near the end value, ends on the real one
+tl.fromTo($$(s, ".bars i"), { scaleY: 0.12 }, { scaleY: 1, duration: 0.7, stagger: 0.05, ease: "back.out(1.5)" }, t0);   // transform-origin: 50% 100%
 tl.fromTo(cam, focus(mid, 1.2, { box }), { ...focus(mid, 1.45, { box }), duration: 1.6, ease: "power1.inOut", ...NI }, t0);
 ```
 
-### 4. Chart scrubbed continuously, camera follows the marker
-`scrubChart` drives dot, guide line, highlighted path and tooltip from one proxy value: a pure function of it, seek-safe in both directions.
+## Chart scrub
+
 ```js
-// the scene holds .tip, .dot, .guide, .hl (display:none in the HTML); xy = chart points [x,y] in svg units, vals = value per point
-scrubChart(s, { xy, vals: pts, pad: [padL, padT] }, t0 + 0.05, t0 + 1.5, 0.03, 0.97);
-const c = rect($(s, ".chart")), cy = (c.t + c.b) / 2;   // camera tracks left to right over the same time
-tl.fromTo(cam, focus({ x: c.l + 420, y: cy - 60 }, 1.45, { box }), { ...focus({ x: c.r - 420, y: cy - 60 }, 1.45, { box }), duration: 1.6, ease: "sine.inOut", ...NI }, t0);
+scrubChart(s, { xy, vals, pad: [padL, padT] }, t0 + 0.05, t0 + 1.5, 0.03, 0.97);   // xy, vals from the arrays the chart renders
+const c = rect($(s, ".chart")), cy = (c.t + c.b) / 2;
+tl.fromTo(cam, focus({ x: c.l + 420, y: cy }, 1.45, { box }), { ...focus({ x: c.r - 420, y: cy }, 1.45, { box }), duration: 1.6, ease: "sine.inOut", ...NI }, t0);
 ```
-When the chart has real data, take `xy`/`pts` from the same arrays the replica renders from, so the marker sits on the line.
+A captured chart has no `.tip/.dot/.guide/.hl`: add them over the svg yourself, or capture 3–5 `hover` states along the line and `UI.swap` between them every 0.3 s with the cursor moving along.
 
-**On a captured chart** the replica has no `.tip/.dot/.guide/.hl`. Two ways, both fine:
-1. *Swap captured hover states.* In `states.json` capture 3-5 states with `hover` on points along the line (`{ "name": "h1", "actions": [{ "hover": ".chart rect:nth-child(8)" }, { "wait": 150 }] }`), `UI.swap` to the next one every 0.25-0.4 s, and drive a `cursor()` along the same path so it reads as a scrub.
-2. *Overlay.* Add `.tip/.dot/.guide/.hl` to the scene yourself, positioned over the captured svg from the chart's real `xy`, and run `scrubChart` on them.
+## Route transition
 
-### 5. List staggers in, toast slides
+The next view pushes in as the nav item is pressed, and something in it already moves.
 ```js
-tl.fromTo($$(s, ".row"), { y: 80, scale: 0.97, filter: "blur(6px)" }, { y: 0, scale: 1, filter: "blur(0px)", duration: 0.45, stagger: 0.07, ease: "power3.out" }, t0);
-app.insertAdjacentHTML("beforeend", '<div class="toast">Order shipped</div>');   // inside the app window: it clips at the window edge
-tl.fromTo($(s, ".toast"), { x: 520 }, { x: 0, duration: 0.5, ease: "expo.out" }, t0 + 0.6);   // plain fromTo: parked off-window until its time
+const s = scene(UI.stack(["overview", "radar"]), t0, t0 + 2), cam = wrap(s);
+const nav = target(".nav a:nth-child(2)", { in: "overview" });
+cursor(cam, { x: 900, y: 700 }, [{ to: nav, t: t0, dur: 0.5, click: true }]);
+tl.fromTo(cam, focus({ x: nav.x + 300, y: nav.y }, 1.5, { box }), { ...focus({ x: nav.x + 320, y: nav.y }, 1.6, { box }), duration: 0.5, ...NI }, t0);   // frame the press
+UI.swap(tl, s, "radar", t0 + 0.5);
+tl.fromTo($(UI.pick(s, "radar"), "main"), { x: 260 }, { x: 0, duration: 0.6, ease: "power3.out" }, t0 + 0.5);
+tl.to(cam, { ...focus(center(app), 1.3, { box }), duration: 1.1, ease: "power2.inOut" }, t0 + 0.55);   // then to the new view
+UI.frames(tl, $(UI.pick(s, "radar"), "img"), t0 + 0.5, t0 + 2);                                         // the canvas keeps moving
 ```
-A toast that pushes layout (an alert banner) uses the height pattern in `film-api.md`.
 
-### 6. Route transition: click the nav, the next view pushes in
-Insert the target view into the viewport and park it at `xPercent: 100`.
+## Scroll a tall page
+
+Capture with `{ tall: true }`; scroll with `scrollTo(main, y, t, dur)` (sticky headers via `pin`). Map points measured before the scroll with the returned `at(p)`. To bring a target at the very bottom to mid-frame, scroll ~150 px past the page end; the empty strip stays below the frame.
+
+## Montage and screen wall
+
+**Split screen**: three panels from the replica's own states, each already showing content on the cut frame (offset 420 px, not off-screen), each with its own motion.
 ```js
-vp.insertAdjacentHTML("beforeend", UI.radar());
-const view = $(vp, ".view");
-tl.set(view, { xPercent: 100 }, 0);
-const P = { nav: center($$(s, ".nav")[1]), vp: center(vp) };
-cursor(cam, { x: 900, y: 700 }, [{ to: { x: P.nav.x + 20, y: P.nav.y }, t: t0, dur: 0.5, click: true }]);
-// nav highlight: base state at 0, switch at the click
-tl.set(navs[0], { className: "nav on" }, 0);  tl.set(navs[1], { className: "nav" }, 0);
-tl.set(navs[0], { className: "nav" }, t0 + 0.5);  tl.set(navs[1], { className: "nav on" }, t0 + 0.5);
-tl.to($(s, ".main"), { x: -260, scale: 0.96, duration: 0.6, ease: "power3.inOut" }, t0 + 0.5);
-tl.to(view, { xPercent: 0, duration: 0.6, ease: "power3.inOut" }, t0 + 0.5);
-// something in the new view already moves: a radar sweep, a map, a chart
-tl.fromTo(sweep, { rotation: 0 }, { rotation: 540, duration: 1.1, ease: "none", ...NI }, t0 + 0.5);
-// camera: frame the nav item for the press (central 60%, readable), then go to the new view (two tweens, no overlap)
-const navView = focus({ x: P.nav.x + 300, y: P.nav.y }, 1.5, { box });
-tl.fromTo(cam, navView, { ...focus({ x: P.nav.x + 320, y: P.nav.y }, 1.6, { box }), duration: 0.5, ease: "power1.out", ...NI }, t0);
-tl.to(cam, { ...focus(P.vp, 1.3, { box }), duration: 1.1, ease: "power2.inOut" }, t0 + 0.5);
+tl.fromTo($$(s, ".panel"), { y: 420 }, { y: 0, duration: 0.7, stagger: 0.1, ease: "expo.out" }, t0);
 ```
-A real app's nav sits at the frame's edge (at 1.1× it is in the outer ~15%, and `audit.mjs` prints `click ... edge of frame`), so the camera frames it for the press as above, then travels to the new view.
-If the app has a real route animation, reproduce its easing; if a view is a canvas or map that animates (a radar, a map), use the frames `capture.mjs` grabs (`canvas: { frames }` in `states.json`, played with `UI.frames` from the starter) instead of crossfading stills.
-
-### 7. Scroll a tall page
-A tall page is one `.main` taller than the viewport; scrolling is a `y` tween on it. Put sticky headers outside `.main`.
+**Screen wall** (every view, fast): a 3×3 grid of captured screens scaled to 1/3, one tile per kick, the camera tight on the first tile and pulling back as the wall fills.
 ```js
-const dist = main.offsetHeight - vp.offsetHeight, V = center(vp);          // measure before tweening
-tl.fromTo(main, { y: 0 }, { y: -dist, duration: 1.3, ease: "power2.inOut", ...NI }, t0 + 0.1);
-tl.fromTo($(s, ".scrollbar"), { y: 0 }, { y: vp.offsetHeight - 150 - 24, duration: 1.3, ease: "power2.inOut", ...NI }, t0 + 0.1);
-tl.fromTo(cam, focus(V, 1.2, { box }), { ...focus(V, 1.32, { box }), duration: 1.6, ease: "none", ...NI }, t0);
+names.forEach((_, i) => { const t = t0 + i * beat / 2; show($(s, ".t" + i), t); tl.fromTo($(s, ".t" + i), { scale: 1.25 }, { scale: 1, duration: 0.3, ease: "expo.out" }, t); });
+tl.fromTo(cam, focus(center($(s, ".t0")), 2.6, { clamp: false }), { x: 0, y: 0, scale: 1, duration: 2.4, ease: "power2.inOut", ...NI }, t0);
 ```
-Don't scroll an `overflow: auto` element: real scroll position isn't a function of `t`.
+A montage of hard cuts is one scene per cut, not camera `set`s inside one scene.
 
-**Target at the bottom of a tall page.** `focus()` clamps to the replica's box, so a card at the very bottom can't reach the frame centre. Let `.main` scroll further than the page allows: tween `y` to `-(main.offsetHeight - vp.offsetHeight + 150)` (the empty strip below the page stays out of frame) and aim `focus()` at the card's position minus that scroll. Check the end frame in a still: the card sits mid-frame, not in the lower third.
+## Zoom-through, whip pan, tilt
 
-### 8. Split-screen montage of three views
-Three panels, each already showing content on the cut frame (offset 420 px, not off-screen), each with its own motion.
+**Zoom-through and match cut** (the silent film's peak): zoom until a number fills the frame, then cut to a scene with the same number at the same size.
 ```js
-const panels = $$(s, ".panel");                                              // 640 px wide each, left 0 / 640 / 1280
-tl.fromTo(panels, { y: 420 }, { y: 0, duration: 0.7, stagger: 0.1, ease: "expo.out" }, t0);
-count($(panels[0], ".v"), 700, 1284, t0, 1.0);
-tl.fromTo($$(panels[1], ".bars i"), { scaleY: 0.12 }, { scaleY: 1, duration: 0.6, stagger: 0.04, ease: "back.out(1.5)" }, t0);
-tl.fromTo($$(panels[2], ".row"), { x: 120 }, { x: 0, duration: 0.45, stagger: 0.06, ease: "power3.out" }, t0);
-push(cam, t0, t0 + 1.6, 1, 1.06);
-```
-Build each panel from the replica's own component builders so it is the real UI, not a mock. A screen wall or montage made of **hard camera cuts**: give each cut its own scene (one scene per cut) instead of `tl.set` on the camera inside one scene; the audit reads those as jumps.
-
-### 9. Zoom through into a component, match cut to its detail
-Zoom until a number fills the frame, then cut to a scene that shows the same number at the same size. `clamp: false` lets the camera aim exactly.
-```js
-const N = center($(s, ".stat-1 .v"));                                        // .v must be inline-block so its centre is the digits
+const N = center($(s, ".stat .v"));
 tl.fromTo(cam, { x: 0, y: 0, scale: 1 }, { ...focus(N, 5.2, { clamp: false }), duration: 0.8, ease: "power3.in", ...NI }, t0);
-// detail scene at t0+0.8: the number at font-size = original × 5.2, centred
-const d = scene(`<div class="center"><div class="display dnum" style="font-size:437px">1,284</div></div><div class="chip dchip" style="left:1180px;top:200px">+18% this week</div>`, t0 + 0.8, t0 + 1.6);
-count($(d, ".dnum"), 1284, 1420, t0 + 0.8, 0.8);
-tl.fromTo($(d, ".dchip"), { scale: 0.5, y: 40, opacity: 0 }, { scale: 1, y: 0, opacity: 1, duration: 0.45, ease: "back.out(2.2)" }, t0 + 0.95);
+const d = scene(`<div class="center"><div class="display" style="font-size:437px">1,284</div></div>`, t0 + 0.8, t0 + 1.6);
 ```
-
-### 10. Whip pan between two screens
-Two screens side by side on a 3840 px strip; the strip moves while blur and skew peak and return. Different properties, so no tween fights.
+**Whip pan**: two screens side by side on a 3840 px strip; the strip moves while blur and skew peak and return.
 ```js
-const s = scene(`<div class="strip"><div style="left:0">${UI.home()}</div><div style="left:1920px">${UI.list()}</div></div>`, t0, t0 + 1.6);  // css: .strip{position:absolute;width:3840px;height:1080px} .strip>div{position:absolute;top:0;width:1920px;height:1080px}
-const cam = wrap(s), strip = $(s, ".strip");
 tl.fromTo(strip, { x: 0 }, { x: -1920, duration: 0.5, ease: "power4.inOut", ...NI }, t0 + 0.5);
 tl.fromTo(strip, { filter: "blur(0px)", skewX: 0 }, { filter: "blur(26px)", skewX: -10, duration: 0.22, ease: "power2.in", ...NI }, t0 + 0.5);
 tl.to(strip, { filter: "blur(0px)", skewX: 0, duration: 0.28, ease: "power2.out" }, t0 + 0.72);
-tl.fromTo($$(strip.children[1], ".row"), { y: 28 }, { y: 0, duration: 0.4, stagger: 0.05, ease: "power3.out" }, t0 + 0.7);  // landing screen already moves
-push(cam, t0, t0 + 1.6, 1, 1.12);   // a slow push the whole time
 ```
-The screen before the whip must also move (scrub, counter) so the 0.5 s before the whip isn't static.
-
-### 11. Parallax tilt of the whole window
-Perspective on the tilting layer, floating chips at different `z` in front of it. The app window must not be `overflow: visible` with 3D children inside (overflow hidden flattens the tree), so parallax comes from sibling chips, not from elements inside the window.
+**Parallax tilt**: perspective on a wrapper, floating chips at different `z` beside (not inside) the app window; the window may fill 85–95% here because the window is the subject.
 ```js
-const s = scene(`<div class="tilt" style="position:absolute;inset:0;transform-style:preserve-3d">${UI.app()}<div class="chip c1" style="left:1380px;top:150px">+18% this week</div><div class="chip c2" style="left:90px;top:800px">92 orders</div></div>`, t0, t0 + 1.6);
-const tilt = $(s, ".tilt");
 gsap.set(tilt, { transformPerspective: 2400 });
-gsap.set($(s, ".c1"), { z: 160 });  gsap.set($(s, ".c2"), { z: 120 });
 tl.fromTo(tilt, { rotationY: -20, rotationX: 10, scale: 0.9 }, { rotationY: 12, rotationX: -3, scale: 1.04, duration: 1.6, ease: "sine.inOut", ...NI }, t0);
-tl.fromTo($(s, ".c1"), { y: 30 }, { y: -30, duration: 1.6, ease: "sine.inOut", ...NI }, t0);
-count($(s, ".stat-1 .v"), 1100, 1284, t0, 1.2);                               // the UI inside keeps moving
 ```
-The window ends at 85–95% of the frame: tilt shots are the exception to the 40–70% rule because the window is the subject.
 
-### 12. Theme reveal from the toggle
-Two stacked copies (dark, light). Measure the toggle with both present; `reveal(el, point, t0, dur?, r0 = 70)` hides the copy until `t0` and grows a circle from the toggle. `r0` is never 0, so the first frame already shows a disc of the new theme; on a hit frame use 120.
+## Focus zoom, pull back on the hit
+
+The camera sits close on what matters while the action happens, then pulls back on the hit so the result is seen in context.
 ```js
-const T = center($(s, ".theme-toggle"));
-cursor(cam, { x: 900, y: 600 }, [{ to: T, t: t0, dur: 0.5, click: true }]);
-reveal(light, T, t0 + 0.5);                                                    // display none until then, disc starts at r = 70
-```
-Keep the reveal short (about 0.45 s) and `tl.set(old, { display: "none" }, end)` afterwards: translucent cards of the old theme ghost the new one while both show.
-
-**Toggle and content far apart.** On real dashboards the toggle sits in a corner and the number that shows the theme is a thousand pixels away, so one camera can't frame both at 1.4× or more. Either cut to the toggle first (frame it for the press, so the click is readable) and reveal on a cut that already frames the content, or reveal at 1.0–1.2× with the toggle in the central 60% when it can be placed there. Never press a toggle at the frame edge just to keep both in frame.
-
-If the zoom is high the disc looks like a flat blob (a pale circle over empty background): reveal at camera scale ≤ 1.2 with the origin on a content-dense area, so the new theme is recognisable inside the disc, or use a diagonal wipe (`clipPath: polygon()`), the safer default on light themes. Give the edge a highlight so it reads as a surface: a ring element at the same centre and radius (1.5 px accent border, `box-shadow: 0 0 40px rgb(0 0 0 / .35)`) that grows with the same tween as the clip circle.
-
-### 13. Quick aside (1–2 s)
-For something PRODUCT.md marks *aside*: a delightful detail that isn't core. One motion, one beat, then back to the story; never a scene of its own. A small card that slides in over the current shot, or a single cut in a montage, is enough.
-```js
-const a = scene(UI.shot("aside"), t0, t0 + 1.5), ca = wrap(a);
-tl.fromTo(ca, focus(P.detail, 1.6), { ...focus(P.detail, 1.75), duration: 1.5, ease: "power1.out" }, t0);   // P.detail measured before tweens
+tl.fromTo(cam, focus(P.input, 2.0, { box }), { ...focus(P.input, 2.1, { box }), duration: 1.2, ease: "none", ...NI }, t0);
+tl.to(cam, { ...focus(center(app), 1.0, { box }), duration: 0.45, ease: "expo.out" }, t0 + 1.2);   // starts when the first ends
 ```
 
-### 14. End card with kinetic type and a live input
-```js
-tl.fromTo(splitChars($(s, ".end")), { y: 120 }, { y: 0, duration: 0.7, stagger: 0.05, ease: "expo.out" }, t0);   // offset only: sharp on the first frame
-type($(s, ".q2"), "orbit.app", t0 + 0.7, t0 + 1.4);
-press($(s, ".go"), t0 + 1.7);
-tl.to($(s, ".center"), { scale: 1.06, duration: 1.4, ease: "none" }, t0);
-```
-Timing: `direction.md`, *End card* (lines in by ~0.6 s, a readable rest with the slow push, then `land`).
-Don't `splitChars` a `.gtext` word (`lessons.md` 16).
+## Theme reveal
 
-### Into the end card (seamless, ~0.6 s overlap)
-Use the engine's `toCard(cam, card, T, { mode: "reveal" | "flip" | "tile", from, dur: 0.6 })` (the starter film does): `reveal` is the snippet below, `flip` moves the payoff number or chip to the card's headline, `tile` shrinks the product into a tile above the card. Create the product scene to run to `T + 0.6` and the card with `scene(html, T, null)`. `audit.mjs` warns (`hard-cut`) when the last scene starts with most of the picture changing in 2 frames. The manual version:
-The product scene runs ~0.6 s past the card's start; the camera pulls back while the card's colour grows from the last click point, then the line rises. `P.last` is the last click point measured before tweens; `cam9` the product scene's camera.
-```js
-const T = cardStart, s9 = scene(UI.shot("final"), t9, T + 0.6), cam9 = wrap(s9);
-tl.to(cam9, { ...focus(P.center, 0.9), duration: 0.6, ease: "focused" }, T);   // pull back: the UI recedes
-const card = scene(`<div class="card-bg"></div><div class="end">Name</div><div class="line">Promise.</div>`, T, null);
-reveal($(card, ".card-bg"), P.last, T, 0.6, 70, 2600);                        // brand colour grows from the click
-enter($(card, ".end"), { y: 60 }, T + 0.35, 0.5);                              // lines rise inside the colour
-enter($(card, ".line"), { y: 40 }, T + 0.5, 0.5);
-```
-Alternatives: move the payoff element itself (a number, a chip) to the headline position with a FLIP tween and fade the UI out behind it; or shrink the UI into a rounded tile (`scale` 0.5, `borderRadius`) that slides up as the card text enters below. Keep one direction of motion across the join.
+Two stacked copies; measure the toggle with both present. `reveal(light, T, t)` grows a disc of the new theme from the toggle (`r0` never 0, so the first frame shows a disc), ~0.45 s, then hide the old copy (`below`). Reveal at camera 1.0–1.2× over content-dense UI, or the disc is an unrecognisable blob; on light themes a diagonal wipe (`clipPath: polygon()`) is the safer default. A ring element growing with the clip gives the edge a highlight so it reads as a surface. If the toggle is far from the content, frame the toggle for the press, then cut to a frame of the content as the reveal runs.
 
-### Data over time (one DOM, many captured states)
-A slider, scrubber or date control drives a chart or map and you captured one state per value (`"set"` on the range input, `--seed`/`--timezone` so every state agrees). Swapping 25 screens flickers; keep the first state in the scene and morph it:
+## Dialog or palette
+
+A scrim darkens the frame, so a dialog at 1.0× is a dark frame with a small box. Zoom until the dialog fills at least half the frame (usually 1.8–2.4×), aim at its centre (`UI.measure`), type into it as above, cut out on the Enter. Never two dark shots in a row.
+
+## Key number over dense UI
+
+Dim the captured screen from its first frame (`filter: brightness(.45)` on the app layer), put the figure in 60–70% of the frame width as display type and `count` it to the app's real value, then cut to a one-cell zoom (`focusRect(rect(cell), 60)`) on what changes for ~1–1.5 s and pull back.
+
+## Drag and drop, file drop
+
+**Drag and drop**: capture `drag-start`, `drag-over` and `dropped`. A ghost (clone of the card, slight tilt and shadow) rides the cursor along the path; swap to `drag-over` on the frame the ghost crosses into the target column (solve the ease for that time, don't guess) and to `dropped` on release; land with a small bounce and update the counter on the same frame. If the page's own drag handler works with the capture's `drag` action, record the states from it.
+
+**File drop** (upload and converter tools): a film-made file chip (thumbnail, name, size) rides the cursor onto the drop zone with the same ease, the zone highlights as it crosses, the chip shrinks in on release, a progress bar keeps moving through the wait, and the result lands on the hit.
+
+## Data over time
+
+A slider or date control drives a chart or map and you captured one state per value: morph one DOM rather than swapping many screens.
 ```js
 const names = ["h00", "h06", "h12", "h18", "h24"], S = UI.states(names);
 const s = scene(UI.shot(names[0]), 4, 12), host = UI.pick(s, names[0]);
-S.lerp(tl, host, 5, 11, { sel: "circle", key: (e) => e.getAttribute("cx") + "|" + e.getAttribute("cy"), swap: [".chart-card"], text: [".clock"], css: ["left"] });
-drag(c, ".slider-thumb", ".slider-end", 5, 11);   // the cursor drags the thumb over the same seconds (ease none)
+S.lerp(tl, host, 5, 11, { sel: "circle", key: (e) => e.getAttribute("cx") + "|" + e.getAttribute("cy"), text: [".clock"] });
+drag(wrap(s), ".slider-thumb", ".slider-end", 5, 11);
 ```
-Elements that exist in two states are matched by `key` and their fills, sizes, positions and path data are interpolated (colours in RGB); `swap`/`text` selectors take their innerHTML / text from the nearest state. Pair it with a camera push or a counter: a recolour alone is little motion (`motion.mjs --region x,y,w,h --level 4 --thresh 0.05` measures it). Open data products with a stake line (what the viewer learns), and add a key-chart zoom (`focusRect` on the card, then `spot`) for the one shot where the small chart text must be readable.
+Pair it with a camera push or counter: a recolour alone is little motion.
 
-### Dialog or palette shot
-A scrim darkens the whole captured frame, so a dialog at camera 1.0 is a dark frame with a small box in it. Zoom onto the dialog until it fills at least 50% of the frame (usually 1.8-2.4×), aim `focus()` at its centre (measure it with `UI.measure`), and keep the scrim at the edges only. Type into its input as in shot 2 and cut out on the Enter press. Never two dark shots in a row.
+## Turn-based games
 
-### Key number over dimmed UI (dense or plain products)
-For tables, forms and admin screens: the UI proves it is real, the number is what the viewer reads. Dim the captured screen (a dark scrim of about 0.55 opacity or `filter: brightness(.45)` on the app layer, applied from the first frame so the cut frame is sharp), put the figure in 60–70% of the frame width as display type, and `count` it to the app's real value. Then cut to a one-cell zoom (`focusRect(rect(cell), 60)`) on what changes, 1–1.5 s, and pull back. Table shots never exceed ~1.5 s each (`film-types.md`, *Dense, dated or plain UI*).
+Run the game's own logic headless with the capture's seed to get a move trace (key, board before and after, score); build the board from captured tile markup and tween slides, merges and spawns from the trace; verify the trace against captured states. `keycap` presses on the frame the board changes. Big copy and the score go in `panels` beside the board.
 
-### Payoff shot
-The payoff is the peak of the film: the tightest framing (the result fills 60-70% of the frame), the biggest motion (the largest zoom or count of the film, a pull-back on the hit) and the longest hold (about 1 s with a slow push still running, never shorter than the shots before it). If an earlier shot is bigger or tighter, shrink that one.
+## Into the end card
 
-### Step-bar caption (how-to films)
-A how-to's instruction must stay on screen while the viewer watches the action, and full-bleed UI has no free margin. Reserve a **caption band** (a strip of about 160-180 px at the bottom or top, solid colour) and frame the app in the rest of the frame: clip the scene to the remaining area and offset every `focus()` target by half the band so the target is centred in what is left. Use the engine's `band()` (`film-api.md`) rather than hand-clipping. Each step swaps its caption on the step's first frame ("1 Press and hold the card", number in a chip) with a thin progress line across the band; the caption text size follows `direction.md`, *Framing*. The band is not content: don't count it toward the 40-70% rule.
-
-### Drag and drop
-If the page's own drag handler works with the capture's `drag` action, record the states from it; otherwise stack states and tween the ghost.
-1. Capture `drag-start` (card lifted or source dimmed, column highlight off), `drag-over` (target column highlighted) and `dropped` (card in its new place, counts updated) as stacked states (`UI.stack`).
-2. A **ghost** (a clone of the card, slight tilt and shadow) tweens from the card to the target along the cursor path: the cursor hides under it or rides its corner.
-3. **Swap `drag-start` to `drag-over` when the ghost crosses the column boundary**, and `drag-over` to `dropped` on the release frame. Compute the crossing time from the ease (`ease(p)` solved for the boundary x), not by eye, so the highlight changes as the ghost crosses.
-4. Land with a small bounce and a ring on the card; the toast or counter updates on the same frame. Hold the result 1.5 s or more in a how-to.
-If the real page's own drag handler can be driven by the capture's drag action, use that for the states and keep the ghost tween for the motion.
-
-### File drop (upload and converter tools)
-The first thing the viewer needs is the file arriving. Carry it as a **file chip** (a small card with thumbnail, name and size) dragged onto the drop zone: the cursor and the chip tween with the **same ease** (`power2.inOut`) so the chip rides the cursor, the zone swells or highlights as the chip crosses its edge, and the chip shrinks into it on release. Then show the **processing wait** over the riser (a progress bar or spinner that keeps moving; a wait is not a still), then cut to the result on the hit. Capture the idle, dragover and result states; the chip is film-made markup, not a capture.
-
-### Turn-based game or keyboard-driven app
-Moves can't be planned by eye, and a game has no cursor.
-1. **Get a move trace.** Run the app's own logic headless with a seeded PRNG (the same seed as the capture, `replicas.md`, *Random demo data*) and record each move: key, tiles before and after, score.
-2. **Tween the real markup.** Build the board from the captured tile or sprite elements and move them from the trace (slide, merge pop, spawn), not a screenshot swap. Verify the trace's board against the captured states at the same moves; a mismatch means the seed or the logic differs.
-3. **Show keycaps instead of a cursor:** a key glyph (arrow, space) that presses on the move frame. The click-placement rules are n/a; the keycap must be readable and press on the frame the board changes.
-4. **A narrow board** (a centred square in a 16:9 frame) leaves wide margins: put big copy and the score or key number in **margin panels** on both sides, outside the camera layer, and keep the board as the hero.
-
-### Frame a rect
-`focus()` frames a point and a scale. To fit a column, a card or a form with padding, use the engine's `focusRect(rect(el), pad)` (it derives the scale from the rect, the padding and the frame). In a narrow or top-heavy app it keeps crop edges on column and card boundaries so no word is sliced at the frame edge.
-
-### Move a captured overlay into frame
-A fixed toast, snackbar or portal is anchored to a far corner of the 1080 wrapper and lands outside a zoomed frame. Move it next to its target with `dock(el, ref, { side, gap })` (pass `el.parentElement` when the parent is the fixed wrapper) at build time and animate it there; check each toast state's HTML contains the toast text (capture with the root that includes portals).
-
-### Auto camera from the clicks
 ```js
-const steps = [{ to: ".search", fx: 0.3, t: t0, dur: 0.6, click: true }, { to: ".go", t: t0 + 1.4, dur: 0.4, click: true }, { to: ".row:nth-child(2) .tick", t: t0 + 4.5, dur: 0.5, click: true }];
-cursor(cam, { x: 1500, y: 700 }, steps);             // selectors, no coordinates
-autoCam(cam, steps, { box });                         // zooms in before the first click, one framing per burst, eases out; { preset: "smooth" } for launch films
+const T = cardStart, s9 = scene(UI.shot("final"), t9, T + 0.6), cam9 = wrap(s9);
+const card = scene(`<div class="card-bg"></div><div class="end">Name</div><div class="line">Promise.</div>`, T, null);
+toCard(cam9, card, T, { mode: "reveal", from: P.lastClick });   // colour grows from the last click, camera pulls back
+enter($(card, ".end"), { y: 60 }, T + 0.35);
+enter($(card, ".line"), { y: 40 }, T + 0.5);
+push(card, T + 1, D, 1, 1.03);
+land(D - 0.4, 0.4);
 ```
-Manual `tl.to(cam, focus(...))` on the same layer wins; call `autoCam` after it. Read `cam.__plan` if a click got no zoom (it says why).
+`mode: "flip", el: payoffNumber, to: ".end"` makes the payoff element become the headline instead.
 
-### Spotlight a detail
-```js
-spot(s, ".price", t0 + 2, t0 + 3.6, { dim: 0.6, ring: true });   // everything else dims, the target stays sharp
-caption(s, "Billed yearly", t0 + 2, { pos: "bc", end: t0 + 3.6 });
-```
+## Sound-coded effects (music films only, once each)
 
-### Loupe for tiny UI
-```js
-loupe(s, ".badge", t0 + 2, t0 + 4, { scale: 2.5, size: 320 });     // live magnified inset next to the target; { at: { x, y } } to place it
-```
-
-### Framed stage (landing, hero, README)
-```js
-const s = scene(UI.shot("board"), 0, 8, { frame: { title: "app.example.com" } });
-const cam = wrap(s), fr = s.__frame;                                // fr.box = the window: pass it to focus() / autoCam()
-```
-Not for feeds or how-tos read on a phone: the app is ~15 % smaller.
-
-### Fast moves only: selective motion blur
-`node $S/render.mjs film/index.html out.mp4 --preset selective`: sharp text at rest, blur only where the camera, cursor or cards move fast; cheaper than `motionblur`.
+- **Stamp** (a verdict word on the hit): `tl.fromTo(st, { scale: 2.4, rotation: -12 }, { scale: 1, rotation: -4, duration: 0.18, ease: "power4.in" }, t)` and a small camera thud after it.
+- **Glitch** ("it broke"): two colour copies jump on fixed 1/30 s steps with offsets from `rnd()`, shrinking to zero over 8 steps, then reset.
+- **Shockwave** (the drop): `rings(s, t)` with the focus pull-back.

@@ -1,6 +1,6 @@
 # Generated beat: a small, deterministic synthesized score built from a bar plan (no samples, no licenses, owned outright).
 # usage: node music.mjs synth --plan <film>/beat.json --out <film>/track.wav [--sr 44100|48000] [--seed N] [--preset NAME] [--lufs -14]
-# Out: .wav (16-bit), or .mp3/.m4a/.flac via ffmpeg. Plan schema and presets: references/synth.md.
+# Out: .wav (16-bit), or .mp3/.m4a/.flac via ffmpeg. Plan schema and presets: references/music.md (Generated beat).
 import json, math, os, re, subprocess, sys, tempfile
 import numpy as np
 import soundfile as sf

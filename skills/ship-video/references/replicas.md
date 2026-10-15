@@ -1,27 +1,28 @@
-# Replicas: capture the running app into the film
+# Replicas: the app's real UI in the film
 
-Read in step 5. The replica is the app itself: its real DOM and CSS, captured per state, not rebuilt by hand. `$S` = the skill's `scripts/`.
+Read at step 5 (and for capture options in Discovery). The replica is the app itself: its real DOM and CSS captured per state, then animated. Rebuilding by hand is the fallback. Every script has `--help` with all flags; this file covers what you need to decide.
 
 ## Contents
-- Capture first (commands)
+- Commands
 - states.json
-- Using captured states in film.js
+- Options: login, phones, themes, scroll-reveal, deterministic data, privacy
+- Canvas, maps, games
+- Comparing with the real app
 - Pitfalls
-- Compare against the real app
 - Without a running app
 
-## Capture first (commands)
+## Commands
 
 ```
-node $S/capture.mjs <url> <film> --discover [--routes /,/radar]   # 1. inventory every view: review/discovery/*.png + inventory.json
-node $S/capture.mjs <url> <film>/states.json <film> --css         # 2. DOM per state + app.css + fonts
-node $S/compare.mjs <url> <film>/gallery.html <film>/review/compare --states <film>/states.json   # 3. diff per state
+node $S/capture.mjs <url> <film> --discover [--routes /,/radar]    # every view: review/discovery/*.png + inventory.json
+node $S/capture.mjs <url> <film>/states.json <film> --css          # DOM per state, app.css, fonts, images → screens.js
+node $S/compare.mjs <url> <film>/gallery.html <film>/review/compare --states <film>/states.json
 ```
+Capture prints the `fonts:` and `images:` lists for `film.js`. Regenerate the outputs, never hand-edit them. Pass the same flags (`--storage`, `--viewport`, `--scheme`, `--seed`, `--timezone`, `--redact`) to capture and compare.
 
-- `--discover` follows links and clicks nav/tab buttons, and prints height, inner scroll containers and canvases per route. States that need clicks (dialogs, toasts, themes) are yours to list in states.json.
-- Capture writes `<film>/screens.js` (`SCREENS` html + `SCREENS_META`), `<film>/review/discovery/<state>.png`, `<film>/img/*` (canvas frames, images), and with `--css` `<film>/app.css` + `<film>/fonts/*`. It prints the `fonts:` and `images:` lists for film.js. Regenerate, never hand-edit. Other flags: `--root "<sel>"` (default: first child of `#root`/`#app`/`#__next`, else of body), `--full` (full-page screenshots).
-- `node $S/port-css.mjs <url|a.css b.css> <film>/app.css` ports the CSS alone (reads the live page's CSSOM and stylesheet sources, so Vite/Bun/Next dev all work; css files are the fallback).
-- Handled for you: scripts and `on*` stripped; input/textarea values, checked and selected baked into attributes; `<canvas>` → `<img>`; SVG ids suffixed per state (`url(#g)` rewritten) so stacked copies never share gradients; remote images copied to `img/`; `html`/`body` attributes (`data-theme`, classes) moved to the `.app-shot` wrapper; CSS scoped as `:where(.app-shot) …` (app specificity unchanged), `:root`/`html`/`body` rules → `.app-shot`, `@media`/`@supports` resolved for 1920×1080, `@keyframes` dropped, `position:fixed` → absolute with the app root made static (overlays anchor to the 1080 wrapper), `vh`/`vw` → px, `@font-face` files copied (inlined data: fonts extracted).
+The capture handles the hard parts: scripts stripped, input values baked in, SVG ids made unique per state, CSS scoped under `.app-shot` at the app's own specificity, media queries resolved for 1920×1080, fixed overlays anchored to the frame, fonts and remote images copied, hover-only UI baked with `--bake-hover "row,.btn"`.
+
+Dev servers compile each route on first request: warm every route once, or capture a production build if the dev server is slow or half-styled.
 
 ## states.json
 
@@ -29,84 +30,48 @@ node $S/compare.mjs <url> <film>/gallery.html <film>/review/compare --states <fi
 [
   { "name": "home" },
   { "name": "palette", "actions": [{ "press": "Control+k" }, { "wait": 150 }] },
-  { "name": "query", "continue": true, "actions": [{ "type": "Reyk" }, { "wait": 150 }] },
-  { "name": "added", "continue": true, "actions": [{ "press": "Enter" }, { "wait": 300 }] },
-  { "name": "radar", "path": "/radar", "actions": [{ "waitFor": "canvas" }], "canvas": { "frames": 4, "every": 400 } }
+  { "name": "query", "continue": true, "actions": [{ "fill": [".palette input", "Reyk"] }, { "wait": 150 }] },
+  { "name": "radar", "path": "/radar", "actions": [{ "waitFor": "canvas" }], "canvas": { "frames": 6, "every": 400 } }
 ]
 ```
+- `continue: true` keeps the previous state's page instead of reloading; `before: true` also captures the page right before the last action (the *before* state a click needs).
+- Actions: `click`, `dblclick`, `fill [sel, text]`, `type`, `press`, `hover`, `select`, `check`, `set [sel, value]` (range inputs), `scroll`, `waitFor`, `wait ms`, `goto`, `upload`, `tap`, `swipe`, `drag`, `mouse`, `eval`.
+- **Scope every selector** (`.dialog input`, not `input`): an ambiguous one fills the first match and the state still looks fine. Check each captured PNG.
+- Use `fill`, not Control+A then type (on macOS Chromium Control+A is "line start").
+- Timers need a `wait` long enough to pass them.
+- Capture both states of every interaction the film shows (`toggle-off` and `toggle-on`): a click needs its *before* state.
 
-State keys: `name` (letters, digits, `-_.`; must match the gallery `.frame[data-state]`), `path`, `actions`, `continue: true` (keep the previous state's page instead of reloading: no repeated prefix), `capture: false` (drive only), `root`, `full`, `canvas`, `before: true` (also captures `<name>-before`, the page right before the last action). A canvas state runs without reduced motion on a fake clock (frames advance by `every` ms) at `--dpr 2` (default); identical frames print a WARNING. A selector matching several elements warns and takes the first visible one (dialog, then main). A failing state is reported and skipped; the others are still written.
-Actions: `click` · `dblclick` · `fill [sel, text]` · `type text` · `press key` · `hover` · `select [sel, value]` · `check` · `set [sel, value]` (range inputs) · `scroll y | [sel, y]` · `waitFor sel` · `wait ms` · `goto path` · `eval js`.
+## Options
 
-- Scope every selector (`.dialog input`, not `input`): an ambiguous one fills the first match (a sidebar filter instead of the dialog) and the state still looks fine. Check the captured state's PNG.
-- Use `fill`, not `Control+A` + `type`: on macOS Chromium `Control+A` is "line start", so the text is appended and the palette never closes.
-- Timers need `wait` (a 4.2 s toast: `wait: 4400` to see it gone).
-- `canvas`: `{ frames: N, every: ms }` grabs N frames over time for an animated canvas (radar); `{ steps: [[actions], …] }` runs actions before each frame (scrub a slider; for a timeline radar `set` the range input from its minimum to its maximum so frames come out in order: `frames` alone samples a looping animation by time, not by timeline). Frames land in `img/<state>-c<k>-<n>.png`; the `<img>` carries `data-frames`. A WebGL canvas without `preserveDrawingBuffer` comes out blank (reported).
+- **Login or onboarding.** Seed the session instead of driving a form: `--storage "token=abc"`, `--storage-state file.json`, or `"init": { "storage": {}, "cookies": [] }` with the states under `"states"`. A first-run screen: a `"setup"` block that runs once and whose storage every state reuses. No way in: ask the user for a test account or a seeded dev mode.
+- **Phones.** `--viewport 390x844 --touch`; the app is centred on the stage at that size.
+- **Themes.** `--scheme light|dark` or `"scheme"` per state; with `--css` both themes' rules are kept.
+- **Root.** Default is the app container's child; `--root "<sel>"` when toasts or portals live outside it (a warning names visible elements the root leaves out).
+- **Landing pages.** `"reveal": true` scrolls through first so scroll-triggered content appears; `--discover` always does. CSS keyframe animations are not ported (the warning names them): rebuild them on the timeline.
+- **Deterministic data.** `--seed N`, `--timezone Area/City`, `"init": { "date": "2026-01-15T10:00:00Z" }`, or `--init-script`. Capture all states in one run so they agree.
+- **Layouts that break in the replica** (JS-measured grids): `"pin": true` inlines resolved sizes; `"image": true` stores a screenshot instead (text no longer live).
+- **Privacy.** A film that is public or shared never shows real customer data. `--redact` replaces emails, phones and keys in text and attributes with consistent fakes (`--redact-names "Jane Doe"` for names). It doesn't touch pixels (canvases, photos, avatars): look at them. In `continue` states, text selectors for redacted words no longer match: use CSS selectors. `audit.mjs` checks the finished film too.
 
-## Using captured states in film.js
+## Canvas, maps, games
 
-`index.html` and `gallery.html` already load `app.css` and `screens.js`. `ui.js` has:
+- An animated canvas: `"canvas": { "frames": N, "every": ms }` grabs frames over a fake clock; `"steps"` runs actions before each frame (scrub a slider with `set`). Identical frames print a warning: a paused or reduced-motion canvas needs `steps`. Frames play with `UI.frames`.
+- Drawing, maps, games: a `"record"` state drives the page with the real mouse (`"steps": [{ "stroke": [[x, y], …] }, { "click": [x, y] }]`) and writes a frame per step plus the pointer path; replay with `UI.recording(name)` and `follow`. Real frames are exact and cheaper than rebuilding the drawing.
+- Captured at DPR 2: sharp up to ~1.9× camera zoom. WebGL without `preserveDrawingBuffer` comes out blank (reported).
 
-```js
-const s = scene(UI.stack(["home", "palette", "added"]), 4, 12);   // stacked copies, all but the first display:none
-const cam = wrap(s);
-const P = UI.measure(s, "home", (h) => ({ card: center($(h, ".current")) }));   // measure a state: shows it, runs fn, restores
-UI.swap(tl, s, "palette", 6);                                      // from t=6 only "palette" is visible
-tl.fromTo($(UI.pick(s, "home"), ".current"), { y: 40 }, { y: 0, duration: .6, ...NI }, 4);   // real elements tween; offset only: opaque on the cut frame
-UI.frames(tl, $(UI.pick(s, "radar"), "img"), 8, 12);               // step a captured canvas through its frames
-```
+## Comparing with the real app
 
-`UI.shot(name)` is one state's html (an `.app-shot` wrapper), `UI.images()` the canvas frames for `Film({ images })`. Don't film a sequence of swapped static screens alone: tween individual elements inside the captured screens (cards rise in, bars grow, a row slides) so it reads as the app moving. List the font faces from the capture output in `fonts:`.
+`compare.mjs` drives the real app through the same states and writes `<state>.png` (real / replica / diff) per state with a diff %. Read the PNGs: under ~2% is the target (text anti-aliasing alone is ~0.3%); a red block is a real difference. It also lists text the real page shows and the replica doesn't (a dropped toast scores low in pixels but is `MISSING`). `"mask": ["#clock"]` ignores live values; `--full` compares the whole page height.
+
+Captured DOM often scores near 0%: the comparison then mostly proves nothing broke. The stills at the zoom the film uses are the real check.
 
 ## Pitfalls
 
-- **Stacked copies are `display:none` when measuring.** With all copies visible the page is several screens tall and every `center()`/`rect()` is wrong. Always `UI.measure`.
-- **Hide the covered copy; no glass.** After a swap, theme reveal or route change the old copy must be `display: none` (`UI.swap` does it; `reveal`'s `below` option too). `backdrop-filter` cards blur whatever is stacked beneath, so a dark copy under a light one ghosts, they smear in scaled or stacked layers, and a zoomed modal scrim blotches even as a single copy. Use a solid or near-opaque background in the replica (`background: rgb(20 22 28 / .92)`, or `[role=dialog]{backdrop-filter:none!important}` in `film.css`) and check a still at the zoom the shot uses.
-- **Duplicate SVG ids** make a copy paint with another copy's gradient; capture suffixes them, and for hand-made markup do the same.
-- **Tall pages.** The wrapper is a 1920×1080 window. Scroll by tweening `y` on `.main` (the sidebar stays put) and subtract the scroll from `focus()` coordinates. `page height` in the capture log and `SCREENS_META[name].height` give the length. A target at the very bottom needs the extra-scroll recipe in `shots.md` 7.
-- **Fixed overlays** (toasts, dialogs, scrims) are handled by the port; if one is missing in the replica, check that the app root is `position: static` in `app.css`.
-- **Input values** are baked into `value=`. To type in a captured input, run `typeOn()` (or `type()`) on it and set `input.value` in the `onUpdate(k)` callback (`shots.md` 2); never fake it by swapping an "empty" and a "typed" state.
-- **Hover on a captured chart:** capture hover states with `hover` actions and `UI.swap` between them with a moving cursor, or add a `.tip/.dot` overlay for `scrubChart` (`shots.md` 4).
-- **Dialogs and palettes:** the scrim darkens the frame, so zoom onto the dialog (≥ 50% of the frame) instead of filming it at 1.0× (`shots.md`, *Dialog or palette shot*).
-- **A paused or reduced-motion canvas** captures identical `frames`: use `canvas.steps` (scrub the range input with `set`) and check that the frames differ.
-- **`compare.mjs` shows a big diff after a click that scrolled the real page:** the real page kept its scroll, the replica didn't. Add a `scroll 0` action, or ignore that state's offset.
-- **CSS animations and transitions don't run** (base.css disables them); rebuild entrances on the timeline.
-- **Fonts**: the capture copies them; check the faces are in `fonts:` or the first frames render in a fallback.
-- **Theme**: tokens computed from other tokens work because the wrapper carries `data-theme`; both themes can be on screen at once.
-- Browser defaults: `base.css` resets margins/padding/box-sizing at zero specificity; `app.css` restores UA defaults for headings, lists and paragraphs the same way. Form controls the app styles itself are fine; unstyled ones may differ (compare shows it).
-- `audit.mjs` flags the wrapper's crop; `shot()` sets `data-clip-ok` on it.
-
-## Capture options for logins, phones, canvases and hard layouts
-
-- **Behind a login or onboarding.** Seed the session instead of driving a form: `--storage "token=abc"` (localStorage, before the first navigation), `"init": { "storage": {...}, "sessionStorage": {...}, "cookies": [...] }` at the top of states.json (`{ "init": ..., "states": [...] }`), or `--storage-state file.json`. For a first-run screen ("Try the demo"), put a `"setup": { "path": "/", "actions": [...] }` block next to `states`: it runs once and its storage (cookies, localStorage, IndexedDB) is reused by every state, and the comparison script replays it. `capture.mjs --discover` accepts the same flags and warns when routes end on a login page or give identical screenshots.
-- **Root.** The default root is the app container's only child, the container itself (`#root`) when toasts sit beside the app, and `body` when visible elements live outside it or the page has no container (a static site). A warning names every visible element a root leaves out. `--discover` does not wait for `networkidle` (apps that poll never reach it).
-- **Phones and themes.** `--viewport 390x844 --touch` (mobile emulation; `.app-shot` gets that size, centred on the stage), `--scheme light|dark` or `"scheme"` per state. Capture both themes with `--css` and the dark rules are scoped under `.app-shot[data-tk="t1"]`; the same happens when an app switches its own theme (variables injected by JS). `compare.mjs` takes the same flags.
-- **Actions.** `tap`, `swipe [sel, dx, dy, {steps, hold}]`, `drag [from, to, {steps, hold}]` (selectors or `[x, y]`), `mouse` (`"down"`, `"up"`, `["move", target, {steps}]`, or `{ move: [x, y], down: true }`), `click: [x, y]` (real mouse at coordinates). Drag-and-drop and canvas products no longer need `eval`.
-- **Scroll-reveal pages.** `"reveal": true` on a state scrolls through the page first (IntersectionObserver content appears); `--discover` always does, and warns about elements that stay at `opacity: 0`. CSS animations are not ported: the warning names each `@keyframes` and the elements using it, and a held end state (`animation-fill-mode: forwards`) is baked into inline style. A page that switches its animations off under reduced motion needs `--motion`.
-- **Canvas-first products.** Stacked canvas layers of one root are composited into one picture (a transparent overlay layer is not an error). `canvas.steps` advances the fake clock. For drawing, maps and games use a `record` state: `"record": { "crop": [x, y, w, h], "dt": 0.077, "steps": [{ "stroke": [[x, y], ...], "px": 24 }, { "click": [x, y] }] }` runs the steps with the real mouse at `--dpr 2` and writes one frame per step plus the pointer path (`SCREENS_META[name].record`, `UI.recording(name)`). Fonts registered through the FontFace API are found, copied and listed in `fonts:`.
-- **Layouts that break in the replica** (JS-measured grids, chart containers): `"pin": true` inlines the resolved sizes before capturing, `"image": true` stores a screenshot of the root as the state (text is then not live).
-- **Random demo data.** `--seed N` / `"init": { "seed": 42, "date": "2026-01-15T10:00:00Z" }` / `--init-script file.js` make a page deterministic. Capture ALL states in one run (`--only` merges into the old screens.js and warns); `compare.mjs --no-text` when the data still differs.
-- **compare.mjs** also reports the worst 64 px cell (`--max-block`, outlined in yellow in the diff image), text that the real page shows and the replica does not (a dropped toast scores 0.5 % in pixels but is `MISSING`), image/svg counts, masks canvas regions, and compares one element with `"clip": "#pricing"` (the real page scrolls it into view). `--full` on a very tall page crops the sheet around the worst cell.
-
-## Compare against the real app
-
-`compare.mjs` drives the real app through the same states.json and screenshots each `.frame[data-state]` of `gallery.html` (which lists every captured state automatically). It prints a pixel diff per state and writes `<state>.png` (real / replica / diff stacked) and `<state>-diff.png`. Flags: `--scale 1` (full-size stacked images, default 0.5), `--full` (whole page height; sticky/fixed sidebar and sky differ by construction there), `--max-diff N` (default 2 %). Captured DOM often scores 0.00 %: that is expected and not informative; the stills are the real check, and `--full` for tall pages (the default compares only the 1080 viewport). Read the PNGs: target under ~2 %, text anti-aliasing alone is ~0.3 %. A red block in the diff is a real difference (missing element, wrong colour, scrolled content).
+- **Measure stacked copies with `UI.measure`**: a hidden copy measures 0,0, and with all copies shown the page is several screens tall.
+- **Hide the covered copy.** After a swap or reveal, translucent `backdrop-filter` cards show the old state through the new one: `UI.swap` hides it; give dialogs and glass cards near-opaque backgrounds in `film.css`.
+- **A theme on `<html>`** is moved to the `.app-shot` wrapper, so tokens computed from tokens still resolve; check a still of each theme.
+- **Fonts**: list every face in `fonts:` or the first frames render in a fallback. A font can load and still lack glyphs (accents, CJK): check the copy in a full-resolution still. Some bundlers break `@font-face` (`format("woff2-variations")` unquoted): if the app itself renders in a system font, write your own `@font-face` in `film.css`.
+- **Real scroll** isn't a function of `t`: a click that scrolled the real page shows as a big diff; add a `scroll` action.
 
 ## Without a running app
 
-Rebuild from the components: read each one and write a builder in `ui.js` returning the same markup and class names, port its CSS the same way (`port-css.mjs a.css b.css <film>/app.css`), and register the builders as states in `gallery.html`. From screenshots only when there is no code; say which screens are approximated.
-
-## Added in round 5 (capture and compare)
-
-- `capture.mjs`: action `{ "upload": ["input[type=file]", "photo.jpg"] }` (setInputFiles); `--prune-hidden` drops display:none markup; discovery with `--routes` does not crawl (add `--depth N`), repeated id routes are visited once, `--parallel N`, `--max-pages N`, `--no-clicks`; `init.date` starts a running clock (`"dateFrozen": true` freezes it); a failing `setup` aborts. Warnings: custom elements (scripts are stripped), a state that collapsed to a blank page, `@media`/`@container`/`@property` or design tokens missing from `app.css`.
-- `compare.mjs`: per-state `"mask": ["#timing"]` ignores live numbers; text boxes that moved are reported as `LAYOUT` (a collapsed layout is OVER); relative times ("5 min ago", "34 ms") are normalised; a tall `clip` is compared whole.
-
-## Added in round 6 (capture)
-
-- `--timezone America/New_York` (also on `compare.mjs`; `"init": { "timezone": "..." }`): the page's time zone, so local-time labels do not depend on the machine that captures.
-- `--bake-hover "row,.btn"` (or a state's `"bakeHover": [...]`): hover-only UI (row actions, hover colours) is captured in its hovered look: each match and its descendants are hovered, and the styles that change are written inline. Capture a separate state for the un-hovered look.
-- The app's accent colour is recorded (`accent` in `SCREENS_META`) and printed; `new-film.mjs --theme dark` on a light app makes capture print the exact `index.html` line to change. `audit.mjs --brand-deny "Name,Other"` flags third-party names in the rendered text (and alt/title/aria-label/value) at any time in the film.
-
-## Privacy: redact at capture
-Real customer data (emails, phones, tokens, names) must never appear in a film that is public, committed or shared. Capture with `--redact`: before each screenshot and snapshot the live page's text nodes and the attributes `value`, `title`, `alt`, `placeholder`, `aria-label`, `mailto:`/`tel:` links get consistent fakes (same input, same fake, in every state and run; never CSS or class names). Defaults: emails (to `first.last@example.com`), phones (`555 01xx`, shape kept), API keys/tokens (prefix and length kept). Names are opt-in: `--redact-names "Jane Doe,Sam Lee"` (full name and each word of 3+ letters).
-In `states.json`: `"redact": true` or `{ "emails": true, "phones": true, "keys": true, "names": ["Jane Doe"], "allow": ["support@acme.com"], "patterns": [{ "regex": "ACME-\\d+", "replace": "ACME-0000" }] }` next to `init`/`states`; a state's own `"redact": false` skips it. A summary lists what was replaced (masked). Not covered: pixels (canvas, `image: true` states, photos, avatars) and `continue` states (text selectors for redacted words no longer match: use CSS selectors). `compare.mjs` takes the same `--redact` flags and redacts the real page before comparing. `audit.mjs` greps the finished film (`data-pii-ok` opts out, `--pii-names`, `--pii-allow`).
+Read each component the scenario needs and write a builder in `ui.js` returning the same markup and class names; port its CSS with `node $S/port-css.mjs a.css b.css <film>/app.css`; register the builders as states in `gallery.html`; compare with `snap.mjs` stills against the app's own screenshots. Copy tokens, icons and copy verbatim, then audit component by component: the first pass misses a lot. From screenshots alone only when there is no code (a native app): say which screens are approximated.

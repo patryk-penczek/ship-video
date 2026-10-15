@@ -1,115 +1,151 @@
-# Direction: structure, pacing, framing
+# Direction
 
-Read at step 4 (structure by length; silent films if silent), and again while building (step 6) and reviewing (step 7): *Pacing*, *Framing* and *Red flags*. Identity by audience, film types, story and coverage are in `film-types.md`; the shot library with code is `shots.md`.
-
-The numbers in this file (28 px, 40–70%, 2–2.5 s, 1.2–2.2 s) are defaults from films that worked, each with its reason next to it. When a shot is better broken, break it on purpose and note it in the scenario; the intended-viewer test (`film-types.md`) decides. Silent does not mean calm: without music, motion, cuts and easing are the whole rhythm.
+Read before the scenario (step 4) and again while building and reviewing. This file is the taste of the skill: what makes a product film land, and why. Numbers are defaults from films that worked; break one on purpose when the shot is better for it, and say so in *Changes vs scenario*.
 
 ## Contents
-- Film structure by length (hook, promise, tour, payoff, end card, causality, landing)
-- Pacing rules (incl. motion vs novelty, cursor or no cursor)
-- Framing rules
+- The viewer test
+- Choosing the film (one change, length, coverage)
+- Story
+- Structure: hook, tour, payoff, end card
+- Motion and pacing
+- Framing and text
+- Interactions and the cursor
 - Silent films
-- Red flags
+- Film types: how-to, teaser, landing page, phone, dense UI, canvas
+- Techniques by story role
+- What has worked, and what hasn't
 
-## Film structure by length
+## The viewer test
 
-The table assumes the stranger default (`film-types.md`, *Identity first*): 0-3 s identity, then the topic, then an end card with name and promise. It is for launch and hype films; other types are in `film-types.md`. In a silent film the payoff sits on the strongest bar 60–75% in; for 15 s that is 10–12.5 s, which is why that row ends the tour at 10.
+Every decision answers to one question: **could the intended viewer, watching muted, say what this is, why it matters to them and what to do next?** Settle who that viewer is in the Brief, because the answer changes the opening:
+- **Strangers** (launch post, feed, landing page, README; the default): by about 3 s they have the product's name and its one-sentence promise *over the working product* (a headline on the live UI, a name badge in the margin), not on a logo card. The promise comes from the product's own words (README, site), not your guess.
+- **Existing users** (changelog, onboarding): a 1 s anchor (name, where in the app we are), then the task. A pitch would be padding.
+- **New users reading docs**: 2–3 s of identity, then the task.
+- **A person** (portfolio): name and what they do; the closing ask may be "send me a message", not a URL.
+- **A developer tool**: the product is what you build with it; name the tool early and keep naming it.
+
+A "no" on the viewer test is a rewrite, not a polish: a beautiful pricing teaser that never says what the product is fails strangers.
+
+## Choosing the film
+
+**Choosing the film is half the result.** Before writing anything, find the one change that *is* the product (a file shrinks from megabytes to kilobytes, tiles merge into a bigger number, a diagram draws itself) and pick the type and length that show it best. The films that land show one mechanic plainly, with real data, and stop once it is understood: a clear 12 s clip beats a 30 s tour.
+
+**Content decides the length, not the track.** If the material holds 15 s, a 34 s film drags in the middle however polished it is. Say so ("this has about 15 s of real content; cut the track to 15–18 s?") and offer it at the scenario gate; also the reverse, when steps need more time to read. The user decides; you advise.
+
+**Coverage follows the film type.** A launch film shows every *core* view of PRODUCT.md at least briefly; a teaser shows its feature and payoff; a how-to the task's views; a landing page the 2–4 sections that carry the message. Name what you leave out in SCENARIO.md with a reason. Error and 404 pages stay out unless they are the point.
+
+## Story
+
+Every film is one story: **problem → hero → action in the app → payoff that closes the problem.** One concrete case carries it (a person, a city, a file, a number in a real situation); features appear only as steps of that case, which is why a feature list feels bland and a case feels like a film. Set up the hero and the problem in the first act: a payoff that meets its hero for the first time has nothing to close. Test: tell the film in three sentences without naming a feature.
+
+How-tos replace the story with numbered steps; the payoff is the task's finished state.
+
+## Structure
+
+For launch and teaser films (how-tos: *Film types*):
 
 | length | hook | promise | tour | payoff | end card |
 |---|---|---|---|---|---|
-| 15 s | 0–1.5 | 1.5–3 | 3–10, 3–4 shots of ~2 s | 10–12.5 | 12.5–15 |
+| 15 s | 0–1.5 | 1.5–3 | 3–10, 3–4 shots | 10–12.5 | 12.5–15 |
 | 20 s | 0–1.5 | 1.5–4 | 4–15, 6–7 shots | 15–18 | 18–20 |
 | 30 s | 0–2 | 2–6 | 6–23, 8–10 shots, one breather | 23–27 | 27–30 |
 | 45 s | 0–2 | 2–8 | 8–36, 12–15 shots in 2–3 chapters | 36–42 | 42–45 |
 
-- **Hook (first second).** The first frame already shows the strongest image or word, full size and sharp, and something is already moving: a viewer decides in a second whether to stay. Never a black or logo-only opening. Good hooks: the product's most distinctive moving thing (a live chart, a map, a canvas), a one-word headline with the app rising over it, a question typed into the app's own input.
-  - *Data or map product on a dark UI:* a dark soft canvas with a chrome strip is the weakest opening. Put a big question (60–70% of the frame width, light on dark) over the zoomed live canvas plus one counter that changes, and cut to the crisp app on the first hit. Don't let a caption cover the canvas controls.
-  - *Any dark-UI product:* open on a bright type card or a flood colour with the first word, and bring the app in on the first kick.
-- **Promise.** One line of copy, the sentence from PRODUCT.md. On screen with motion, not as a held title.
-- **Tour.** One shot per view or wow moment from PRODUCT.md, ordered by what the viewer needs to understand, not by the sidebar. Every shot has one thing that moves in it (`shots.md`).
-- **Payoff.** The result of using the product, not another feature: the answer arrives, the alert fires, the number lands. It is the **peak of the film**: the tightest framing (the result fills 60-70% of the frame), the biggest motion (the largest zoom, count or pull-back) and the longest hold (about 1 s with slow motion still running). Nothing earlier is bigger or tighter, or the film peaks too early.
-- **End card.** Logo, tagline, call to action. The CTA is a real next step (a URL, "Start free", "Try it in your help center"); if none is known, ask the owner. Same crisp rules (letters rise from an offset, no blur, no fade from nothing). **About 2–2.5 s in total**: entrance ~0.6 s, a readable rest of at least 1.2 s, then the landing. Four or five seconds of a static card reads as stalled (`motion.mjs` reports it). The brand line is held longer than any caption, because it is what the viewer takes away. Keep the entrance plain: letters that wobble or restart look odd on the one frame everybody remembers.
-- **Into the end card: carry the motion, don't jump.** A hard cut from busy UI to a flat card reads as the film running out of time. Overlap the last product shot and the card by about 0.5–0.7 s and let one motion connect them: the camera pulls back from the UI while the card's colour grows from the last thing touched (a reveal from the click point), or the key element of the payoff (the number, the chip, the result) travels to where the headline sits and becomes it, or the UI shrinks into a tile that the card text rises over. Keep the direction of motion continuous. With music, start the transition before the final hit so the card's line lands on it. A plain cut is fine only when it lands exactly on a hit and the card continues the shot's motion. **A smooth ending beats an exact length**: when the join needs time, let the film run a second or two past the planned length (silent or generated-beat films: just extend `duration`; a fixed track: start the transition earlier or let the track's ring-out carry the card) rather than cutting hard to fit, and say so in *Changes vs scenario*. Recipe: `shots.md`, *Into the end card*.
-- **Causality.** An interaction is a promise: the cursor travels to a control in its *before* state, presses it, and the screen changes on that press. Capture both states (`tab-overview` → `tab-radar`, `toggle-off` → `toggle-on`) and swap on the click frame. Clicking a tab that is already active, a toggle already on or an item already selected makes the film look fake. If you only have the *after* state, cut to it instead of faking a click.
-- **Live stays live.** Whatever moves in the real app (map or radar loops, live charts, clocks, spinners, typing) moves in the film: capture enough distinct frames (`capture.mjs` warns on identical ones) or rebuild the motion with tweens. A still or a crossfade of two frames reads as broken.
-- **Polish pass.** Before the stills gate, check every interaction at 0.1 s steps (`sheet.mjs <html> <t-0.3> <t+0.5> 0.1`): cursor arrives, press, state change, settle. Most "unfinished" feedback comes from these 0.5 s windows.
-- **Landing.** The last line of copy is complete at least 1.2 s before the end, so it can be read. Over that last stretch motion decelerates to rest (a camera push with an `out` ease that stops on the final frame, not a linear push running into the last frame) and the film resolves: a 0.3–0.5 s fade to the card's own colour (the background colour only for a neutral card: fading an amber flood to the page colour leaves a washed last frame), or, for a looping WebP, a final frame that matches the first. A film that is still moving or typing on its last frame reads as a hard cut. The rest itself is not a still hold of more than about 1.5 s: a slow push or a glow keeps it alive. With music, the final hit lands before this rest, not on the last frame.
+Under 15 s: drop the separate promise and tour; identity rides on the one mechanic, which pays off around 60–70% in, then a short card.
 
-## Pacing rules
+- **Hook.** Frame 1 already shows the strongest image, sharp and moving: viewers decide in a second whether to stay. Never black or a logo alone. Good hooks: the product's most distinctive moving thing, one big word with the app rising over it, a question typed into the app's own input. On a dark UI open on a bright type card or a flood of colour and bring the app in on the first beat; a dark canvas with a chrome strip is the weakest opening there is.
+- **Tour.** One shot per core view or wow moment, ordered by what the viewer needs to understand, not by the sidebar.
+- **Payoff.** The result of using the product (the answer arrives, the number lands), and the **peak of the film**: tightest framing (the result fills 60–70% of the frame), biggest motion, longest hold (about 1 s with motion still running). With music it lands on the drop; silent, on the strongest bar 60–75% in. If an earlier shot is bigger, the film peaked too early: shrink that one.
+- **Into the end card, carry the motion.** A hard cut from busy UI to a flat card reads as the film running out of time. Overlap the last shot and the card by ~0.6 s and connect them with one motion (`toCard` in `film-api.md`: the card's colour grows from the last click while the camera pulls back, or the payoff number flies into the headline). A smooth ending beats an exact length: run a second over rather than cut hard.
+- **End card.** Name, promise, a real next step (a URL, "Start free"; ask if none is known). About 2–2.5 s: a plain entrance (~0.6 s), a readable rest of at least 1.2 s, then the film lands (motion decelerates to rest, a short fade to the card's own colour). A 4–5 s static card reads as stalled; letters that wobble on the one frame everyone remembers look odd.
 
-1. **Something moves in every frame, and something changes every beat.** Camera drift, a counter, a cursor, a chart (a 1.0 → 1.07 drift counts as moving; a held camera needs something else moving). This is the one stillness rule, and the number is about 1 s because that is where a viewer starts to read a picture as frozen: no span longer than about 1 s without a visible change, except the end card's landing rest. `motion.mjs` measures it on the MP4. A how-to result hold (1.5–2 s) keeps a ring, counter or cursor moving, so it passes.
-2. *(launch, teaser, hype)* **A new visual idea every 1–2 s in a 20 s film** (every 2–3 s at 45 s). Cut, new view, new zoom target, new interaction.
-3. **Interactions, not swaps.** Whole screens appearing instantly is the weakest thing a film can do. Show the interaction (see *Cursor or no cursor* below for who performs it), the route transitioning, the list filling, the number counting.
-4. *(launch, teaser, hype; how-to steps run 2–5 s)* **One idea per shot**, shot length 1.2–2.2 s. Longer than 2.5 s needs two moving things in sequence.
-5. **The cut frame is crisp.** On a cut the new thing is already sharp and fully opaque, entering by offset, scale or a small blur, never a fade from 0 or 0.35 (it reads as dim or late). The rule and the code: `film-api.md`, *Cut on a hit*.
-6. *(dark-UI products, hype films)* **Don't leave the frame dark.** At least two thirds of the frames of a dark-UI film should have a bright, large element (a number, a light panel, a headline). Continuous dark UI past about 4 s feels heavy: alternate with a light or kinetic card (a flood-colour word, a white caption card, a light-theme screen, the theme reveal). A dark-only app has no light theme to fall back on, so the kinetic cards are the tool. A dialog or palette shot is dark by default: zoom onto it.
-7. **Easing carries energy.** Fast in, soft out (`expo.out`, `power3.out`) for arrivals; `power2.inOut` for camera moves; `none` only for slow continuous drifts and scrubs.
-8. **A silence gap before the drop needs a tense image.** The gap is where anticipation builds, so don't fill it with the flattest shot: use an anticipation shot (a slow push on the thing about to change, a cursor hovering, a counter about to tick, type held mid-word) so the drop releases something.
-9. **One scene per hard cut.** A montage or screen wall made of camera cuts inside a single scene reads as a pile of jumps to the audit (dozens of lines); build each cut as its own scene (`shots.md`, 8).
+## Motion and pacing
 
-10. **Motion is not novelty.** A visualizer looping, a camera drifting or a counter ticking keeps pixels changing (so `motion.mjs` passes) while nothing new happens. If the viewer could look away for 3 s and miss nothing, the shot is too long: cut it shorter or put the next idea in. Running out of ideas before the music ends means the film is too long (cut a section of the track, `SKILL.md` step 1).
+- **Something visibly changes about every second.** That is where a viewer starts to read a picture as frozen. A slow camera drift (1.0 → 1.06) counts; a shot with nothing moving does not. The end card's final rest is the exception. `motion.mjs` measures it on the render.
+- **Motion is not novelty.** A looping visualizer keeps pixels changing while nothing new happens. In launch films a new idea (cut, view, zoom target, interaction) arrives every 1–2 s; if the viewer could look away for 3 s and miss nothing, the shot is too long. Running out of ideas before the music ends means the film is too long.
+- **One idea per shot**, 1.2–2.2 s in hype films (how-to steps run 2–5 s). Longer needs a second thing happening.
+- **Interactions, not swaps.** Whole screens appearing are the weakest thing a film can do: show the route transitioning, the list filling, the number counting.
+- **Live stays live.** Whatever moves in the real app (charts, maps, clocks, typing, spinners) moves in the film. A still or a crossfade of two frames reads as broken.
+- **The cut frame is crisp.** The new picture is sharp and fully opaque on the cut frame and enters by offset, scale or a little blur. A fade from 0 reads as a late cut, from 0.35 as a dim one.
+- **Easing carries energy.** Fast in, soft out (`expo.out`, `power3.out`) for arrivals; `power2.inOut` or the `smooth`/`focused` springs for camera moves; linear only for slow drifts.
+- **The quiet before a drop needs a tense image** (a slow push on the thing about to change, a cursor hovering), so the drop releases something.
+- **Dark UI gets light.** A dark app on screen for more than ~4 s feels heavy: alternate with a bright number, a light type card, the light theme.
 
-### Cursor or no cursor
+## Framing and text
 
-Decide per film (and say which in SCENARIO.md); the starter's cursor is a tool, not a default.
-- **Use a cursor** (or a finger on touch UIs) when *the viewer must learn the action*: how-tos, onboarding, "it's one click" claims, drag-and-drop, any shot whose point is cause → effect. Then make every click readable (*Framing rules*).
-- **Leave it out** when *the result is the point*: launch and hype films, data changing, skins or themes switching, a feed teaser. The UI changes by itself on the beat (state swaps with a crisp entrance, a highlight, a camera move to the thing that changed), which is cleaner and faster, and nobody wonders who is clicking. A cursor that wanders in for one click in an otherwise cursorless film looks like a mistake.
-- **Mixed** is fine when the film has a clear "now watch me do it" act: cursorless intro and payoff, cursor only inside the action act.
+- **The camera lands on content.** The target (a number, a chart, an input with its text) fills 40–70% of the frame. Empty toolbar, empty margin or the top of a card whose number is below the fold are the classic misses: aim at the thing inside, not the strip around it, and check the end point of every camera move in a still. Dialogs fill at least half the frame, or the scrim turns the shot into a dark rectangle.
+- **Don't zoom past native resolution.** A canvas captured at DPR 2 stays sharp to about 1.9×.
+- **Text size by where it's watched.** Copy the film adds is at least ~28 px on screen for README and web, **56 px for social feeds** (a 16:9 video on a phone is ~390 px wide). Real app UI text can't reach that by zoom: lift the one number or word that matters out as big type and let the chrome be imagery that proves the product is real.
+- **Fewer words.** A caption earns its place only when the picture can't say it; two or three in a 20–30 s film are plenty. Captions sit in a free margin or corner, opaque, never over the content; how-tos use a persistent step band.
+- **Numbers are honest.** Counters end on the app's real value; nothing shows what the real app doesn't do.
 
-## Framing rules
+## Interactions and the cursor
 
-- **The camera always lands on content.** The target (a number, a chart, an input with its text) fills 40–70% of the frame: smaller reads as distant, larger crops what the viewer needs. Exceptions: tilt (shot 11, window at 85–95%), split screen (shot 8, three panels), zoom-through (shot 9, the number at 5×) and a dialog or palette, which fills at least 50% (zoom onto it, the scrim must not make the frame dark). Never zoom onto empty toolbar, empty margin, or the top of a card whose number is below the fold. Check each end point of a camera tween in a still.
-- **`focus()` clamps to the replica's box**, which keeps stage margins out of frame but pins the view to the app's edge: a target near the top or bottom (below y ≈ 800 or above y ≈ 280 at 1.5–2.3×) can't be centred, and an input with typed text wants its aim point a third into the frame. Scroll `.main` first (`shots.md` 7), or lift the clamp (`film-api.md`, *Helpers*, `focus`).
-- **Don't zoom content beyond its native resolution.** A canvas captured at DPR 2 stays sharp up to about 1.9× on screen; beyond that it softens, and a canvas captured at DPR 1 is soft from 1.0×. Check the end point of a push in a full-resolution still. Past the limit, hold it at most a bar and keep things moving (cursor, a counter, a cut-in of a crisp detail).
-- **Aim at the thing, not at the strip.** `center()` of a full-width element is the middle of its strip. Measure the number, the icon or the text inside it.
-- **Text on screen is at least ~28 px after zoom** (UI text × camera scale) for README, website and desktop viewing. **Social feeds (X, LinkedIn, Instagram, muted autoplay): at least 56 px**, key claim 90 px or more, because a 16:9 video on a phone feed is about 390 px wide and 28 px shrinks to about 6 px. Ask in the Brief where it will be posted and write the minimum into the scenario's *min text px* column. 56 px is for **copy the film adds** (captions, headlines, type cards). Real app UI text (16 px body, 14 px nav) can't reach it by zoom without losing the frame: lift the one key word or number out as type (`shots.md`, *Key number over dimmed UI*), treat ambient chrome (labels, nav, card text) as imagery that proves the product is real, and don't chase it with zoom.
-- **Frame a rectangle, not a point:** to fit a column, card or form use `focusRect` (`shots.md`, *Frame a rect*) so padding and edges come out right.
-- **Overlays far from the action** (a fixed toast in the bottom-right corner) end up outside a zoomed frame: move the captured overlay next to its target inside the scene (`shots.md`).
-- **Every click is readable.** Before the press, the camera frames the control so it sits in the central ~60% of the frame at a readable size, and the cursor travels a visible path to it: the viewer must see what is clicked and what changes. A control at the frame edge, in a corner, cropped or off-screen can't be read (a sidebar nav at 1.1× sits in the outer 15%): frame the control for the press, then move to the result. A control stuck at the window's or app's edge (a size badge and download button at the bottom, a toggle at the side) can't be centred while the camera is clamped to the replica: for the press pass the stage box (0..1920) as `box` or use `over` (`film-api.md`, `focus`) so the margin shows as stage, or cut to a big overlay of the result (a copy of the badge, a key number). Two camera tweens in sequence, never overlapping.
-- **Every swap or reveal hides the copy it covers**, or glass cards show the old state through the new one (`replicas.md`, *Pitfalls*).
-- **Counters on captured DOM end on the app's real value and never show one the app doesn't**: a number that overshoots, or a total the real screen doesn't compute, reads as fake to anyone who uses the product.
-- **Fewer words.** A caption earns its place only when the picture can't say it (a number's meaning, a step in a how-to): two or three lines in a 20–30 s film are plenty. Spend the time on the end card, where the name and line stay up longer.
-- **Captions go in the margin or the empty corner, never over content,** are opaque white or solid dark, and are appended to the scene after `wrap()` so they don't zoom (how: `film-api.md`, *Captions*). Full-bleed UI has no free margin: put the line in the cut-in before or after the shot, or a short kinetic word card, never over stats or numbers. A how-to needs the instruction to persist: reserve a caption band (`shots.md`, *Step-bar caption*). A caption must be fully visible on the cut frame, so its entrance is a small offset, never −500 px.
-- **Theme reveal** with the toggle far from the content: `shots.md` 12.
+**Decide per film whether there is a cursor.** Use one (a finger on touch UIs, keycaps for keyboard-driven apps) when the viewer must *learn the action*: how-tos, onboarding, drag and drop, "it's one click". Leave it out when *the result is the point*: launch and hype films where the UI changes by itself on the beat. A cursor that wanders in for one click looks like a mistake. Mixed works when one act is clearly "watch me do it".
+
+When there is one:
+- **Causality.** It travels to a control in its *before* state and the screen changes on the press. Clicking a tab that is already active looks fake; if you only have the after state, cut to it.
+- **Every click is readable.** The control sits in the central ~60% of the frame at a readable size when pressed. A click at the frame edge or in a corner can't be followed: frame the control, then move to the result. `autoCam` does this from the clicks.
 
 ## Silent films
 
-The one place for silent guidance (other files link here). For a film with no music (muted autoplay, a README WebP, music coming later):
-- **No sound-coded effects:** no `hits` (`hits: []`), no shake, no pulse on every beat, no rings, no hard flashes, no stamp thud, no glitch. They read as hits of a sound that isn't there. `env.js` stays `window.ENV = null;`.
-- **Energy comes from** camera moves, fast cuts, counters, cursor motion and easing. Silent needs *more* motion, not less.
-- **A personal site's payoff is its closing contact ask** (`film-types.md`, *Landing page*): the peak (best work shown big) comes before it, not at 60–75 %.
-- **Pick the BPM for the length** (`music-map.md`, *No music*): a beat that is a whole number of frames and whole bars that fill the film.
-- **Cuts stay on the bar grid** (`music.mjs grid` prints it) so music can be added later by re-timing. `MUSIC.md` is a short file, first line `SILENT, <bpm> BPM, duration <s> s`, then the bar grid and the role of each bar. `GRID DRAFT` is only for a Suno track that is still pending.
-- **The biggest move is the silent film's peak** (launch or teaser; a how-to's payoff is the changed state): a whip pan, zoom-through or route transition at 60–75% of the film, and the payoff lands on it.
-- **Scenario:** use the normal template with its silent variant (a *beat* column, *on the cut frame*: sharp and opaque). Say "peak" or "payoff", not "drop".
-- **Website hero or muted autoplay:** ask whether it loops; a loop wants a last frame that matches the first, and the story must read without sound.
-- **Motion vocabulary:** use word per beat, letter drop, typing (jittered human timing, not onsets), focus zoom (pull back on the beat, no shake), screen wall and caret ending. Skip stamp, glitch and shockwave: they are sound-coded.
-- **Captions** carry the story more than in a film with music: opaque, in a free corner.
-- **For a README:** render crisp, then `webp.mjs` (`render.md`).
+Silent does not mean calm: without music, motion, cuts and easing are the whole rhythm, so a silent film needs *more* motion, not less.
+- No sound-coded effects: no shake, flashes, beat pulses, shockwave rings, stamps or glitches. They read as hits of a sound that isn't there.
+- Create the folder with `new-film.mjs <film> --silent` (no shake, no beat demo); remove any `flash` or `rings` left in your scenes.
+- Cuts stay on a bar grid (`music.md`, *No music*), so music can be added later by re-timing.
+- The biggest move of the film (a whip pan, a zoom-through) is the peak, 60–75% in, and the payoff lands on it.
+- A muted website hero may loop: ask, and match the last frame to the first if it does.
 
-## Red flags
+## Film types
 
-Each of these came from a film that was technically clean and still judged weak.
+**How-to.** Identity anchor, a title that names the task, then numbered steps, one idea each, 2–5 s per step with a 1.5–2 s hold on the visible result (keep something moving in the hold). The instruction stays on screen in a step band while the viewer watches. Payoff = the finished task, held and called out. No hype, no drop.
 
-| in the stills or the scenario | fix |
+**One-feature or pricing teaser (15–20 s).** Identity first (name, promise, the core view moving), then the feature with its payoff (the number changes, the plan is chosen), then the end card. Don't spend half the film touring the page.
+
+**Landing page or site.** Sections are not views: inventory them with their scroll-reveal animations and drawn effects (a chart that draws itself is a wow moment), pick the 2–4 that carry the promise, and use the page's own headline and copy. A portfolio is the same with a person as the hero; its payoff is the closing ask.
+
+**Phone-sized web app.** In 16:9 it is a column ~22% of the frame wide. Zoom 2.0–2.4× to reach readable text, put big copy in the side margins outside the camera layer so it doesn't zoom with the app, and use a finger, not a cursor. A pale column on a pale page needs a coloured backdrop.
+
+**Dense or plain UI** (tables, forms, admin). Zooming into a table only shows more table. Lift the key number out as big type over the dimmed UI, zoom into the one cell that changes, keep table shots under ~1.5 s. The moment of change carries the film.
+
+**Canvas-first** (whiteboards, maps, editors, games). The canvas is the product, so it must move for real: record real pointer frames with `capture.mjs` (`replicas.md`, *Canvas*) instead of rebuilding drawings. Turn-based games: run the game's own logic with a seeded PRNG to get the moves, tween the real tiles, show keycaps.
+
+## Techniques by story role
+
+Code for each is in `shots.md`.
+
+| technique | lands on | story role | silent film |
+|---|---|---|---|
+| Flood colour + big word | hit | hook, chapter | yes (a colour cut, no flash) |
+| Word per beat | each beat | the promise in four words | yes, on the grid |
+| Letter drop | bar start | product name | yes |
+| Typing on onsets | kicks | the action begins | yes, with human timing |
+| Focus zoom, pull back on the hit | build → hit | action → payoff | yes |
+| Screen wall | every kick | the whole product, fast | yes |
+| Zoom-through, match cut | the peak | climax | yes |
+| Stamp, glitch, shockwave | one hit | verdict, "it broke", climax | no: sound-coded |
+| Caret ending | final hit | resolution | yes |
+
+Effects are seasoning: each once per film at most.
+
+## What has worked, and what hasn't
+
+Owner verdicts on test films of very different products. Taste, not rules.
+
+| landed | why |
 |---|---|
-| A viewer can't tell what the product is | Add the identity opening that fits the audience (`film-types.md`) |
-| The hero and situation appear only in the payoff caption | Set the thread up in the first act |
-| A feature tour instead of one concrete case | Rewrite as problem → hero → action → payoff |
-| A view from PRODUCT.md missing from the film | Add it to a montage (shot 8) or name why it is skipped |
-| A zoom whose end frame shows empty chrome or the top of a card | Re-aim at the content; measure the number or text, not the container |
-| A shot still for over ~1 s | Add the moving thing (shots 3, 4, 5) or cut it to 0.8 s |
-| A screen that appears with no interaction | Add cursor + click, or a route transition (shots 2, 6) |
-| A click on a control at the frame edge or in a corner | Frame the control for the press first |
-| Half the film is dark UI, or a dialog shot is mostly scrim | Add the light theme, a bright number, a white caption, a light end card; zoom onto the dialog |
-| Dense or plain UI carries the film | Lift the numbers into big type, zoom one changing cell, keep table shots short |
-| The payoff is not the biggest, tightest, longest shot | Re-frame it tighter and hold it longest; shrink what outranks it |
-| An end card that is a static hold of 4–5 s | About 2–2.5 s including the entrance |
-| Dim cut frames (opacity 0.35) | Enter by offset/scale from full opacity |
-| A caption over the content, or half-faded on its first frame | Move it to the margin; offset-only entrance |
-| Words/UI text under ~28 px after zoom (56 in a social feed) | Zoom further or carry it by a type card |
-| A swapped state with the old one showing through (glass ghosting) | Hide the covered copy |
-| Fake beat effects in a silent film | Remove; use motion and cuts (*Silent films*) |
-| A shot that animates something that isn't in the real app | Replace with what the real app does |
+| 12 s clip of a puzzle game | one mechanic driven by the game's own logic; ends the moment it's understood |
+| 15 s teaser of an image tool | one transformation with real numbers landing on the drop, before/after as proof |
+| 20 s teaser of a whiteboard | the product drawing itself with its real renderer; one delightful interaction |
+| 20 s launch of a notes app | a verb rhythm (*Type it. Save it. Find it.*) beside a phone-sized UI |
 
-**Camera defaults.** One framing per burst of clicks, not one zoom per click: `autoCam` (`film-api.md`) merges clicks closer than 2.5 s, keeps each click in the central 60 % and stays wide when a click cannot be framed. Pointers keep their size under zoom; use `spot`/`loupe` instead of a camera move for a tiny detail.
+| fell flat | why |
+|---|---|
+| a pricing teaser | never said what the product is |
+| a tour of static zooms | the camera landed on empty chrome; nothing moved |
+| clicks on already-active controls, at the frame edge | cause and effect unreadable; looks fake |
+| a live radar shown frozen | the product looked broken |
+| a 34 s film with 15 s of material | half the film nothing new happened |
+| a detour to an error page, extra captions, a long static end card | time spent on nothing |
+
+Films cut to a real song (own track or Suno) consistently came out best; a generated beat is a good functional score.

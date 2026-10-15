@@ -1,14 +1,11 @@
 # Suno prompt template
 
-Goal: a short track whose sections land near round-second bars, so the scenario can be drafted before the music exists. Suno does not count bars. Treat every bar count below as a hint, and always re-detect the real hits (SKILL.md step 3).
+Goal: a short track whose sections land near round-second bars, so the scenario can be drafted before the music exists. Suno does not count bars. Treat every bar count below as a hint, and always re-detect the real hits (`music.md`).
 
 Facts about Suno's UI and models were checked in October 2026 and can change. If a field is not where this file says, look for the closest one.
 
-## 0. Ask about rights first
-Ask this BEFORE the user generates anything, because the plan at generation time decides what they may do with the song.
-- Where will the film be shown? *Just me / draft*, *Public or for a client*, *Not decided*.
-- If public or client: which Suno plan will they generate on? Per Suno's terms (check suno.com yourself, they change): songs made on the free plan stay non-commercial, and upgrading later does not cover them. Songs made while on a paid plan are the user's to use commercially, also after they cancel. Remixes of other people's songs are non-commercial. So: upgrade first, then generate.
-- AI music can still get automated copyright claims on some platforms. Say so once.
+## 0. Rights first
+Ask before the user generates anything: the Suno plan at generation time decides what they may do with the song (`music.md`, *Rights*). Terms change; check suno.com.
 
 ## 1. Pick the tempo and the length
 One bar (4 beats) = 240 / BPM seconds. Pick the BPM so a whole number of bars fills the target length.
@@ -74,6 +71,6 @@ Planned times: intro 0 to 2 s, verse 2 to 6, build 6 to 10, groove 10 to 14, bre
 
 ## 5. Generate and pick
 - Audition all takes. Pick by the clearest hits and the cleanest ending. The silence before a hit is the most fragile part: Suno rarely makes true silence, so a riser instead of a gap is fine.
-- Suno often runs longer than asked and may ignore `[End]`. Use Suno's crop on the take, or cut on a bar line later (SKILL.md step 3). Do not leave a long silent tail.
-- While the user generates, work against a `GRID DRAFT` (SKILL.md step 2, B). When the take arrives, analyse it, re-time (`music-map.md`), and ask the approval again if any act moved by more than one bar.
+- Suno often runs longer than asked and may ignore `[End]`. Use Suno's crop on the take, or cut on a bar line later (`music.md`). Do not leave a long silent tail.
+- While the user generates, work against a `GRID DRAFT` (`music.md`, *No music*). When the take arrives, analyse it, re-time (`music.md`), and tell the user if any act moved by more than a bar.
 - If after 6 takes the structure is wrong, change the prompt: fewer sections, shorter sections, clearer instrument words.
