@@ -8,13 +8,16 @@
 //   --touch  mobile emulation (isMobile + touch): tap/swipe send real touch events, the app sees (pointer: coarse)
 //   --scheme light|dark  prefers-color-scheme for every state (a state's own "scheme" wins). Capture both and --css ports both themes
 //   --storage-state file.json  a Playwright storage state (cookies, localStorage, IndexedDB) used by every state: log in / onboard once, reuse it
-//   --seed N  seeded Math.random for every page (and "init": { "seed": N, "date": "2026-01-15T10:00:00Z" } in states.json: a fixed clock);
+//   --prune-hidden  drop display:none elements (inactive tabs, hidden CodeMirror editors) from every state's markup
+//   --seed N  seeded Math.random (mulberry32: the same N gives the same sequence on every load, so random demo data is reproducible) for every page (and "init": { "seed": N, "date": "2026-01-15T10:00:00Z" } in states.json: a fixed clock);
 //   --init-script file.js  JS run before any app script (stub random data, feature flags). Apps with random demo data differ at every load:
 //   capture ALL states in one run (never mix runs: the numbers would disagree) and treat compare.mjs as layout-only (--no-text)
 //   --storage k=v;k2=v2  localStorage seeded before the first navigation (once per tab): log in without a login state. Same as "init" in states.json
 //   Default root: the app container's only child; the container itself (#root) when it has siblings inside (toasts); body when
 //   visible elements sit outside it (portals) or the page has no container (static sites). A warning names what a root leaves out.
-//        node capture.mjs <app-url> <film> --discover [--routes /,/radar,/compare] [--depth 2]
+//        node capture.mjs <app-url> <film> --discover [--routes /,/radar,/compare] [--depth 2] [--parallel 4] [--no-clicks]
+//   --discover visits routes in parallel (--parallel, default 4) and prints a line per route as it finishes; --no-clicks skips clicking nav/tab controls to
+//   find more routes (the slow part). A single route found means the interesting states need clicks: write a states.json (see replicas.md).
 // states.json (same file compare.mjs reads): [{ "name": "palette", "path": "/", "actions": [{ "press": "Control+k" }, { "type": "Rey" }, { "wait": 200 }] }]
 //   state keys: name · path · actions · continue (keep the previous state's page, no reload) · capture:false (drive only)
 //     · scheme ("light"|"dark") · storage {k: v} (seed localStorage) · reveal: true (scroll through the page first: scroll-reveal / IntersectionObserver)
@@ -26,7 +29,7 @@
 //   boxes and svg in the live page before capturing: freezes container-query / ResponsiveContainer layouts; it edits the live page, so keep such a state last)
 //     · root (selector for this state) · full (full-page screenshot) · canvas { frames: N, every: ms, steps: [[actions], …] }
 //     · before: true (also capture <name>-before, the page right before the last action, so a click has its before and after)
-//   actions: click <sel> · dblclick <sel> · fill [<sel>, <text>] · type <text> · press <key> · hover <sel> · select [<sel>, <v>]
+//   actions: upload [<sel>, <file>|[files]] (setInputFiles on an <input type=file>, hidden ones too) · click <sel> · dblclick <sel> · fill [<sel>, <text>] · type <text> · press <key> · hover <sel> · select [<sel>, <v>]
 //     · check <sel> · set [<sel>, <v>] (range inputs) · scroll <y>|[<sel>, <y>] · waitFor <sel> · wait <ms> · goto <path> · eval <js>
 //     · tap <sel> · swipe [<sel>, dx, dy, {steps, hold}] · drag [<from>, <to>, {steps, hold}] · mouse "down"|"up"|["move", <sel>|[x, y]]
 //   Use `fill`, not Control+A + type: on macOS Control+A moves the caret to the line start. `wait` covers timers (a 4 s toast).
@@ -39,13 +42,14 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { help, args, load, die, mustExist, known, num } from "./lib/common.mjs";
 import { createHash } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import { drive, readStates, runActions, freezePage, envOptions, makeContext, scrollThrough, hiddenContent, gotoPage } from "./lib/drive.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import { detectRoot, outsideRoot, pageInfo, collectSheets, portCss } from "./lib/port.mjs";
 help(import.meta.url);
 
-const a = args(undefined, ["css", "full", "discover", "touch", "motion", "help"]);
-known(a, ["css", "full", "discover", "root", "only", "routes", "depth", "dpr", "viewport", "touch", "scheme", "storage", "motion", "storage-state", "seed", "init-script"]);
+const a = args(undefined, ["css", "full", "discover", "touch", "motion", "prune-hidden", "no-clicks", "help"]);
+known(a, ["css", "full", "discover", "root", "only", "routes", "depth", "dpr", "viewport", "touch", "scheme", "storage", "motion", "storage-state", "seed", "init-script", "prune-hidden", "no-clicks", "parallel"]);
 for (const k of ["root", "only", "routes"]) if (a[k] === true) die(`--${k} needs a value`);
 const env = envOptions(a);
 const url = a._[0], W = env.width, H = env.height, DPR = num(a, "dpr", 2, { min: 1, max: 4 }); // device pixel ratio: canvas states always, every state when --dpr is given
@@ -72,13 +76,13 @@ async function discover(film) {
   const seen = new Set(), depth = num(a, "depth", 2, { min: 0, max: 6, int: true }), origin = new URL(url).origin;
   const level = new Map(queue.map((r) => [r, 0]));
   try {
-    while (queue.length && rows.length < 40) {
-      const route = queue.shift();
-      if (seen.has(route)) continue; seen.add(route);
+    const order = new Map(), PAR = num(a, "parallel", 4, { min: 1, max: 8, int: true });
+    const visit = async (route) => {
+      const t0 = Date.now();
       const page = await (await makeContext(browser, url, env, {}, {})).newPage();
       page.on("pageerror", (e) => errors.push(`[${route}] ${e.message}`));
       const res = await gotoPage(page, new URL(route, url).href).catch((e) => (errors.push(`[${route}] ${e.message.split("\n")[0]}`), null));
-      if (!res) { await page.close(); continue; }
+      if (!res) { await page.context().close(); return; }
       await freezePage(page);
       await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(300);
       await scrollThrough(page); // scroll-reveal / IntersectionObserver content appears only once it has been in view
@@ -101,7 +105,7 @@ async function discover(film) {
       const here = new URL(page.url()), landed = norm(here.pathname) + here.search + hashRoute(here);
       const row = { route, status: res.status(), file: `${name}.png`, hash: sha(shot), ...info };
       if (landed !== route && landed !== norm(new URL(route, url).pathname) + new URL(route, url).search + hashRoute(new URL(route, url))) { row.redirectedTo = landed; console.error(`${/login|sign-?in|auth|session/i.test(landed) ? "WARNING " : "note: "}${route} ended up on ${landed}${/login|sign-?in|auth|session/i.test(landed) ? " (a login: seed auth with --storage k=v or \"init\" in states.json)" : " (redirect)"}`); }
-      rows.push(row);
+      rows.push(row); row.order = order.get(route);
       for (const l of info.links) {
         let u; try { u = new URL(l, new URL(route, url)); } catch { continue; }
         const r = norm(u.pathname) + u.search + hashRoute(u);
@@ -109,7 +113,7 @@ async function discover(film) {
       }
       // SPA tabs are often buttons, not links: click each nav/tab control and note where the URL goes
       const nav = page.locator("[role=tab], nav button, nav a, aside a");
-      for (let i = 0, n = Math.min(await nav.count(), 12); i < n && (level.get(route) ?? 0) < depth; i++) {
+      for (let i = 0, n = a["no-clicks"] ? 0 : Math.min(await nav.count(), 12); i < n && (level.get(route) ?? 0) < depth; i++) {
         try {
           await nav.nth(i).click({ timeout: 1500 }); await page.waitForTimeout(400);
           const nu = new URL(page.url()), r = norm(nu.pathname) + nu.search + hashRoute(nu);
@@ -117,12 +121,27 @@ async function discover(film) {
           if (r !== route) await gotoPage(page, new URL(route, url).href);
         } catch {}
       }
-      await page.close();
-    }
+      await page.context().close();
+      console.error(`[${rows.length}/${seen.size}${queue.length ? `+${queue.length}` : ""}] ${route} ${((Date.now() - t0) / 1000).toFixed(1)} s`); // progress: a long crawl is visible
+    };
+    let running = 0; // routes are independent pages: crawl PAR at a time (a serial crawl took ~20 s per route)
+    await new Promise((done) => {
+      const pump = () => {
+        while (running < PAR && queue.length && seen.size < 40) {
+          const route = queue.shift(); if (seen.has(route)) continue;
+          seen.add(route); order.set(route, order.size); running++;
+          visit(route).catch((e) => errors.push(`[${route}] ${String(e.message).split("\n")[0]}`)).finally(() => { running--; pump(); });
+        }
+        if (!running) done();
+      };
+      pump();
+    });
+    rows.sort((x, y) => x.order - y.order); rows.forEach((r) => delete r.order);
   } finally { await browser.close(); }
   if (!rows.length) { console.error(errors.join("\n")); die(`nothing could be loaded from ${url}: is the app running?`); }
   warnIdentical(rows.map((r) => ({ name: r.route, path: r.route, hash: r.redirectedTo && rows.some((x) => x.route === r.redirectedTo) ? undefined : r.hash }))); // a plain redirect to another listed route is not a login wall
   for (const r of rows) delete r.text;
+  if (rows.length === 1) console.error("note: only one route found. A single-page app keeps its views behind clicks: discovery cannot see them. Write a states.json (name, path, actions) for the screens you need (replicas.md, states.json) and capture those.");
   writeFileSync(path.join(dir, "inventory.json"), JSON.stringify(rows, null, 1));
   for (const r of rows) console.log(`${r.route.padEnd(22)} ${r.status}  h=${String(r.height).padEnd(5)} ${r.file.padEnd(16)} ${r.h1 ?? ""}${r.scrollers?.length ? `  scroll:${r.scrollers.join(", ")}` : ""}${r.canvases ? `  canvas:${r.canvases}` : ""}`);
   console.log(`inventory → ${path.join(dir, "inventory.json")}  (buttons/links per route are in the json; states that need clicks are not crawled)`);
@@ -135,11 +154,15 @@ async function discover(film) {
 const CANVAS_SRC = `window.__svCanvas = {
   groups(root) {
     const cs = [...root.querySelectorAll("canvas")], bx = cs.map((c) => c.getBoundingClientRect()), res = [];
+    // layers sit in the same clipping container; two canvases in DIFFERENT clip containers (a before/after slider: each half is clipped by its own
+    // overflow:hidden / clip-path wrapper) are two pictures, even though they overlap
+    const clip = (c) => { for (let e = c; e && e !== root.parentElement; e = e.parentElement) { const s = getComputedStyle(e); if (/hidden|clip/.test(s.overflowX + s.overflowY) || s.clipPath !== "none") return e; } return root; };
+    const cp = cs.map(clip);
     let n = 0;
     cs.forEach((c, i) => {
       const a = bx[i].width * bx[i].height; let hit = -1;
       if (a > 0) for (let j = 0; j < i && hit < 0; j++) {
-        if (!res[j].lead) continue;
+        if (!res[j].lead || cp[j] !== cp[i]) continue;
         const b = bx[j], w = Math.min(b.right, bx[i].right) - Math.max(b.left, bx[i].left), h = Math.min(b.bottom, bx[i].bottom) - Math.max(b.top, bx[i].top);
         if (w > 0 && h > 0 && w * h >= 0.9 * Math.min(a, b.width * b.height)) hit = j;
       }
@@ -164,7 +187,7 @@ const CANVAS_SRC = `window.__svCanvas = {
 };`;
 
 // Runs in the page: serialises the app root without scripts, with form state and canvases baked in.
-function snapshot({ sel, key, canvasSrc, frameSrc }) {
+function snapshot({ sel, key, canvasSrc, frameSrc, prune }) {
   const root = document.querySelector(sel);
   if (!root) throw new Error(`root "${sel}" not found on the page`);
   const live = [root, ...root.querySelectorAll("*")], clone = root.cloneNode(true), cl = [clone, ...clone.querySelectorAll("*")];
@@ -187,7 +210,16 @@ function snapshot({ sel, key, canvasSrc, frameSrc }) {
       img.setAttribute("src", canvasSrc[m.g] ?? ""); img.setAttribute("alt", "");
       if (frameSrc[m.g]?.length > 1) img.setAttribute("data-frames", frameSrc[m.g].join(","));
       c.replaceWith(img); ci++;
-    } else if (l instanceof HTMLImageElement) { c.setAttribute("src", abs(l.currentSrc || l.src)); c.removeAttribute("srcset"); c.removeAttribute("loading"); }
+    } else if (l instanceof HTMLImageElement) { // lazy / async / srcset images: the URL the browser actually showed, else the lazy-load attribute, else none
+      const lazy = ["data-src", "data-lazy-src", "data-original"].map((n) => l.getAttribute(n)).find(Boolean) || (l.getAttribute("data-srcset") || l.getAttribute("srcset") || "").trim().split(/\s*,\s*/)[0]?.split(/\s+/)[0] || "";
+      let u = l.currentSrc || (l.getAttribute("src") ? l.src : "") || (lazy ? new URL(lazy, document.baseURI).href : "");
+      if (lazy && (!u || /^data:/.test(u))) u = new URL(lazy, document.baseURI).href; // a data: placeholder until the lazy loader runs
+      const here = document.baseURI.split("#")[0];
+      if (!u || u.split("#")[0] === here) c.removeAttribute("src"); // <img src="">: resolves to the page itself (CodeMirror buffers): no asset
+      else c.setAttribute("src", abs(u));
+      for (const n of ["srcset", "data-srcset", "data-src", "data-lazy-src", "data-original", "sizes", "loading", "decoding"]) c.removeAttribute(n);
+      if (c.parentElement?.tagName === "PICTURE") c.parentElement.querySelectorAll("source").forEach((x) => x.remove());
+    }
     else if (l instanceof HTMLVideoElement && l.poster) c.setAttribute("poster", abs(l.poster));
     for (const at of [...c.attributes]) {
       if (/^on/i.test(at.name)) c.removeAttribute(at.name);
@@ -210,6 +242,9 @@ function snapshot({ sel, key, canvasSrc, frameSrc }) {
   }
   const animated = live.filter((e) => getComputedStyle(e).animationName !== "none").map((e) => `${getComputedStyle(e).animationName.split(",")[0].trim()} on ${nm(e)}`);
   clone.querySelectorAll("script, noscript").forEach((s) => s.remove());
+  let hidden = 0; // display:none elements (inactive tabs, hidden editors): counted, and dropped with --prune-hidden
+  live.forEach((l, i) => { if (!clone.contains(cl[i]) || l === root) return; if (getComputedStyle(l).display === "none" && !/^(SCRIPT|STYLE|LINK|META|TEMPLATE|NOSCRIPT|HEAD|TITLE|BASE|SOURCE|TRACK|AREA|DEFS|SYMBOL|CLIPPATH|MASK|LINEARGRADIENT|RADIALGRADIENT|FILTER|PATTERN|MARKER)$/i.test(l.tagName) && !l.closest("svg")) { hidden++; if (prune) cl[i].remove(); } });
+  const custom = [...new Set(live.filter((e) => e.localName.includes("-") && !(e instanceof SVGElement)).map((e) => e.localName))];
   let html = clone.outerHTML;
   // SVG ids repeat across states (gradients, clip paths): a stacked copy would paint with another copy's defs. Suffix per state.
   const ids = [...new Set([...clone.querySelectorAll("svg [id]")].map((e) => e.id))];
@@ -221,7 +256,19 @@ function snapshot({ sel, key, canvasSrc, frameSrc }) {
       .replace(new RegExp(`((?:xlink:)?href=")#${e}(")`, "g"), `$1#${n}$2`)
       .replace(new RegExp(`(\\s(?:aria-labelledby|aria-describedby|for)=")${e}(")`, "g"), `$1${n}$2`);
   }
-  return { html, assets: [...assets], height: document.documentElement.scrollHeight, baked: [...new Set(baked)], animated: [...new Set(animated)] };
+  return { html, assets: [...assets], height: document.documentElement.scrollHeight, baked: [...new Set(baked)], custom, hidden, animated: [...new Set(animated)] };
+}
+
+// Points an asset URL at its local copy in src/srcset/poster/href/style attributes ONLY: a text node that shows the same URL (a typed address,
+// a code sample) must stay as it is.
+const ASSET_ATTR = /^(src|srcset|poster|href|xlink:href|style|data-frames)$/i;
+function swapAssets(html, urls, rel) {
+  return html.replace(/<[a-zA-Z][\w:-]*(?:\s+[^\s"'<>\/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'>]+))?)*\s*\/?>/g, (tag) =>
+    tag.replace(/(\s)([^\s"'<>\/=]+)(\s*=\s*")([^"]*)"/g, (m, sp, name, eq, val) => {
+      if (!ASSET_ATTR.test(name)) return m;
+      for (const v of urls) val = val.split(v).join(rel);
+      return `${sp}${name}${eq}${val}"`;
+    }));
 }
 
 async function save(url, dir, film, used) { // downloads one asset into <film>/img, returns the film-relative path
@@ -229,7 +276,9 @@ async function save(url, dir, film, used) { // downloads one asset into <film>/i
   const ext = path.extname(name);
   while (used.has(name)) name = `${path.basename(u.pathname, ext)}-${++n}${ext}`;
   used.add(name);
+  if (u.protocol === "file:") { writeFileSync(path.join(film, dir, name), readFileSync(fileURLToPath(u))); return `${dir}/${name}`; }
   const r = await fetch(url); if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  if (/^text\/html/.test(r.headers.get("content-type") ?? "")) { used.delete(name); throw new Error("not an image (the server answered with an HTML page)"); } // a dev server's index.html fallback
   writeFileSync(path.join(film, dir, name), Buffer.from(await r.arrayBuffer()));
   return `${dir}/${name}`;
 }
@@ -282,7 +331,7 @@ async function main(statesFile, film) {
   const SCREENS = Object.create(null), META = Object.create(null), errors = [], usedImg = new Set(), allImages = [];
   const browser = await chromium.launch();
   let cssSummary = null;
-  const tks = new Map(), tall = [], META_REC = Object.create(null), jsFonts = new Map(), cssBy = new Map(), shots = [], warned = new Set(), animSeen = new Map(), bakedAll = new Set();
+  let lastLen = null; const tks = new Map(), tall = [], META_REC = Object.create(null), jsFonts = new Map(), cssBy = new Map(), shots = [], warned = new Set(), animSeen = new Map(), bakedAll = new Set();
   const warnOnce = (msg) => { if (!warned.has(msg)) { warned.add(msg); console.error(msg); } };
   try {
     await drive(browser, url, states, { width: W, height: H, errors, dpr: DPR, dprAll: !!env.dprGiven, touch: env.touch, motion: env.motion, scheme: env.scheme, storage: env.storage, init: states.init, setup: states.setup, seed: env.seed, initScript: env.initScript, storageState: env.storageState }, async (page, st) => {
@@ -347,8 +396,21 @@ async function main(statesFile, film) {
         }, { sel, pin: st.pin });
         console.log(`${st.name.padEnd(18)} pinned the resolved size of ${n} element(s)`);
       }
-      const snap = await page.evaluate(snapshot, { sel, key, canvasSrc: frameSrc.map((l) => l[0]), frameSrc });
+      await page.evaluate(async (sel) => { // lazy images: load every one (loading=lazy, data-src) so the snapshot has a real URL, not a placeholder
+        const imgs = [...document.querySelector(sel).querySelectorAll("img")];
+        for (const i of imgs) {
+          if (i.loading === "lazy") i.loading = "eager";
+          const ds = i.getAttribute("data-src") || i.getAttribute("data-lazy-src") || i.getAttribute("data-original");
+          if (ds && (!i.getAttribute("src") || /^data:/.test(i.getAttribute("src")))) i.src = ds;
+        }
+        await Promise.race([Promise.all(imgs.filter((i) => i.getAttribute("src") && !i.complete).map((i) => new Promise((ok) => { i.onload = i.onerror = ok; }))), new Promise((ok) => setTimeout(ok, 2500))]);
+      }, sel);
+      const snap = await page.evaluate(snapshot, { sel, key, canvasSrc: frameSrc.map((l) => l[0]), frameSrc, prune: !!a["prune-hidden"] });
       let html = snap.html;
+      if (snap.custom.length) warnOnce(`WARNING custom element(s) <${snap.custom.slice(0, 6).join(">, <")}>: scripts are stripped, so they lose their behaviour in the replica (a hamburger that shows only on small screens, tabs, menus) and may render the wrong state. Compare reports it as "only in replica"; hide the extra ones in film.css (e.g. ${snap.custom[0]} { display: none !important }) or capture the state you want with "actions".`);
+      if (snap.hidden > 20) warnOnce(`note [${st.name}] ${snap.hidden} hidden element(s) (display:none tabs, hidden editors) are in the snapshot: a selector like $$(".cm-content")[1] may hit a hidden copy. Check visibility in film.js, or capture with --prune-hidden to drop them.`);
+      if (lastLen != null && html.length < 400 && lastLen > 4000 && html.length < lastLen * 0.01) warnOnce(`WARNING [${st.name}] this state's DOM is ${html.length} chars after a ${lastLen}-char one: the page probably went blank (dev-server reload, crash, navigation). Check review/discovery/${st.name}.png before trusting it.`);
+      lastLen = html.length;
       if (st.image) { // the screenshot IS the state: for layouts that only work with the app's own JS
         const loc = page.locator(sel).first(), box = await loc.boundingBox(), rel = `img/${st.name}.png`;
         await loc.screenshot({ path: path.join(film, rel) }); allImages.push(rel);
@@ -358,7 +420,7 @@ async function main(statesFile, film) {
       for (const u of [...snap.assets].sort((x, y) => y.length - x.length)) { // longest first: ?id=12 before ?id=1
         try {
           const rel = await save(u, "img", film, usedImg);
-          for (const v of new Set([u, u.replace(/&/g, "&amp;")])) html = html.split(v).join(rel); // outerHTML escapes & in attributes
+          html = swapAssets(html, new Set([u, u.replace(/&/g, "&amp;")]), rel); // outerHTML escapes & in attributes
           allImages.push(rel);
         }
         catch (e) { errors.push(`[${st.name}] asset ${u}: ${e.message}`); }
@@ -390,14 +452,14 @@ async function main(statesFile, film) {
       });
       if (faces.length) console.log(`fonts registered with the FontFace API: ${faces.length} face(s) ported to app.css`);
       cssSummary = await portCss(browser, base.sheets, base.info, film, undefined, { viewport: [W, H], extra, faces });
-      if (extra.length) console.error(`WARNING the theme changed during the run (${extra.length + 1} variants: ${[...cssBy.values()].map((x) => `${x.key}=${x.info.scheme}${x.info.attrs["data-theme"] ? "/" + x.info.attrs["data-theme"] : ""}`).join(", ")}): app.css holds the ${base.key} rules plus a block per other theme, scoped under .app-shot[data-tk="tN"] (UI.shot() sets the attribute from the state's theme). Check one state of each theme in the stills.`);
+      if (extra.length) console.error(`WARNING the theme changed during the run (${extra.length + 1} variants: ${[...cssBy.values()].map((x) => `${x.key}=${x.info.lum > 0.6 ? "light" : "dark"}${x.info.attrs["data-theme"] ? "/" + x.info.attrs["data-theme"] : ""}${x.info.attrs.class ? " ." + x.info.attrs.class.split(/\s+/).slice(0, 2).join(".") : ""}`).join(", ")}): app.css holds the ${base.key} rules plus a block per other theme, scoped under .app-shot[data-tk="tN"] (UI.shot() sets the attribute from the state's theme). Check one state of each theme in the stills.`);
     }
     if (a.css && !cssSummary && !errors.length) errors.push("--css: no state was captured, so there is nothing to read the CSS from");
   } finally { await browser.close(); }
   warnIdentical(shots);
   if (tall.length) console.log(`note: ${tall.join(", ")} scroll as a document taller than ${H} px: build them with UI.shot(name, { tall: true }) so the camera can reach below it`);
   for (const x of cssSummary?.animations ?? []) { const [k, ...r] = x.split(" on "); (animSeen.get(k) ?? animSeen.set(k, new Set()).get(k)).add(r.join(" on ")); }
-  if (animSeen.size) console.error(`WARNING CSS animations on the page are not in the replica (${animSeen.size} @keyframes): ${[...animSeen].slice(0, 8).map(([k, v]) => `${k} on ${[...v].slice(0, 3).join(", ")}`).join("; ")}. Recreate them on the film timeline.${bakedAll.size ? ` Held end states were baked into style: ${[...bakedAll].slice(0, 6).join("; ")}.` : " If the page switches animations off under prefers-reduced-motion, fill-forwards end states (draw-on lines, fade-ins) were captured at their START: capture with --motion."}`);
+  if (animSeen.size) console.error(`WARNING CSS animations on the page are not in the replica (${animSeen.size} @keyframes): ${[...animSeen].slice(0, 8).map(([k, v]) => `${k} on ${[...v].slice(0, 3).join(", ")}`).join("; ")}. Recreate them on the film timeline: each is a tween on the element (rotation for a spinner: UI.spin; fade/slide in: tl.from), see replicas.md Pitfalls "CSS animations and transitions don't run" and motion-vocabulary.md.${bakedAll.size ? ` Held end states were baked into style: ${[...bakedAll].slice(0, 6).join("; ")}.` : " If the page switches animations off under prefers-reduced-motion, fill-forwards end states (draw-on lines, fade-ins) were captured at their START: capture with --motion."}`);
   const names = Object.keys(SCREENS);
   if (names.length) { const { bg, lum } = META[names[0]]; console.log(`app background ${bg} (luminance ${lum}): the film theme is ${lum > 0.6 ? "light" : "dark"}  (starter: <html data-theme="auto"> follows it; or new-film.mjs --theme light|dark)`); }
   if (!names.length) { console.error(errors.join("\n")); die(only ? `no state captured: --only ${a.only} matches none, or it failed` : "no state captured"); }

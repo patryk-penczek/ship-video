@@ -1,6 +1,6 @@
 // Drives the running app through a states.json list; shared by capture.mjs and compare.mjs so both see the same app.
 // State: { name, path?, actions?, continue? }. `continue: true` keeps the previous state's page instead of reloading.
-// Actions (one key each): click <sel> · dblclick <sel> · fill [<sel>, <text>] · type <text> · press <key> · hover <sel>
+// Actions (one key each): click <sel> · dblclick <sel> · fill [<sel>, <text>] · upload [<sel>, <file>|[files]] (<input type=file>) · type <text> · press <key> · hover <sel>
 //   · select [<sel>, <value>] · check <sel> · set [<sel>, <value>] (range/number inputs, fires input+change)
 //   · scroll <y> | [<sel>, <y>] · waitFor <sel> · wait <ms> · goto <path> · eval <js>
 //   · tap <sel> (touch tap; a click without touch) · swipe [<sel>, dx, dy, {steps, hold}] (finger/mouse from the element's centre)
@@ -11,6 +11,7 @@
 // The file may also be { "init": { storage, sessionStorage, cookies: [{name, value}], scheme }, "states": [...] }: init applies to every page (login).
 // before: true on a state also captures <name>-before, the page right before the last action (the "before" half of a click).
 import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { die } from "./common.mjs";
 
 // no CSS animation/transition/caret may move between the screenshot and the DOM capture
@@ -200,6 +201,11 @@ export async function runActions(page, actions, { name, base, freeze = true } = 
       if (k === "click") { if (Array.isArray(v)) await page.mouse.click(v[0], v[1], v[2]); else await (await pick(page, v, name, act)).click(T); } // [x, y] = real mouse click at page coordinates
       else if (k === "dblclick") { if (Array.isArray(v)) await page.mouse.dblclick(v[0], v[1]); else await (await pick(page, v, name, act)).dblclick(T); }
       else if (k === "fill") await (await pick(page, v[0], name, act)).fill(v[1], T);
+      else if (k === "upload") { // <input type=file> (hidden ones too): [selector, path | [paths]]; relative paths resolve from the working directory
+        const files = [].concat(v[1]).map((f) => path.resolve(f)), miss = files.find((f) => !existsSync(f));
+        if (miss) throw new Error(`upload: file not found: ${miss}`);
+        await page.setInputFiles(v[0], files, T);
+      }
       else if (k === "type") await page.keyboard.type(v);
       else if (k === "press") await page.keyboard.press(v);
       else if (k === "hover") await (await pick(page, v, name, act)).hover(T);
@@ -239,7 +245,7 @@ export async function runActions(page, actions, { name, base, freeze = true } = 
         else if (m === "move") { const p = await pointOf(page, target, name, act); await page.mouse.move(p.x, p.y, { steps: o.steps ?? 10 }); }
         else throw new Error(`mouse: "${m}" (use "down", "up" or ["move", <sel>|[x, y], {steps}])`);
       }
-      else throw new Error(`unknown action "${k}" (click dblclick fill type press hover select check set scroll waitFor wait goto eval tap swipe drag mouse)`);
+      else throw new Error(`unknown action "${k}" (click dblclick fill upload type press hover select check set scroll waitFor wait goto eval tap swipe drag mouse)`);
     } catch (e) {
       const timedOut = /Timeout/.test(e.message);
       throw new Error(`state ${name}, action ${JSON.stringify(act)}: ${timedOut ? `nothing matched or became actionable within ${ACTION_TIMEOUT / 1000} s for ${JSON.stringify(v)} (wrong selector, or covered/disabled; compare with review/discovery/inventory.json buttons)` : String(e.message).split("\n")[0]}`);
