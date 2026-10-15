@@ -73,7 +73,7 @@ Or copy `skills/ship-video` into `~/.agents/skills/`. Then type `$ship-video`.
 ### Install in Claude Code without the plugin system
 
 ```bash
-git clone https://github.com/patryk-penczek/ship-video.git
+git clone --depth 1 https://github.com/patryk-penczek/ship-video.git
 cp -R ship-video/skills/ship-video ~/.claude/skills/
 ```
 
