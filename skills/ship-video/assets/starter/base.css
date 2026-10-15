@@ -54,3 +54,8 @@ body { font-family: var(--font-body); color: var(--fg); -webkit-font-smoothing: 
 .roll { display: inline-block; height: 1.12em; overflow: hidden; vertical-align: bottom; }
 .roll .stack { display: flex; flex-direction: column; }
 .roll .stack span { height: 1.12em; line-height: 1.12em; }
+
+/* ---------- engine helpers: cursor() and caption() ---------- */
+.cursor { position: absolute; left: 0; top: 0; width: 44px; height: 44px; z-index: 30; pointer-events: none; filter: drop-shadow(0 4px 6px rgb(0 0 0 / .5)); }
+.ripple { position: absolute; width: 90px; height: 90px; margin: -45px; border-radius: 99px; border: 4px solid var(--accent); opacity: 0; z-index: 29; pointer-events: none; }
+.cap { position: absolute; left: 96px; bottom: 96px; z-index: 20; padding: 14px 32px; border-radius: 18px; background: #fff; color: #111; font: 800 44px var(--font-display); letter-spacing: -0.03em; white-space: nowrap; }

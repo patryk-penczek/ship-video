@@ -39,7 +39,3 @@
 .demo-row.done .demo-box { background: var(--accent); border-color: var(--accent); }
 .demo-row small { margin-left: auto; font: 500 15px var(--font-mono); color: var(--muted); }
 
-.demo-cap { position: absolute; left: 96px; bottom: 84px; display: flex; align-items: center; gap: 22px; }
-.demo-cap > i { width: 8px; height: 78px; border-radius: 9px; background: var(--accent); }
-.demo-cap .n { font: 500 16px var(--font-mono); letter-spacing: .24em; color: var(--muted); }
-.demo-cap .t { font: 800 72px var(--font-display); letter-spacing: -0.04em; margin-top: 6px; white-space: nowrap; }

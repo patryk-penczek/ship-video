@@ -127,7 +127,82 @@
       $$(w, "i").forEach((r, i) => tl.fromTo(r, { scale: 0.2 + i * 0.05, opacity: 1 }, { scale: 2.6, opacity: 0, duration: 1 + i * 0.1, ...NI }, t));
     }
 
-    const ctx = { tl, $, $$, rnd, NI, scene, wrap, splitChars, type, count, center, rect, focus, flash, press, burst, rings, stage, cam, hash, css };
+    // ---------- shot helpers (documented in film-api.md; every one is a pure function of t) ----------
+    const CUR = '<svg class="cursor" viewBox="0 0 44 44"><path d="M4 2v34l9-8 6 14 6-3-6-13h12z" fill="#fff" stroke="#111" stroke-width="2.5" stroke-linejoin="round"/></svg>';
+    // Cursor path with click ripples. host = camera layer, so it zooms with the UI. steps: [{ to:{x,y}, t, dur, click? }], stage-space points (center()).
+    function cursor(host, from, steps) {
+      host.insertAdjacentHTML("beforeend", CUR);
+      const cur = host.lastElementChild;
+      let at = from;
+      tl.set(cur, { x: from.x, y: from.y }, 0);
+      for (const s of steps) {
+        tl.fromTo(cur, { x: at.x, y: at.y }, { x: s.to.x, y: s.to.y, duration: s.dur, ease: "power2.inOut", ...NI }, s.t);
+        if (s.click) {
+          const tc = s.t + s.dur;
+          host.insertAdjacentHTML("beforeend", `<i class="ripple" style="left:${s.to.x}px;top:${s.to.y}px"></i>`);
+          tl.fromTo(host.lastElementChild, { scale: 0.3, opacity: 1 }, { scale: 1.7, opacity: 0, duration: 0.45, ease: "power2.out", ...NI }, tc);
+          press(cur, tc);
+        }
+        at = s.to;
+      }
+      return cur;
+    }
+    // Caption pill (.cap in base.css), appended to the scene AFTER wrap() so it doesn't zoom. Opaque, enters by offset only: sharp on its first frame.
+    function caption(s, text, t, from = { x: -70 }) {
+      const c = document.createElement("div");
+      c.className = "cap";
+      c.textContent = text;
+      s.appendChild(c);
+      tl.fromTo(c, from, { x: 0, y: 0, duration: 0.4, ease: "expo.out", ...NI }, t);
+      return c;
+    }
+    // Typing on given times (one absolute second per character: onsets from music.json, or jittered with rnd() for a silent film).
+    function typeOn(el, text, times, onUpd) {
+      const a = times[0] - 0.001, p = { t: a };
+      tl.fromTo(p, { t: a }, { t: times[times.length - 1] + 0.001, duration: times[times.length - 1] - times[0], ease: "none",
+        onUpdate: () => { const k = times.filter((x) => x <= p.t).length; el.textContent = text.slice(0, k); onUpd && onUpd(k); }, ...NI }, times[0]);
+    }
+    // Slow continuous camera drift (scale from→to) so a shot is never still. Don't combine with a focus() tween on the same layer at the same time.
+    function push(el, t0, t1, from = 1, to = 1.06) {
+      tl.fromTo(el, { scale: from }, { scale: to, duration: t1 - t0, ease: "none", ...NI }, t0);
+    }
+    // Visible from t0 (to t1, optional): opacity 0 at build time, hard switch on the beat. Use for word-per-beat layers and tiles.
+    function show(el, t0, t1) {
+      tl.set(el, { opacity: 0 }, 0);
+      tl.set(el, { opacity: 1 }, t0);
+      if (t1 != null) tl.set(el, { opacity: 0 }, t1);
+    }
+    // Circle reveal of a stacked copy (theme change) from point p; starts at r0 > 0 so the first frame already shows a disc.
+    // Measure p (center of the toggle) while both copies are displayed. At camera zoom > 1.2 the disc is a flat blob.
+    function reveal(el, p, t0, dur = 0.8, r0 = 70, r1 = 2400) {
+      const circ = (r) => `circle(${r}px at ${p.x}px ${p.y}px)`;
+      tl.set(el, { display: "none" }, 0);
+      tl.set(el, { display: "" }, t0);
+      tl.fromTo(el, { clipPath: circ(r0) }, { clipPath: circ(r1), duration: dur, ease: "power2.inOut", ...NI }, t0);
+    }
+    // One value drives dot, guide line, highlighted path and tooltip: seek-safe both ways. chart = { xy: [[x,y]…] in svg units, vals: value per point,
+    // pad: [left, top] offset of the svg inside the tooltip's parent, fmt }. The scene needs .tip, .dot, .guide, .hl (display:none in the HTML).
+    function scrubChart(s, chart, t0, t1, v0, v1, ease = "sine.inOut") {
+      const { xy, vals, pad = [0, 0], fmt = (v) => `$${Math.round(v)}k` } = chart;
+      const n = xy.length - 1, tip = $(s, ".tip"), dot = $(s, ".dot"), guide = $(s, ".guide"), hl = $(s, ".hl");
+      const at = (v) => { const f = Math.min(v, 0.9999) * n, i = Math.floor(f), k = f - i;
+        return [xy[i][0] + (xy[i + 1][0] - xy[i][0]) * k, xy[i][1] + (xy[i + 1][1] - xy[i][1]) * k, vals[i] + (vals[i + 1] - vals[i]) * k]; };
+      const draw = (v) => {
+        const [x, y, val] = at(v);
+        let d = `M${xy[0][0]} ${xy[0][1]}`;
+        for (let i = 1; i <= Math.floor(v * n); i++) d += `L${xy[i][0]} ${xy[i][1]}`;
+        hl.setAttribute("d", d + `L${x} ${y}`);
+        dot.setAttribute("cx", x); dot.setAttribute("cy", y);
+        guide.setAttribute("x1", x); guide.setAttribute("x2", x);
+        tip.style.left = `${pad[0] + x}px`; tip.style.top = `${pad[1] + y}px`; tip.textContent = fmt(val);
+      };
+      [dot, guide, tip].forEach((e) => (e.style.display = ""));
+      const p = { v: v0 };
+      draw(v0);
+      tl.fromTo(p, { v: v0 }, { v: v1, duration: t1 - t0, ease, onUpdate: () => draw(p.v), ...NI }, t0);
+    }
+
+    const ctx = { tl, $, $$, rnd, NI, scene, wrap, splitChars, type, count, center, rect, focus, flash, press, burst, rings, cursor, caption, typeOn, push, show, reveal, scrubChart, stage, cam, hash, css };
     cfg.build(ctx);
     tl.set({}, {}, DURATION);
 

@@ -1,12 +1,14 @@
 # Film API (film.js)
 
-Read this before writing or editing `film.js`. Paths to scripts are relative to the skill directory.
+Read this before writing or editing `film.js`.
 
 ## Contents
 - File layout
 - Config
 - Helpers (ctx)
-- Patterns: scene with camera, typing, press + burst, word per beat, cut on a hit, rolling word, several app states + theme reveal, SVG chart steps, slide-in element, sprites, audio-reactive
+- Shot helpers (cursor, caption, typeOn, push, show, reveal, scrubChart)
+- Patterns: scene with camera, typing, press + burst, entrances (NI vs plain fromTo), cut on a hit, word per beat, rolling word, stacked app states + theme reveal, scrolling a tall page, SVG chart steps, slide-in element, captions, backdrop-filter, sprites, audio-reactive
+- More: `direction.md` (shots with code: cursor, scrub, route transition, whip pan, tilt, montage), `motion-vocabulary.md` (type and camera techniques)
 - Determinism rules
 
 ## File layout
@@ -19,7 +21,8 @@ Read this before writing or editing `film.js`. Paths to scripts are relative to 
 | `film.css` | yes | tokens (`--bg`, `--accent`, `--grad`, fonts) + replica styles |
 | `ui.js` | yes | `window.UI` screen builders returning HTML strings |
 | `film.js` | yes | `Film({...})` config + `build()` with every scene |
-| `env.js` | generated | `window.ENV` from `music.mjs envelope` or `music.mjs grid` |
+| `env.js` | generated | `window.ENV` from `music.mjs envelope`; `null` for a silent film |
+| `app.css`, `screens.js` | generated | the app's scoped CSS and captured states (`capture.mjs`, `port-css.mjs`); empty until then |
 
 ## Config
 
@@ -46,7 +49,7 @@ Film({
 | `center(el)` | stage-space centre `{x, y}`; call before tweens that move `el` or its camera |
 | `focus(point, scale, {clamp, box}?)` | `{x, y, scale}` that puts `point` at screen centre at `scale`; clamped so the frame never shows past `box` (default the 1920×1080 stage; pass `rect(el)` for a smaller replica, or `clamp: false`) |
 | `rect(el)` | stage-space `{l, t, r, b}` of an element, e.g. as focus()'s `box` |
-| `type(el, text, t0, t1, onUpdate?)` | types `text` between t0 and t1; seek-safe. Empties `el` at build time (an empty field before typing is what you want); set any other "before" text with `tl.set(el, {textContent}, 0)` |
+| `type(el, text, t0, t1, onUpdate?)` | types `text` between t0 and t1; seek-safe. Empties `el` at build time; show a placeholder through `onUpdate(k)` when `k` is 0 (a `tl.set` at 0 is lost when you scrub back across the typing). Irregular timing: `typeOn` |
 | `count(el, from, to, t0, dur, fmt?)` | number tween into `el.textContent`; before `t0` the element shows its own HTML text, so write the start value there |
 | `press(el, t)` | button press (scale 0.92 → 1) landing at `t` |
 | `burst(host, point, t, n?, spread?, colors?)` | particle burst at `point` in `host` |
@@ -54,9 +57,27 @@ Film({
 | `flash(t, peak?, dur?, color?)` | full-frame flash |
 | `splitChars(el)` | wraps each character in `.ch`; returns them |
 | `rnd()` | seeded random; never use `Math.random` |
-| `NI` | `{ immediateRender: false }` for `fromTo` in shared scenes |
+| `NI` | `{ immediateRender: false }`: the element keeps its natural state until the tween starts (see *Entrances*) |
 | `$`, `$$` | `querySelector`, `querySelectorAll` as array, scoped to a root |
+| `cursor(host, from, steps)` | see *Shot helpers* |
+| `caption(scene, text, t)` | opaque pill that enters by offset |
+| `typeOn(el, text, times, onUpdate?)` | typing on given times |
+| `push(el, t0, t1, from?, to?)` | slow scale drift |
+| `show(el, t0, t1?)` | hard on/off on a beat |
+| `reveal(el, point, t0, dur?, r0?)` | circle reveal of a stacked copy |
+| `scrubChart(scene, chart, t0, t1, v0, v1, ease?)` | marker, guide, path and tooltip from one value |
 | `env(k, t)` | `ENV` value (`sub`, `mid`, `high`, `rms`) at time t (in `react`) |
+
+## Shot helpers
+
+Engine helpers, all pure functions of `t`; CSS for `.cursor`, `.ripple`, `.cap` is in `base.css` (override in `film.css`). Snippets using them: `direction.md`, `motion-vocabulary.md`.
+- `cursor(host, from, steps)`: `host` = the camera layer, so the cursor zooms with the UI. `steps: [{ to: {x, y}, t, dur, click? }]` in stage space (`center()`); a click adds a ripple and `press`. Returns the cursor element.
+- `caption(scene, text, t, from = { x: -70 })`: append **after** `wrap()` so it doesn't zoom; opaque, offset-only entrance, text ≥ 28 px. Returns the element.
+- `typeOn(el, text, times, onUpdate?)`: `times` = one absolute second per character (onsets from `music.json`, or `t0 + i·0.1 + (rnd() - 0.5)·0.06` for human timing). Like `type`, show a placeholder through `onUpdate(0)`.
+- `push(el, t0, t1, from = 1, to = 1.06)`: linear drift on a camera layer so no shot is still. Not at the same time as a `focus()` tween on that layer.
+- `show(el, t0, t1?)`: opacity 0 at build time, 1 at `t0`, 0 again at `t1`. Word-per-beat layers, tiles, stamps.
+- `reveal(el, point, t0, dur = 0.8, r0 = 70, r1 = 2400)`: `display: none` until `t0`, then a circle grows from `point` (the toggle's `center()`, measured with both copies shown). `r0` is never 0: the first frame already shows a disc.
+- `scrubChart(scene, { xy, vals, pad: [l, t], fmt }, t0, t1, v0, v1, ease?)`: `xy` = chart points `[x, y]` in svg units, `vals` = value per point (take both from the arrays the replica renders from), `pad` = offset of the svg inside the tooltip's parent. The scene holds `.tip`, `.dot`, `.guide`, `.hl` with `display: none` in the HTML.
 
 ## Patterns
 
@@ -65,14 +86,13 @@ Film({
 const s = scene(UI.dashboard(), 4, 8);
 const cam = wrap(s);
 const P = { search: center($(s, ".search")), save: center($(s, ".save")) };  // measure first
-tl.fromTo(cam, focus(P.search, 1.6), { ...focus(P.search, 1.8), duration: 1.2, ease: "power1.inOut" }, 4);
+tl.fromTo(cam, focus(P.search, 1.6), { ...focus(P.search, 1.8), duration: 1.1, ease: "power1.inOut" }, 4);
 tl.to(cam, { ...focus(P.save, 2.0), duration: 0.35, ease: "power3.inOut" }, 5.15); // starts after the first ends
 ```
 
 **Typing into an input**
 ```js
-type($(s, ".q"), "Lisbon", 4.3, 4.9);
-tl.set($(s, ".q"), { textContent: "Search…" }, 0);       // state before typing
+type($(s, ".q"), "Lisbon", 4.3, 4.9, (k) => { if (!k) $(s, ".q").textContent = "Search…"; });   // placeholder while empty, in both scrub directions
 ```
 
 **Press + burst on a beat**
@@ -81,33 +101,48 @@ press($(s, ".add"), 5.5);
 burst(fxLayer, P.save, 5.5, 10, 50);   // fxLayer = a div appended to the camera layer
 ```
 
-**Element that appears later in a scene**: hide it in HTML, then reveal.
+**Entrances: `NI` or a plain `fromTo`?** `NI` (`immediateRender: false`) means: until the tween starts, the element shows its CSS/natural state. A plain `fromTo` paints its from-state at build time and keeps it until the start.
+- Must be **absent or offset until its moment** (a toast, a chip, rows landing mid-shot, stagger children, a stamp): plain `fromTo`, or `NI` plus `tl.set(el, from, 0)`. With `NI` alone it sits visible at its natural spot until the tween starts, then jumps.
+- Starts **from where it already is** (a camera move, the second tween of a sequence on one element, a repeated press, a counter): `NI`. Every fromTo of a sequence on one element takes `NI`, or the last one paints at build time and wins.
+- Never two tweens on the same property of one element unless one ends before the next starts.
+Elements that appear later and should be fully hidden before: `opacity: 0` in HTML (or `tl.set(el, { opacity: 0 }, 0)`), then
 ```js
-// <div class="row new" style="opacity:0">…</div>
-tl.fromTo($(s, ".new"), { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3, ...NI }, 5.5);
+tl.fromTo($(s, ".new"), { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3 }, 5.5);
 ```
+Fades are fine mid-shot. On a **cut frame** they are not (next pattern). An element that appears later than its scene starts never takes `NI`.
 
-**Word per beat**: each word its own `.center` layer with `opacity:0`; `tl.set` it visible on its beat, hide the previous one.
+**Word per beat**: each word its own `.center` layer; `show(el, t, tNext)` switches it on its beat (`motion-vocabulary.md` #2).
 
-**Cut on a hit**: the new scene's `start` equals the hit time, and its first frame already shows content (start opacity ≥ 0.35 or a scale/blur entrance), so the cut reads on the frame of the hit.
+**Cut on a hit**: the new scene's `start` equals the hit time and its first frame is **sharp and fully opaque**. Enter by position (`y: 60`), scale (0.9–1.3) or a blur ≤ 6 px, from `opacity: 1`. Never a fade from 0 (a late cut) or from 0.35 (a dim frame). Stagger children start at their offset position, not hidden, so frame 1 already shows them. Check the frame at `t + 0.02` in a still.
 
 **Rolling word** (`.roll > .stack > span`): tween `.stack` `yPercent` by `-100 / spans.length` per step.
 
-**Several app states in one scene**: stack copies of the screen (`UI.app("before")`, `UI.app("after")`) absolutely on top of each other and switch with `tl.set(el, { display: "none" | "" }, t)`. Measure every copy before any tween. For a theme change, reveal the second copy with a circle from the toggle:
+**Several app states in one scene**: stack copies of the screen (`UI.app("before")`, `UI.app("after")`) absolutely on top of each other and switch with `tl.set(el, { display: "none" | "" }, t)`. **Measure `center()` of every target while all copies are displayed**: a copy with `display: none` has no layout and measures as 0,0. Hide the copies afterwards, in the timeline (`tl.set(copy, { display: "none" }, 0)`), not in the HTML. For a theme change, `reveal(light, T, 14)` (T = `center()` of the toggle, measured with both copies shown; hides `light` until 14):
 ```js
 const T = center($(s, ".theme-toggle"));
-const circ = (r) => `circle(${r}px at ${T.x}px ${T.y}px)`;
-tl.fromTo($(s, ".light"), { clipPath: circ(0) }, { clipPath: circ(2300), duration: 0.7, ease: "power2.inOut" }, 14);
+reveal(light, T, 14);
 ```
+At a high camera zoom the disc is a flat blob: reveal at ≤ 1.2× (or wipe with `polygon()`).
+
+**Scrolling a tall page**: the page is one `.main` taller than its viewport (`overflow: hidden`); a scroll is a `y` tween on it. Keep sticky headers and sidebars outside `.main`, and tween a scrollbar thumb with it.
+```js
+const dist = main.offsetHeight - vp.offsetHeight, V = center(vp);          // measure first
+tl.fromTo(main, { y: 0 }, { y: -dist, duration: 1.3, ease: "power2.inOut", ...NI }, 9.7);
+```
+Never scroll a real `overflow: auto` element: its scroll position isn't a function of `t`.
 
 **Steps in an SVG chart**: `tl.set(dot, { attr: { r: 6, fill: "var(--sun)" } }, t)`; move an HTML tooltip with `left`/`top` in % of the chart box.
 
 **An element that slides in and pushes content down** (alert, toast): measure its natural height first, then
 ```js
 const h = $(s, ".alert").offsetHeight;                                  // measured with it present
-tl.set($(s, ".alert"), { height: 0, opacity: 0, marginBottom: -gap }, 0);
-tl.fromTo($(s, ".alert"), { height: 0, opacity: 0.35, marginBottom: -gap }, { height: h, opacity: 1, marginBottom: 0, duration: 0.35, ...NI }, 9.98);
+// height 0 + overflow hidden hides it; no opacity fade, so the frame on the hit is already sharp
+tl.fromTo($(s, ".alert"), { height: 0, marginBottom: -gap }, { height: h, marginBottom: 0, duration: 0.35, ease: "expo.out" }, 9.98);   // plain fromTo: collapsed until 9.98
 ```
+
+**Captions**: `caption(s, "Live numbers", t0)` after `wrap()`, so it stays out of the camera layer. Opaque, placed in a margin or an empty corner, never over the thing being shown, offset-only entrance (fully visible on the hit frame), text ≥ 28 px.
+
+**`backdrop-filter` ghosting**: a blurred glass panel samples what is behind it in the browser, and in a stacked-copy scene or a scaled camera layer that can ghost or smear. Replace it in replicas with a solid or semi-opaque colour close to the blurred result (`background: rgb(20 22 28 / .92)`); verify in a still at the zoom the shot uses.
 
 **Sprites** for GIFs/animated emoji: convert to a horizontal strip (`ffmpeg -i in.gif -vf tile=Nx1 strip.png`), then
 ```html
