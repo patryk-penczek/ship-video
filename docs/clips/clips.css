@@ -106,3 +106,21 @@
 .side .nl b { color: var(--f-ok); margin-right: 14px; }
 .side .inp { height: 120px; border-radius: 28px; background: #141416; border: 3px solid #34353b; display: flex; align-items: center; padding: 0 30px; font: 600 52px var(--f-font-body); color: var(--f-fg); white-space: nowrap; overflow: hidden; }
 .side .inp .caret { width: 4px; height: 50px; margin-left: 4px; }
+
+/* iterate v3: brand colour, a new click, a shorter cut */
+.player { --brand: #ff6a3d; }
+.player .p-intro span { color: var(--brand); }
+.player .p-end { background: var(--brand); }
+.player .ui .chart b { background: var(--brand); }
+.player .ui .mn .hd { display: flex; align-items: center; justify-content: space-between; }
+.player .ui .btn { padding: 14px 30px; border-radius: 14px; background: var(--brand); color: #fff; font: 800 36px var(--f-font-display); }
+.player .toast { position: absolute; right: 34px; bottom: 34px; padding: 22px 34px; border-radius: 18px; background: #14161c; color: #fff; font: 700 38px var(--f-font-body); box-shadow: 0 20px 50px rgb(0 0 0 / .35); }
+.player .toast b { color: #3ddc84; margin-right: 12px; }
+.player .cur { position: absolute; left: 0; top: 0; width: 64px; height: 64px; z-index: 5; filter: drop-shadow(0 4px 6px rgb(0 0 0 / .4)); }
+.player .ring { position: absolute; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; border: 6px solid var(--brand); z-index: 4; }
+.ptl .dur { position: absolute; right: 0; top: -84px; font: 800 60px var(--f-font-mono); color: var(--f-fg); }
+.ptl .dur { top: 84px; right: auto; left: 0; font-size: 52px; color: var(--f-muted); }
+.player .p-search .ui { filter: blur(3px); opacity: .55; }
+.player .sbar { position: absolute; left: 50%; top: 50%; width: 760px; height: 130px; margin: -65px 0 0 -380px; border-radius: 28px; background: #fff; border: 6px solid var(--brand); display: flex; align-items: center; gap: 24px; padding: 0 36px; font: 650 66px var(--f-font-body); color: #14161c; box-shadow: 0 30px 80px rgb(0 0 0 / .35); }
+.player .sbar .ic { font-size: 56px; }
+.player .sbar .caret { width: 5px; height: 66px; margin-left: -18px; }

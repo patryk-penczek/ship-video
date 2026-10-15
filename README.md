@@ -100,7 +100,7 @@ Everything on screen is code: one HTML page, one paused GSAP timeline, rendered 
 > [!TIP]
 > **The first render is a first cut.** Films get good the way edits do: you watch, say what bothers you, and it changes that and renders again in minutes. Two to four rounds are normal.
 
-![A film plays; a note is typed; it re-renders and plays again with the change: dark mode, a longer end card, a snappier intro](docs/readme/iterate.webp)
+![A film plays; a note is typed; it re-renders and plays again with the change: brand colors, opening on the search, a click on Export, a 15-second cut](docs/readme/iterate.webp)
 
 Specific notes work best:
 
