@@ -95,3 +95,9 @@ UI.frames(tl, $(UI.pick(s, "radar"), "img"), 8, 12);               // step a cap
 ## Without a running app
 
 Rebuild from the components: read each one and write a builder in `ui.js` returning the same markup and class names, port its CSS the same way (`port-css.mjs a.css b.css <film>/app.css`), and register the builders as states in `gallery.html`. From screenshots only when there is no code; say which screens are approximated.
+
+## Added in round 5 (capture and compare)
+
+- `capture.mjs`: action `{ "upload": ["input[type=file]", "photo.jpg"] }` (setInputFiles); `--prune-hidden` drops display:none markup; `--discover --routes` does not crawl (add `--depth N`), repeated id routes are visited once, `--parallel N`, `--max-pages N`, `--no-clicks`; `init.date` starts a running clock (`"dateFrozen": true` freezes it); a failing `setup` aborts. Warnings: custom elements (scripts are stripped), a state that collapsed to a blank page, `@media`/`@container`/`@property` or design tokens missing from `app.css`.
+- `compare.mjs`: per-state `"mask": ["#timing"]` ignores live numbers; text boxes that moved are reported as `LAYOUT` (a collapsed layout is OVER); relative times ("5 min ago", "34 ms") are normalised; a tall `clip` is compared whole.
+

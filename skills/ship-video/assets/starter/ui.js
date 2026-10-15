@@ -101,7 +101,12 @@ window.UI = (() => {
       path: (k = 1, ox = 0, oy = 0, t0 = 0) => r.frames.map((f) => ({ x: ox + f.x * k, y: oy + f.y * k, t: f.t + t0 })),
     };
   }
+  // A CSS spinner the capture could not keep (@keyframes are dropped): rotate its element on the timeline. turns defaults to one per second.
+  function spin(tl, el, t0, t1, { turns = t1 - t0, ease = "none", from = 0 } = {}) {
+    tl.fromTo(el, { rotation: from }, { rotation: from + 360 * turns, duration: t1 - t0, ease, immediateRender: false }, t0);
+    return el;
+  }
   const images = () => [...new Set(Object.values(window.SCREENS_META || {}).flatMap((m) => [...(m.canvas || []).flat(), ...(m.record?.frames || []).map((f) => f.src)]))]; // for Film({ images })
 
-  return { app, check, shot, stack, pick, swap, measure, frames, frameSync, frameSeq, recording, images };
+  return { app, check, shot, stack, pick, swap, measure, frames, frameSync, frameSeq, recording, images, spin };
 })();

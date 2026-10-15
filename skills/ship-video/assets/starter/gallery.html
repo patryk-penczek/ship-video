@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="film.css" />
 <style>
   html, body { height: auto; overflow: auto; background: #000; }
-  .frame { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); margin-bottom: 40px; }
+  .frame { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--f-bg); margin-bottom: 40px; }
   .frame::before { content: attr(data-state); position: absolute; z-index: 99; right: 0; top: 0; padding: 4px 10px; background: #e11; color: #fff; font: 700 14px monospace; }
 </style>
 </head>
@@ -20,6 +20,8 @@
 <script src="screens.js"></script>
 <script src="ui.js"></script>
 <script>
+  // same theme rule as the film (engine.js): a light captured app switches the film tokens to light
+  { const m = Object.values(window.SCREENS_META || {})[0]; if (m && m.lum != null) document.documentElement.classList.toggle("light", m.lum > 0.6); }
   // name → HTML of that state. Mirror the real app: same data, same open dialogs, same selected items.
   const STATES = {
     "tasks": () => UI.app(),

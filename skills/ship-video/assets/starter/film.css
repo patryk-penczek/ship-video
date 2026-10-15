@@ -3,53 +3,53 @@
 @font-face { font-family: "Inter Variable"; src: url(fonts/inter.woff2) format("woff2"); font-weight: 100 900; }
 @font-face { font-family: "JetBrains Mono Variable"; src: url(fonts/mono.woff2) format("woff2"); font-weight: 100 800; }
 :root {
-  --bg: #0a0a0c;
-  --fg: #f4f4f6;
-  --muted: #8b8f98;
-  --line: #24262b;
-  --card: #121317;
-  --accent: #ff6a3d;
-  --accent-2: #6c8cff;
-  --grad: linear-gradient(100deg, #ff6a3d 10%, #ffb36b 45%, #6c8cff 100%);
-  --glow: radial-gradient(800px 520px at 82% 6%, rgb(108 140 255 / .18), transparent 70%), radial-gradient(900px 600px at 10% 100%, rgb(255 106 61 / .14), transparent 70%);
-  --cap-bg: #fff; --cap-fg: #111; --accent-ink: #111;
-  --vignette: .5; --grain: .06; --grid-line: rgb(255 255 255 / .045); --land: #000;
-  --finger: rgb(255 255 255 / .55); --finger-edge: rgb(255 255 255 / .9);
-  --font-display: "Inter Variable", system-ui, sans-serif;
-  --font-body: "Inter Variable", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --f-bg: #0a0a0c;
+  --f-fg: #f4f4f6;
+  --f-muted: #8b8f98;
+  --f-line: #24262b;
+  --f-card: #121317;
+  --f-accent: #ff6a3d;
+  --f-accent-2: #6c8cff;
+  --f-grad: linear-gradient(100deg, #ff6a3d 10%, #ffb36b 45%, #6c8cff 100%);
+  --f-glow: radial-gradient(800px 520px at 82% 6%, rgb(108 140 255 / .18), transparent 70%), radial-gradient(900px 600px at 10% 100%, rgb(255 106 61 / .14), transparent 70%);
+  --f-cap-bg: #fff; --f-cap-fg: #111; --f-accent-ink: #111;
+  --f-vignette: .5; --f-grain: .06; --f-grid-line: rgb(255 255 255 / .045); --f-land: #000;
+  --f-finger: rgb(255 255 255 / .55); --f-finger-edge: rgb(255 255 255 / .9);
+  --f-font-display: "Inter Variable", system-ui, sans-serif;
+  --f-font-body: "Inter Variable", system-ui, sans-serif;
+  --f-font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 }
 
 /* light products: <html class="light"> (new-film.mjs --theme light, or data-theme="auto" with a light captured app). No black vignette or grain on a light UI. */
 html.light {
-  --bg: #f6f7fb; --fg: #14161c; --muted: #6b7280; --line: #e3e6ee; --card: #ffffff;
-  --accent: #4f46e5; --accent-2: #0ea5e9;
-  --grad: linear-gradient(100deg, #4f46e5 10%, #7c5cff 45%, #0ea5e9 100%);
-  --glow: radial-gradient(800px 520px at 82% 6%, rgb(79 70 229 / .10), transparent 70%), radial-gradient(900px 600px at 10% 100%, rgb(14 165 233 / .08), transparent 70%);
-  --cap-bg: #14161c; --cap-fg: #fff; --accent-ink: #fff;
-  --vignette: 0; --grain: 0; --grid-line: rgb(20 22 28 / .06); --land: #f6f7fb;
-  --cursor-shadow: drop-shadow(0 3px 5px rgb(20 22 28 / .35));
-  --finger: rgb(20 22 28 / .22); --finger-edge: rgb(20 22 28 / .7); --finger-shadow: 0 6px 16px rgb(20 22 28 / .25);
+  --f-bg: #f6f7fb; --f-fg: #14161c; --f-muted: #6b7280; --f-line: #e3e6ee; --f-card: #ffffff;
+  --f-accent: #4f46e5; --f-accent-2: #0ea5e9;
+  --f-grad: linear-gradient(100deg, #4f46e5 10%, #7c5cff 45%, #0ea5e9 100%);
+  --f-glow: radial-gradient(800px 520px at 82% 6%, rgb(79 70 229 / .10), transparent 70%), radial-gradient(900px 600px at 10% 100%, rgb(14 165 233 / .08), transparent 70%);
+  --f-cap-bg: #14161c; --f-cap-fg: #fff; --f-accent-ink: #fff;
+  --f-vignette: 0; --f-grain: 0; --f-grid-line: rgb(20 22 28 / .06); --f-land: #f6f7fb;
+  --f-cursor-shadow: drop-shadow(0 3px 5px rgb(20 22 28 / .35));
+  --f-finger: rgb(20 22 28 / .22); --f-finger-edge: rgb(20 22 28 / .7); --f-finger-shadow: 0 6px 16px rgb(20 22 28 / .25);
 }
-.eyebrow { font: 600 22px var(--font-mono); letter-spacing: .3em; text-transform: uppercase; color: var(--muted); }
+.eyebrow { font: 600 22px var(--f-font-mono); letter-spacing: .3em; text-transform: uppercase; color: var(--f-muted); }
 
 /* ---------- sample app replica (ui.js). In a real film these mirror the product's components. ---------- */
-.demo-app { position: absolute; left: 50%; top: 50%; width: 1100px; height: 720px; margin: -360px 0 0 -550px; border-radius: 20px; background: var(--card); border: 1px solid var(--line); box-shadow: 0 60px 160px -30px rgb(0 0 0 / .9); display: flex; flex-direction: column; overflow: hidden; }
-.demo-app-top { height: 64px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 24px; border-bottom: 1px solid var(--line); }
+.demo-app { position: absolute; left: 50%; top: 50%; width: 1100px; height: 720px; margin: -360px 0 0 -550px; border-radius: 20px; background: var(--f-card); border: 1px solid var(--f-line); box-shadow: 0 60px 160px -30px rgb(0 0 0 / .9); display: flex; flex-direction: column; overflow: hidden; }
+.demo-app-top { height: 64px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 24px; border-bottom: 1px solid var(--f-line); }
 .demo-app-top i { width: 12px; height: 12px; border-radius: 99px; background: #2c2e34; }
-.demo-app-top b { margin-left: 14px; font: 700 18px var(--font-body); }
+.demo-app-top b { margin-left: 14px; font: 700 18px var(--f-font-body); }
 .demo-app-body { padding: 40px 48px; display: flex; flex-direction: column; gap: 24px; }
 .demo-app-h { display: flex; align-items: baseline; justify-content: space-between; }
-.demo-app-h h2 { font: 800 44px var(--font-display); letter-spacing: -0.03em; }
-.demo-app-h span { font: 500 18px var(--font-mono); color: var(--muted); }
+.demo-app-h h2 { font: 800 44px var(--f-font-display); letter-spacing: -0.03em; }
+.demo-app-h span { font: 500 18px var(--f-font-mono); color: var(--f-muted); }
 .demo-app-new { display: flex; gap: 12px; }
-.demo-app-in { flex: 1; height: 60px; border-radius: 14px; border: 1px solid var(--line); display: flex; align-items: center; padding: 0 20px; font-size: 22px; color: var(--muted); }
-.demo-app-in.on { border-color: var(--accent); color: var(--fg); }
-.demo-app-btn { height: 60px; padding: 0 28px; border-radius: 14px; background: var(--accent); color: #111; font: 700 20px var(--font-body); display: flex; align-items: center; }
+.demo-app-in { flex: 1; height: 60px; border-radius: 14px; border: 1px solid var(--f-line); display: flex; align-items: center; padding: 0 20px; font-size: 22px; color: var(--f-muted); }
+.demo-app-in.on { border-color: var(--f-accent); color: var(--f-fg); }
+.demo-app-btn { height: 60px; padding: 0 28px; border-radius: 14px; background: var(--f-accent); color: #111; font: 700 20px var(--f-font-body); display: flex; align-items: center; }
 .demo-app-list { display: flex; flex-direction: column; gap: 10px; }
-.demo-row { height: 64px; border-radius: 14px; background: rgb(255 255 255 / .03); border: 1px solid var(--line); display: flex; align-items: center; gap: 18px; padding: 0 20px; font-size: 22px; }
+.demo-row { height: 64px; border-radius: 14px; background: rgb(255 255 255 / .03); border: 1px solid var(--f-line); display: flex; align-items: center; gap: 18px; padding: 0 20px; font-size: 22px; }
 .demo-row .demo-box { width: 28px; height: 28px; border-radius: 8px; border: 2px solid #3a3d44; display: grid; place-items: center; flex: none; }
 .demo-row .demo-box svg { width: 18px; height: 18px; opacity: 0; }
-.demo-row.done .demo-box { background: var(--accent); border-color: var(--accent); }
-.demo-row small { margin-left: auto; font: 500 15px var(--font-mono); color: var(--muted); }
+.demo-row.done .demo-box { background: var(--f-accent); border-color: var(--f-accent); }
+.demo-row small { margin-left: auto; font: 500 15px var(--f-font-mono); color: var(--f-muted); }
 

@@ -30,7 +30,7 @@ All snippets are from a proof film rendered on a placeholder app and checked in 
 ### 1. Hook: kinetic word with the app rising over it
 The word is fully visible and sharp on frame 1; the app is parked below the frame and rises over it.
 ```js
-const s = scene(`<div style="position:absolute;left:0;right:0;top:10px;text-align:center;font:800 400px/.85 var(--font-display);color:var(--accent)"><span class="kw">Ask</span></div>${UI.app()}`, 0, 1.6);
+const s = scene(`<div style="position:absolute;left:0;right:0;top:10px;text-align:center;font:800 400px/.85 var(--f-font-display);color:var(--f-accent)"><span class="kw">Ask</span></div>${UI.app()}`, 0, 1.6);
 const cam = wrap(s), app = $(s, ".app");
 tl.fromTo(splitChars($(s, ".kw")), { y: 50, scale: 1.2 }, { y: 0, scale: 1, duration: 0.7, stagger: 0.06, ease: "back.out(1.6)" }, 0);
 tl.fromTo(app, { y: 760 }, { y: 250, duration: 1.0, ease: "expo.out" }, 0);   // plain fromTo: parked from frame 1

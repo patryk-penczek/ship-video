@@ -19,7 +19,7 @@ Read this before writing or editing `film.js`.
 | `index.html` | rarely | stage, fx layers, HUD, script order |
 | `engine.js` | no | helpers, react layer, preview clock, `window.__seek` |
 | `base.css` | no | stage, HUD, helper classes (`.center`, `.display`, `.gtext`, `.roll`, `.sprite`) |
-| `film.css` | yes | tokens (`--bg`, `--accent`, `--grad`, fonts) + replica styles |
+| `film.css` | yes | tokens (`--f-bg`, `--f-accent`, `--f-grad`, fonts) + replica styles |
 | `ui.js` | yes | `window.UI` screen builders returning HTML strings; captured-state helpers `UI.shot/stack/pick/swap/measure/frames/images`: see `replicas.md` |
 | `film.js` | yes | `Film({...})` config + `build()` with every scene |
 | `env.js` | generated | `window.ENV` from `music.mjs envelope`; `null` for a silent film |
@@ -73,7 +73,7 @@ Film({
 | `reveal(el, point, t0, dur?, r0?)` | circle reveal of a stacked copy |
 | `scrubChart(scene, chart, t0, t1, v0, v1, ease?)` | marker, guide, path and tooltip from one value |
 | `env(k, t)` | `ENV` value (`sub`, `mid`, `high`, `rms`) at time t (in `react`) |
-| `css(var)` | computed value of a CSS variable, e.g. `css('--accent')` |
+| `css(var)` | computed value of a CSS variable, e.g. `css('--f-accent')` |
 | `hash(n)` | deterministic number 0..1 from `n` |
 | `stage`, `cam` | the stage and camera DOM roots |
 
@@ -167,13 +167,22 @@ All pure functions of `t`; destructure them from the `build` argument like the o
 - **`dock(el, ref, { side, gap, align })`**: moves an element (a captured toast; use its `.parentElement` if the parent is the fixed wrapper) next to a reference element or rect, so it lands inside the zoomed frame. `side`: `below above right left inside-br inside-bl inside-tr inside-tl`. Call it at build time, before tweens.
 - **`finger(host, from, steps, { appear })`**: a touch pointer (round fingertip). Steps `{ to, t, dur, tap?, hold? }`: `tap` presses and rings on arrival, `hold` stays pressed during the move (swipe, drag). Use it instead of `cursor()` for phone UIs. `cursor()` takes `hold: true` on a step too, and both are hidden until their first step (`{ appear: 0 }` shows them from the start).
 - **`follow(el, pts, t0)`**: a pointer following a recorded path: `pts = [{ x, y, t }]` with `t` from `t0` (`UI.recording(name).path(k, ox, oy)` makes them).
-- **`land(t0, dur, color)`**: the default colour is the last scene's own background (the end card's flood), else the `--land` token, else black. A fade to `--bg` washes a coloured end card out.
+- **`land(t0, dur, color)`**: the default colour is the last scene's own background (the end card's flood), else the `--f-land` token, else black. A fade to `--f-bg` washes a coloured end card out.
 - **`scrollTo(main, y, t, dur, ease, { pin })`**: for pages that scroll as a document, build the shot with `UI.shot(name, { tall: true })` and tween the wrapper or the scene's camlayer. `pin: [el]` keeps a sticky nav in place. `at(p)` maps a point measured before the scroll to where it is after it.
 - **`center(el, { text: true })`, `rect(el, { text: true })`**: measure the text's own box instead of a flex-wide element.
 - **`reveal(el, p, t0, dur, r0, r1, { below })`**: `below` is hidden right after the reveal, so the covered copy can't ghost through.
 - **`UI.shot(name, { tall, hidden })`**: `tall` keeps the full page height. Every call gets its own SVG ids (the same state in two scenes no longer shares gradients). **`UI.frames(tl, img, t0, t1, loop, { every, from, to })`**: `every` plays the frames in real time, `from`/`to` slice them. **`UI.frameSync(tl, el, list, t0, t1, loop, opts)`** moves live DOM bits (a clock's text, a timeline thumb) with the frames. **`UI.frameSeq(tl, img, [{ t, src }])`** and **`UI.recording(name)`** replay a `record` state.
 - **Layers.** `.app-shot` is its own stacking context (`isolation: isolate`); the cursor, finger, ripples, captions and the band sit above anything the app does. `audit.mjs` prints `cursor hidden under .modal` if a pointer is still covered.
-- **Theme.** `<html data-theme="auto">` follows the captured app (light app, light tokens, no vignette or grain); `new-film.mjs --theme light|dark` fixes it. Tokens for captions, vignette, grain, grid and the finger live in `film.css` (`--cap-bg`, `--vignette`, `--grain`, `--land`...).
+- **Theme.** `<html data-theme="auto">` follows the captured app (light app, light tokens, no vignette or grain); `new-film.mjs --theme light|dark` fixes it. Tokens for captions, vignette, grain, grid and the finger live in `film.css` (`--f-cap-bg`, `--f-vignette`, `--f-grain`, `--f-land`...).
+
+- **`keycap(scene, "ArrowUp" | "Ctrl+K", t, { pos, x, y, end, size })`**: a key glyph (one cap per key) that appears and presses at `t`; the keyboard version of the cursor for games and shortcut-driven apps. Not zoomed by the camera (give it the scene, not the camlayer).
+- **`panels(scene, { width, bg })`**: the margins of a narrow app centred on the stage as two `.panel` divs for copy; returns `{ l, r, box }` (pass `box` to `focus`).
+- **`edge(scene, name?)`**: gives the scene the captured page's background so the empty edge of a `focus(.., { over })` camera matches the app instead of the film colour.
+- **`scrollTo(main, y, t, dur)`**: `y` is the scroll position; a second call on the same element continues from the first one's end. `dur` 0 = the page starts scrolled; `box(b)` shifts a rect (the `focus` box) by the scroll.
+- **`dock`** composes with the element's own CSS transform (a toast with `translateX(-50%)`) and applies at build time: call it before `enter`.
+- **`caption`** is hidden until `t` (it used to sit at its start offset from the scene start).
+- **`UI.spin(tl, el, t0, t1, { turns })`**: rotates a captured CSS spinner (keyframes are not ported). `Film({ images: "auto" })` preloads every image of the captured states.
+- Starter tokens are prefixed `--f-` (`--f-bg`, `--f-accent`, ...) so they cannot collide with the app's own `--card`, `--accent`, `--font-mono`.
 
 ## Determinism rules
 

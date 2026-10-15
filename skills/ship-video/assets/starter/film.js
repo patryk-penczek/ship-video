@@ -11,7 +11,7 @@ Film({
 
   build({ tl, $, $$, NI, scene, wrap, splitChars, type, count, center, rect, focus, flash, press, burst, rings, cursor, caption, push, land, show, css }) {
     // 0–2 · hook: the word is sharp on frame 1, the app rises over it, a slow push never stops
-    const s0 = scene(`<div style="position:absolute;left:0;right:0;top:40px;text-align:center;font:800 400px/.85 var(--font-display);letter-spacing:-.05em;color:var(--accent)" class="kw">Ship it.</div>${UI.app()}`, 0, 2);
+    const s0 = scene(`<div style="position:absolute;left:0;right:0;top:40px;text-align:center;font:800 400px/.85 var(--f-font-display);letter-spacing:-.05em;color:var(--f-accent)" class="kw">Ship it.</div>${UI.app()}`, 0, 2);
     const c0 = wrap(s0);
     tl.fromTo(splitChars($(s0, ".kw")), { y: 50, scale: 1.2 }, { y: 0, scale: 1, duration: 0.7, stagger: 0.05, ease: "back.out(1.6)" }, 0);
     tl.fromTo($(s0, ".demo-app"), { y: 760 }, { y: 250, duration: 1.2, ease: "expo.out" }, 0); // plain fromTo: parked below from frame 1
@@ -19,7 +19,7 @@ Film({
 
     // 2–4 · a word per beat on an accent flood: hard swap on the beat, entrances alternate up/down
     const words = ["Plan", "it.", "Cut", "it."];
-    const s1 = scene(`<div style="position:absolute;inset:0;background:var(--accent)"></div>${words.map((w) => `<div class="center"><div class="display" style="font-size:380px;color:#111">${w}</div></div>`).join("")}`, 2, 4);
+    const s1 = scene(`<div style="position:absolute;inset:0;background:var(--f-accent)"></div>${words.map((w) => `<div class="center"><div class="display" style="font-size:380px;color:#111">${w}</div></div>`).join("")}`, 2, 4);
     $$(s1, ".center").forEach((el, i) => {
       const t = 2 + i * 0.5;
       show(el, t, i < 3 ? t + 0.5 : null);
@@ -44,7 +44,7 @@ Film({
     tl.set(inp, { className: "demo-app-in" }, 0);
     tl.set(inp, { className: "demo-app-in on" }, 4.55);
     type(q, "Book flights to Lisbon", 4.6, 5.2, (k) => { if (!k) q.textContent = "Add a task…"; });
-    tl.to(c2, { ...focus(P.add, 2.0, { box }), duration: 0.35, ease: "power3.inOut" }, 5.15);
+    tl.to(c2, { ...focus(P.add, 2.0, { box, over: 260 }), duration: 0.35, ease: "power3.inOut" }, 5.15);
     press($(s2, ".demo-app-btn"), 5.5);
     tl.set(inp, { className: "demo-app-in" }, 5.5);
     tl.set(q, { textContent: "Add a task…" }, 5.5);
@@ -81,7 +81,7 @@ Film({
         <div class="display s4t" style="font-size:180px;white-space:nowrap">Your film here.</div>
         <div class="eyebrow"><span class="s4e"></span><span class="caret"></span></div></div></div>`, 10, null);
     const c4 = wrap(s4);
-    flash(10, 0.3, 0.35, css("--accent"));
+    flash(10, 0.3, 0.35, css("--f-accent"));
     tl.fromTo(splitChars($(s4, ".s4t")), { y: 60, scale: 1.1 }, { y: 0, scale: 1, duration: 0.6, stagger: 0.02 }, 10);
     type($(s4, ".s4e"), "ship-video · claude code", 10.2, 10.8);
     push(c4, 10, 11.6, 1, 1.06); // out-ease: at rest before the fade

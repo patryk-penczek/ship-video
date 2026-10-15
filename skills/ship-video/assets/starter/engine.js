@@ -15,12 +15,23 @@
      track     audio file next to index.html, or null (silent clock + metronome)
      hits      [[t, shakePx], …]: camera shake that decays within 0.6 s
      fonts     CSS font shorthands to load before build, e.g. "800 40px 'Inter Variable'"
-     images    image URLs to preload before build (layout is measured at build time) */
+     images    image URLs to preload before build (layout is measured at build time); "auto" = every image of the captured states (screens.js) */
+  // images: "auto": every file the captured markup points at (src, poster, canvas frames, recorded frames)
+  function autoImages() {
+    const set = new Set(), ok = (u) => /\.(png|jpe?g|webp|gif|svg|avif)(\?|$)/i.test(u);
+    for (const h of Object.values(window.SCREENS || {})) for (const m of String(h).matchAll(/\s(?:src|poster|data-frames)="([^"]+)"/g)) m[1].split(",").forEach((u) => ok(u) && set.add(u));
+    for (const m of Object.values(window.SCREENS_META || {})) {
+      for (const u of (m.canvas || []).flat()) if (u) set.add(u);
+      for (const f of m.record?.frames || []) set.add(f.src);
+    }
+    return [...set];
+  }
   window.Film = function Film(cfg) {
     // <html data-theme="auto"> (the starter): a captured app with a light background switches the film to the light tokens (film.css html.light)
     const root = document.documentElement, first = Object.values(window.SCREENS_META || {})[0];
     if (root.dataset.theme === "auto" && first && first.lum != null) root.classList.toggle("light", first.lum > 0.6);
-    const waits = [...(cfg.fonts || []).map((f) => document.fonts.load(f)), ...(cfg.images || []).map(preload)];
+    const imgs = cfg.images === "auto" ? autoImages() : cfg.images || [];
+    const waits = [...(cfg.fonts || []).map((f) => document.fonts.load(f)), ...imgs.map(preload)];
     Promise.all(waits).then(() => document.fonts.ready).then(() => start(cfg));
   };
 
@@ -135,7 +146,7 @@
       tl.to(el, { scale: 0.92, duration: 0.07, ease: "power2.in" }, t - 0.07);
       tl.to(el, { scale: 1, duration: 0.3, ease: "back.out(3)" }, t);
     }
-    function burst(host, at, t, n = 12, spread = 60, colors = [css("--accent"), "#fff"]) {
+    function burst(host, at, t, n = 12, spread = 60, colors = [css("--f-accent"), "#fff"]) {
       for (let i = 0; i < n; i++) {
         const d = document.createElement("i");
         d.className = "particle";
@@ -202,7 +213,8 @@
       }
       s.appendChild(c);
       tl.fromTo(c, from || { x: pos[1] === "r" ? 70 : pos[1] === "c" ? 0 : -70, y: pos[1] === "c" ? 40 : 0 }, { x: 0, y: 0, duration: 0.4, ease: "expo.out", ...NI }, t);
-      if (end != null) { tl.set(c, { opacity: 0 }, 0); tl.set(c, { opacity: 1 }, t); tl.set(c, { opacity: 0 }, end); }
+      tl.set(c, { opacity: 0 }, 0); tl.set(c, { opacity: 1 }, t); // hidden until t (a caption at a later time must not sit at its start offset from the scene start)
+      if (end != null) tl.set(c, { opacity: 0 }, end);
       return c;
     }
     // Touch pointer for phone UIs: a round translucent finger instead of an arrow. host = camera layer. steps: [{ to, t, dur, tap?, hold? }]:
@@ -256,6 +268,43 @@
       };
       return api;
     }
+    // A key cap (the keyboard equivalent of the cursor): for apps driven by keys (games, editors, shortcuts). "ArrowUp", "Enter", "Space", "k", or a combo
+    // "Ctrl+K" / "Cmd+Shift+P" (one cap per key). Appears at t, presses on t (depresses and springs back), leaves at opts.end (default t + 0.9).
+    // host = the scene (not the camera layer: it stays put and big). opts.pos like caption(): "bl" (default) | "br" | "tl" | "tr" | "bc"; x/y = stage px. Returns the element.
+    function keycap(host, key, t, { pos = "br", x, y, end, size = 84 } = {}) {
+      const G = { arrowup: "↑", arrowdown: "↓", arrowleft: "←", arrowright: "→", enter: "↵", return: "↵", escape: "esc", esc: "esc", space: "␣", tab: "⇥", backspace: "⌫", delete: "⌦", shift: "⇧", ctrl: "ctrl", control: "ctrl", alt: "alt", option: "⌥", cmd: "⌘", meta: "⌘", command: "⌘" };
+      const keys = String(key).split("+").map((k) => k.trim()).filter(Boolean);
+      const w = document.createElement("div");
+      w.className = "keycaps";
+      w.style.fontSize = `${size}px`;
+      w.innerHTML = keys.map((k) => `<b class="keycap">${G[k.toLowerCase()] ?? (k.length === 1 ? k.toUpperCase() : k)}</b>`).join("");
+      const m = 96;
+      if (x != null || y != null) { w.style.left = `${x ?? m}px`; w.style.top = `${y ?? 900}px`; }
+      else {
+        if (pos[0] === "t") w.style.top = `${m}px`; else w.style.bottom = `${m}px`;
+        if (pos[1] === "r") w.style.right = `${m}px`; else if (pos[1] === "c") { w.style.left = "0"; w.style.right = "0"; w.style.margin = "0 auto"; w.style.width = "fit-content"; } else w.style.left = `${m}px`;
+      }
+      host.appendChild(w);
+      const caps = $$(w, ".keycap"), e1 = end ?? t + 0.9;
+      tl.set(w, { opacity: 0 }, 0); tl.set(w, { opacity: 1 }, t - 0.12); tl.set(w, { opacity: 0 }, e1);
+      tl.fromTo(w, { y: 26 }, { y: 0, duration: 0.25, ease: "expo.out", ...NI }, t - 0.12);
+      caps.forEach((c) => { tl.to(c, { y: size * 0.07, scale: 0.94, duration: 0.07, ease: "power2.in" }, t - 0.07); tl.to(c, { y: 0, scale: 1, duration: 0.3, ease: "back.out(3)" }, t); });
+      return w;
+    }
+    // Side panels for a narrow app (a phone UI, a 2048 board) centred on the 16:9 stage: two panels fill the margins for copy / captions.
+    // panels(scene, { width: 608, bg }) → { l, r, box } : l / r are absolutely placed divs (.panel, put text in them), box = the app's column {l, t, r, b}
+    // to pass to focus({ box }). bg defaults to the film's card colour; pass the app's background to make the margins look like the page.
+    function panels(host, { width = 608, bg } = {}) {
+      const side = (1920 - width) / 2, mk = (left) => { const d = document.createElement("div"); d.className = "panel"; d.style.cssText = `left:${left}px;width:${side}px;${bg ? `background:${bg};` : ""}`; host.appendChild(d); return d; };
+      return { l: mk(0), r: mk(side + width), box: { l: side, t: 0, r: side + width, b: 1080 }, width: side };
+    }
+    // The empty edge a focus({ over }) camera shows beyond a replica takes the captured page's own background instead of the film's: edge(scene[, stateName]).
+    function edge(sceneEl, name) {
+      const sh = name ? sceneEl.querySelector(`[data-shot="${name}"]`) : sceneEl.querySelector("[data-shot]");
+      const bg = (window.SCREENS_META || {})[sh?.dataset.shot]?.bg;
+      if (bg) sceneEl.style.background = bg;
+      return sceneEl;
+    }
     // Moves an element (a captured toast: tell it from its parent .parentElement when the parent is the fixed wrapper) next to a reference
     // element or rect, so it lands inside the zoomed frame instead of in the far corner. Measure-time placement: call before tweens, with the
     // element's parents at scale 1. side: "below" | "above" | "right" | "left" | "inside-br" | "inside-bl" | "inside-tr" | "inside-tl";
@@ -266,7 +315,11 @@
       if (side === "below" || side === "above") { x = mid(b.l, b.r, w); y = side === "below" ? b.b + gap : b.t - gap - h; }
       else if (side === "right" || side === "left") { y = (b.t + b.b) / 2 - h / 2; x = side === "right" ? b.r + gap : b.l - gap - w; }
       else { x = side.endsWith("l") ? b.l + gap : b.r - gap - w; y = side.includes("t") && side[side.length - 2] === "t" ? b.t + gap : b.b - gap - h; }
-      tl.set(el, { x: (gsap.getProperty(el, "x") || 0) + x - a.l, y: (gsap.getProperty(el, "y") || 0) + y - a.t }, 0);
+      // applied at build time too (gsap.set), then re-measured: whatever transform the element already has (a MUI Snackbar's translateX(-50%)) is composed with,
+      // and a later enter(el, …) reads the docked rest values. Call dock BEFORE enter / other tweens of the element.
+      gsap.set(el, { x: (gsap.getProperty(el, "x") || 0) + x - a.l, y: (gsap.getProperty(el, "y") || 0) + y - a.t });
+      for (let i = 0; i < 3; i++) { const r = rect(el), dx = x - r.l, dy = y - r.t; if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) break; gsap.set(el, { x: gsap.getProperty(el, "x") + dx, y: gsap.getProperty(el, "y") + dy }); }
+      tl.set(el, { x: gsap.getProperty(el, "x"), y: gsap.getProperty(el, "y") }, 0);
       return { x: x + w / 2, y: y + h / 2 };
     }
     // Scroll a tall page inside the camera: tweens `main` (the element holding the page, usually the scene's camlayer or the app's
@@ -274,10 +327,14 @@
     // to where it sits after it, so focus(sc.at(center(el)), 1.8, { over: 300 }) aims at the right place.
     // Document-scrolling pages (no scroll container; UI.shot(name, { tall: true })): tween the shot's wrapper or the scene's camlayer. `pin` = elements that
     // must stay put while the page scrolls under them (a position:sticky nav): they are counter-tweened by +y.
+    // y is the scroll POSITION (px from the top of the page): a second scrollTo on the same element continues from where the first ended (or from a
+    // pre-scroll set with dur 0), it does not jump back to 0. dur 0 = a pre-scroll: the page starts scrolled (tl.set at t). Returns { y, from, at(p), box(b) }:
+    // at() maps a point measured BEFORE any scroll to its place after it; box() does the same for a rect, e.g. the `box` option of focus() after a pre-scroll.
     function scrollTo(main, y, t, dur = 0.8, ease = "power2.inOut", { pin = [] } = {}) {
-      tl.fromTo(main, { y: 0 }, { y: -y, duration: dur, ease, ...NI }, t);
-      for (const p of [].concat(pin)) tl.fromTo(p, { y: 0 }, { y, duration: dur, ease, ...NI }, t);
-      return { y, at: (p) => ({ x: p.x, y: p.y - y }) };
+      const from = main.__sv_scroll ?? 0; main.__sv_scroll = y;
+      if (dur > 0) tl.fromTo(main, { y: -from }, { y: -y, duration: dur, ease, ...NI }, t); else tl.set(main, { y: -y }, t);
+      for (const p of [].concat(pin)) { if (dur > 0) tl.fromTo(p, { y: from }, { y, duration: dur, ease, ...NI }, t); else tl.set(p, { y }, t); }
+      return { y, from, at: (p) => ({ x: p.x, y: p.y - y }), box: (b) => ({ l: b.l, r: b.r, t: b.t - y, b: b.b - y }) };
     }
     // Typing on given times (one absolute second per character: onsets from music.json, or jittered with rnd() for a silent film).
     function typeOn(el, text, times, onUpd) {
@@ -293,11 +350,11 @@
     const endColor = () => {
       const last = scenesEl.lastElementChild, opaque = (c) => c && !/rgba?\(.*(,\s*0\)|\/\s*0\))$|^transparent$/.test(c) && c !== "rgba(0, 0, 0, 0)";
       for (const e of last ? [last, ...[...last.querySelectorAll("*")].slice(0, 12)] : []) { const c = getComputedStyle(e).backgroundColor; if (opaque(c) && e.getBoundingClientRect().width >= 1900) return c; }
-      return css("--land") || "#000";
+      return css("--f-land") || "#000";
     };
-    // Fade the whole frame to a colour (default the film's --bg) from t0 over dur, fully covered at t0+dur: end the film with
+    // Fade the whole frame to a colour (default the film's --f-bg) from t0 over dur, fully covered at t0+dur: end the film with
     // land(DURATION - 0.4, 0.4) so the last frame is calm instead of a hard cut. Uses the flash layer (don't flash() during it).
-    // The default colour is the last scene's own background (the end card's flood), else the --land token, else black: a fade to --bg washes a coloured end card out.
+    // The default colour is the last scene's own background (the end card's flood), else the --f-land token, else black: a fade to --f-bg washes a coloured end card out.
     function land(t0, dur = 0.4, color) {
       color ??= endColor();
       tl.set(flashEl, { backgroundColor: color }, t0);
@@ -359,7 +416,7 @@
       tl.fromTo(p, { v: v0 }, { v: v1, duration: t1 - t0, ease, onUpdate: () => draw(p.v), ...NI }, t0);
     }
 
-    const ctx = { tl, $, $$, rnd, NI, scene, wrap, splitChars, type, put, scrollTo, count, center, rect, focus, focusRect, enter, follow, view, band, dock, finger, flash, press, burst, rings, cursor, caption, typeOn, push, land, show, reveal, scrubChart, stage, cam, hash, css };
+    const ctx = { tl, $, $$, rnd, NI, scene, wrap, splitChars, type, put, scrollTo, count, center, rect, focus, focusRect, enter, follow, view, band, dock, finger, flash, press, burst, rings, cursor, caption, keycap, panels, edge, typeOn, push, land, show, reveal, scrubChart, stage, cam, hash, css };
     cfg.build(ctx);
     tl.set({}, {}, DURATION);
     window.__tl = tl; // audit.mjs reads tween start times from it

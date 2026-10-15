@@ -22,7 +22,7 @@ Silent films: use the "yes" rows on the bar grid and follow *Silent films* in `d
 ## 1. Flood + stamped word
 The accent colour fills the frame and a word lands big, then settles. The word is full size and sharp on the hit frame.
 ```js
-const s = scene(`<div style="position:absolute;inset:0;background:var(--accent)"></div><div class="center"><div class="display w" style="font-size:420px;color:#111">Slow.</div></div>`, t0, t0 + 2);
+const s = scene(`<div style="position:absolute;inset:0;background:var(--f-accent)"></div><div class="center"><div class="display w" style="font-size:420px;color:#111">Slow.</div></div>`, t0, t0 + 2);
 tl.fromTo($(s, ".w"), { scale: 1.5 }, { scale: 1, duration: 0.5, ease: "expo.out" }, t0);
 tl.to($(s, ".w"), { scale: 1.06, duration: 1.5, ease: "none" }, t0 + 0.5);     // never a static hold
 ```
@@ -67,7 +67,7 @@ A bordered verdict word slams onto the UI: scale 2.4 → 1 in 0.18 s with a tilt
 show(st, t0 + 0.5);
 tl.fromTo(st, { scale: 2.4, rotation: -12 }, { scale: 1, rotation: -4, duration: 0.18, ease: "power4.in" }, t0 + 0.5);
 tl.fromTo(cam, { scale: 1.02 }, { scale: 1.0, duration: 0.3, ease: "power2.out", ...NI }, t0 + 0.68);
-// css: .stampw{position:absolute;border:14px solid #22c55e;color:#22c55e;border-radius:24px;padding:10px 50px;font:800 220px var(--font-display);background:rgb(10 10 12/.92)}
+// css: .stampw{position:absolute;border:14px solid #22c55e;color:#22c55e;border-radius:24px;padding:10px 50px;font:800 220px var(--f-font-display);background:rgb(10 10 12/.92)}
 ```
 Place it where it doesn't hide the thing it is a verdict on, or let it cover only what has been resolved.
 
