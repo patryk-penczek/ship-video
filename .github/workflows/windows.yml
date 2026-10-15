@@ -21,6 +21,8 @@ jobs:
   setup-and-render:
     runs-on: windows-latest
     timeout-minutes: 20
+    env:
+      SHIP_VIDEO_HOME: ${{ github.workspace }}\..\ship video home   # a space in the path, as in many Windows user names
     steps:
       - uses: actions/checkout@v7
 

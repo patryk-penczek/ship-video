@@ -27,8 +27,10 @@ const skip = (m) => console.log(`  \x1b[2m· ${m} (already installed)\x1b[0m`);
 let unlock = () => {};
 const fail = (m) => { console.error(`  \x1b[31m✗\x1b[0m ${m}`); unlock(); process.exit(1); };
 // .cmd/.bat launchers (npm, bun, uv on some installs) need a shell on Windows
-const run = (cmd, args, opts = {}) => spawnSync(cmd, args, { stdio: "inherit", shell: WIN, ...opts });
-const out = (cmd, args) => { const r = spawnSync(cmd, args, { encoding: "utf8", shell: WIN, stdio: ["ignore", "pipe", "ignore"] }); return r.status === 0 ? r.stdout.trim() : null; };
+// through a shell, an argument with a space (C:\Users\Jan Kowalski\…) must be quoted or it splits in two
+const q = (args, shell) => shell ? args.map((a) => /[\s"]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a) : args;
+const run = (cmd, args, opts = {}) => { const shell = opts.shell ?? WIN; return spawnSync(cmd, q(args, shell), { stdio: "inherit", ...opts, shell }); };
+const out = (cmd, args) => { const r = spawnSync(cmd, q(args, WIN), { encoding: "utf8", shell: WIN, stdio: ["ignore", "pipe", "ignore"] }); return r.status === 0 ? r.stdout.trim() : null; };
 const has = (cmd) => out(cmd, ["--version"]) !== null;
 const checkOk = () => spawnSync(process.execPath, [path.join(HERE, "lib/check.mjs")], { stdio: "ignore" }).status === 0;
 
