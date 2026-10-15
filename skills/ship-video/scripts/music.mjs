@@ -3,8 +3,8 @@
 //   analyze  <track> [--json music.json] [--no-plan]            tempo, audible end, bars/beats, cuts, section lifts, hits (* = strong), kicks, gaps, energy table
 //   envelope <track> <film/env.js>                  60 fps sub/mid/high/rms envelope for audio-reactive effects
 //   plot     <track> <out.png> [stems_dir] [--bpm N]  spectrogram with beat and bar lines; Read the PNG
-//   stems    <demucs_out_dir>                        per-stem energy + onsets (needs setup.sh --demucs)
-//   separate <track> <out_dir>                       run demucs htdemucs_6s (needs setup.sh --demucs)
+//   stems    <demucs_out_dir>                        per-stem energy + onsets (needs setup.mjs --demucs)
+//   separate <track> <out_dir>                       run demucs htdemucs_6s (needs setup.mjs --demucs)
 //   synth    --plan <film>/beat.json --out <film>/track.wav|mp3|m4a  generated beat from a bar plan (own, free to publish; presets pulse punchy calm cinematic)
 //   grid     --bpm 120 --duration 20 [--out env.js [--pulse]]  no-music path: beat/bar times; --out writes window.ENV = null, --pulse a synthetic beat envelope
 import { spawnSync } from "node:child_process";
@@ -12,7 +12,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { HOME_DIR, help, die } from "./lib/common.mjs";
+import { HOME_DIR, VENV_PY, help, die } from "./lib/common.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const [cmd, ...rest] = process.argv.slice(2);
@@ -25,7 +25,7 @@ if (!cmd || cmd === "--help" || cmd === "-h") {
   process.exit(cmd ? 0 : 1);
 }
 if (cmd === "separate" && (rest.includes("--help") || rest.includes("-h"))) {
-  console.log("usage: node music.mjs separate <track> <out_dir>\nRuns demucs htdemucs_6s; stems land in <out_dir>/htdemucs_6s/<track name>/*.wav. Needs setup.sh --demucs (several GB).");
+  console.log("usage: node music.mjs separate <track> <out_dir>\nRuns demucs htdemucs_6s; stems land in <out_dir>/htdemucs_6s/<track name>/*.wav. Needs setup.mjs --demucs (several GB).");
   process.exit(0);
 }
 if (cmd === "grid") {
@@ -33,15 +33,15 @@ if (cmd === "grid") {
   process.exit(r.status ?? 1);
 }
 
-const PY = path.join(HOME_DIR, ".venv/bin/python");
-if (!existsSync(PY)) die(`Python venv missing in ${HOME_DIR}. Run scripts/setup.sh first.`);
+const PY = VENV_PY;
+if (!existsSync(PY)) die(`Python venv missing in ${HOME_DIR}. Run node scripts/setup.mjs first.`);
 
 let argv;
 if (cmd === "separate") {
   const [track, out] = rest;
   if (!track || !out) die("usage: node music.mjs separate <track> <out_dir>");
   if (!existsSync(track)) die(`track not found: ${track}`);
-  if (spawnSync(PY, ["-I", "-c", "import demucs"], { stdio: "ignore" }).status !== 0) die("demucs is not installed. Run: scripts/setup.sh --demucs (several GB)");
+  if (spawnSync(PY, ["-I", "-c", "import demucs"], { stdio: "ignore" }).status !== 0) die("demucs is not installed. Run: scripts/setup.mjs --demucs (several GB)");
   argv = ["-I", "-m", "demucs", "-n", "htdemucs_6s", "-o", out, track];
 } else if (PY_SCRIPTS[cmd]) {
   const file = path.join(here, "audio", PY_SCRIPTS[cmd]);

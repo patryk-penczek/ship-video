@@ -1,13 +1,13 @@
 // Reports whether everything the engine needs is installed. Exit code 1 if anything is missing.
 // usage: node check.mjs [--full]
-// Fast path: setup.sh writes $HOME_DIR/.ready with a hash of scripts/package.json; if it matches, nothing else is checked.
+// Fast path: setup.mjs writes $HOME_DIR/.ready with a hash of scripts/package.json; if it matches, nothing else is checked.
 // --full (or a missing/stale marker) runs every check and refreshes the marker.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { help, HOME_DIR } from "./common.mjs";
+import { help, HOME_DIR, VENV_PY } from "./common.mjs";
 help(import.meta.url);
 
 const MARKER = path.join(HOME_DIR, ".ready");
@@ -19,7 +19,7 @@ if (!process.argv.includes("--full") && existsSync(MARKER) && readFileSync(MARKE
   process.exit(0);
 }
 
-const PY = path.join(HOME_DIR, ".venv/bin/python");
+const PY = VENV_PY;
 const run = (cmd, a) => { try { return execFileSync(cmd, a, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim(); } catch { return null; } };
 const checks = [
   ["node ≥ 20", Number(process.versions.node.split(".")[0]) >= 20],
@@ -39,7 +39,7 @@ for (const [name, ok, optional] of checks) {
   if (!ok && !optional) missing++;
 }
 if (missing) {
-  console.log(`\n${missing} missing → run setup.sh (deps go to ${HOME_DIR})`);
+  console.log(`\n${missing} missing → run node scripts/setup.mjs (deps go to ${HOME_DIR})`);
   process.exit(1);
 }
 writeFileSync(MARKER, depsHash() + "\n");

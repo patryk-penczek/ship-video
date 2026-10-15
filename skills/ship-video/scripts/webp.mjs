@@ -10,7 +10,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { HOME_DIR, args, help, die, num, known } from "./lib/common.mjs";
+import { HOME_DIR, VENV_PY, args, help, die, num, known } from "./lib/common.mjs";
 help(import.meta.url);
 
 const a = args(undefined, ["force-fit", "help"]);
@@ -26,8 +26,8 @@ const from = num(a, "from", 0, { min: 0 }), to = num(a, "to", Infinity, { min: 0
 if (to <= from) die("--to must be greater than --from");
 if (!existsSync(mp4)) die(`input not found: ${mp4}`);
 if (!/\.webp$/i.test(out)) die("output must end in .webp");
-const PY = path.join(HOME_DIR, ".venv/bin/python");
-if (!existsSync(PY)) die(`Python venv missing in ${HOME_DIR}. Run scripts/setup.sh first.`);
+const PY = VENV_PY;
+if (!existsSync(PY)) die(`Python venv missing in ${HOME_DIR}. Run node scripts/setup.mjs first.`);
 mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
 
 // encodes frames in <dir> at descending quality (down to qmin) until the file fits; prints "<quality> <bytes> <frames>"

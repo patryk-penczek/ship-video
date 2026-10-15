@@ -19,7 +19,7 @@ const existed = existsSync(dir);
 if (existed && !statSync(dir).isDirectory()) die(`${dir} exists and is a file`);
 if (existed && readdirSync(dir).length) die(`${dir} exists and is not empty`);
 const nm = path.join(HOME_DIR, "node_modules");
-if (!existsSync(nm)) die(`deps missing in ${HOME_DIR}. Run ${path.join(here, "setup.sh")} first.`);
+if (!existsSync(nm)) die(`deps missing in ${HOME_DIR}. Run node ${path.join(here, "setup.mjs")} first.`);
 
 const starter = path.join(here, "../assets/starter");
 try {

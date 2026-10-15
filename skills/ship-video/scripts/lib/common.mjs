@@ -6,10 +6,12 @@ import os from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const HOME_DIR = process.env.SHIP_VIDEO_HOME ?? path.join(os.homedir(), ".ship-video");
+// the venv's Python: bin/python on macOS and Linux, Scripts\python.exe on Windows
+export const VENV_PY = path.join(HOME_DIR, ".venv", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
 
 function load(name) {
   if (!existsSync(path.join(HOME_DIR, "node_modules", name))) {
-    console.error(`ship-video: '${name}' is not installed in ${HOME_DIR}. Run scripts/setup.sh first.`);
+    console.error(`ship-video: '${name}' is not installed in ${HOME_DIR}. Run node scripts/setup.mjs first.`);
     process.exit(1);
   }
   return createRequire(path.join(HOME_DIR, "package.json"))(name);
