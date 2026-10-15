@@ -203,8 +203,9 @@ Every font face must be listed in `fonts:` in `film.js` and declared with `@font
 
 ## ⭐ Like it?
 
-> [!TIP]
-> **Like the film you got?** Star the repo. It's the simplest way to help other people find ship-video. Made something you're proud of? Post it on X or LinkedIn with a link to the repo, so others can make theirs.
+**Like the film you got?** Star the repo. It's the simplest way to help other people find ship-video.
+
+Made something you're proud of? Post it on X or LinkedIn with a link to the repo, so others can make theirs.
 
 ## 🤝 Contributing
 
