@@ -14,7 +14,7 @@
 //   --storage k=v;k2=v2  localStorage seeded before the first navigation (once per tab): log in without a login state. Same as "init" in states.json
 //   Default root: the app container's only child; the container itself (#root) when it has siblings inside (toasts); body when
 //   visible elements sit outside it (portals) or the page has no container (static sites). A warning names what a root leaves out.
-//        node capture.mjs <app-url> <film> --discover [--probe-404] [--routes /,/radar,/compare] [--depth 2]
+//        node capture.mjs <app-url> <film> --discover [--routes /,/radar,/compare] [--depth 2]
 // states.json (same file compare.mjs reads): [{ "name": "palette", "path": "/", "actions": [{ "press": "Control+k" }, { "type": "Rey" }, { "wait": 200 }] }]
 //   state keys: name · path · actions · continue (keep the previous state's page, no reload) · capture:false (drive only)
 //     · scheme ("light"|"dark") · storage {k: v} (seed localStorage) · reveal: true (scroll through the page first: scroll-reveal / IntersectionObserver)
@@ -44,8 +44,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { detectRoot, outsideRoot, pageInfo, collectSheets, portCss } from "./lib/port.mjs";
 help(import.meta.url);
 
-const a = args(undefined, ["css", "full", "discover", "touch", "motion", "probe-404", "help"]);
-known(a, ["css", "full", "discover", "root", "only", "routes", "depth", "dpr", "viewport", "touch", "scheme", "storage", "motion", "storage-state", "seed", "init-script", "probe-404"]);
+const a = args(undefined, ["css", "full", "discover", "touch", "motion", "help"]);
+known(a, ["css", "full", "discover", "root", "only", "routes", "depth", "dpr", "viewport", "touch", "scheme", "storage", "motion", "storage-state", "seed", "init-script"]);
 for (const k of ["root", "only", "routes"]) if (a[k] === true) die(`--${k} needs a value`);
 const env = envOptions(a);
 const url = a._[0], W = env.width, H = env.height, DPR = num(a, "dpr", 2, { min: 1, max: 4 }); // device pixel ratio: canvas states always, every state when --dpr is given
@@ -116,19 +116,6 @@ async function discover(film) {
           if (r !== route && !seen.has(r) && !level.has(r)) { level.set(r, (level.get(route) ?? 0) + 1); queue.push(r); }
           if (r !== route) await gotoPage(page, new URL(route, url).href);
         } catch {}
-      }
-      await page.close();
-    }
-    if (a["probe-404"]) { // opt-in: also screenshot what the app shows for an unknown route
-      // hash-routed SPA (links like #/notes): probe /#/unknown-xyz, a path probe would just return the home page
-      const hashApp = rows.some((r) => /#!?\//.test(r.route) || r.links?.some((l) => /^#!?\//.test(l)));
-      const probe = hashApp ? "/#/__no-such-page__" : "/__no-such-page__", page = await (await makeContext(browser, url, env, {}, {})).newPage();
-      const res = await gotoPage(page, new URL(probe, url).href).catch(() => null);
-      if (res) {
-        await freezePage(page); await page.waitForTimeout(300);
-        const text = await page.evaluate(() => document.body.innerText.trim().slice(0, 4000)), home = rows.find((r) => r.route === "/");
-        if (home && home.text === text && res.status() < 400) console.error(`note: ${probe} returns the same page as / (SPA fallback with no not-found view): not listed as a view`);
-        else { const shot = await page.screenshot({ path: path.join(dir, "not-found.png"), fullPage: true }); rows.push({ route: probe, status: res.status(), file: "not-found.png", hash: sha(shot), title: await page.title(), height: await page.evaluate(() => document.documentElement.scrollHeight), note: "unknown route" }); }
       }
       await page.close();
     }
