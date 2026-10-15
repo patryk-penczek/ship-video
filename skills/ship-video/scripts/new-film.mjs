@@ -1,15 +1,18 @@
 // Creates a film folder from the starter: index.html, engine.js, base.css, film.css, app.css, ui.js, screens.js, film.js, gallery.html, env.js, gsap.min.js, fonts/, img/, out/, review/.
-// usage: node new-film.mjs <dir>     (an empty or new folder; prints full paths of the follow-up commands)
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+// usage: node new-film.mjs <dir> [--theme auto|light|dark]    (an empty or new folder; prints full paths of the follow-up commands)
+//   --theme  the film's look: light = light tokens, no black vignette or grain, dark caption pill; dark = the dark starter palette;
+//            auto (default) = follows the captured app: <html data-theme="auto"> turns light when the app's background is light (capture.mjs records it)
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { help, HOME_DIR, die } from "./lib/common.mjs";
+import { help, args, HOME_DIR, die } from "./lib/common.mjs";
 help(import.meta.url);
 
-const argv = process.argv.slice(2);
+const a = args();
 const here = path.dirname(fileURLToPath(import.meta.url));
-const dir = argv[0];
-if (!dir || dir.startsWith("-") || argv.length > 1) die("usage: node new-film.mjs <dir>   (one folder name; it must not exist yet or be empty)");
+const dir = a._[0], theme = a.theme ?? "auto";
+if (!dir || a._.length > 1 || Object.keys(a).some((k) => !["_", "theme", "help"].includes(k))) die("usage: node new-film.mjs <dir> [--theme auto|light|dark]   (one folder name; it must not exist yet or be empty)");
+if (!/^(auto|light|dark)$/.test(theme)) die("--theme must be auto, light or dark");
 const existed = existsSync(dir);
 if (existed && !statSync(dir).isDirectory()) die(`${dir} exists and is a file`);
 if (existed && readdirSync(dir).length) die(`${dir} exists and is not empty`);
@@ -24,6 +27,10 @@ try {
   cpSync(path.join(nm, "gsap/dist/gsap.min.js"), path.join(dir, "gsap.min.js"));
   cpSync(path.join(nm, "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"), path.join(dir, "fonts/inter.woff2"));
   cpSync(path.join(nm, "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2"), path.join(dir, "fonts/mono.woff2"));
+  if (theme !== "auto") { // fix the look instead of following the captured app
+    const f = path.join(dir, "index.html"), h = readFileSync(f, "utf8").replace('<html lang="en" data-theme="auto">', theme === "light" ? '<html lang="en" data-theme="light" class="light">' : '<html lang="en" data-theme="dark">');
+    writeFileSync(f, h);
+  }
   writeFileSync(path.join(dir, "env.js"), "window.ENV = null; // audio-reactive envelope: node music.mjs envelope <track> env.js (with a track); keep null for a silent film\n");
 } catch (e) {
   if (!existed) rmSync(dir, { recursive: true, force: true });

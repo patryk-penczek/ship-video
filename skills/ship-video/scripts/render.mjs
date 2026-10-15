@@ -1,7 +1,7 @@
-// Frame-exact render: seeks window.__seek(i / fps) for every frame, pipes JPEGs into ffmpeg, muxes the track.
+// Frame-exact render (output: H.264 yuv420p, limited range, BT.709 tags; check with ffprobe -show_streams): seeks window.__seek(i / fps) for every frame, pipes JPEGs into ffmpeg, muxes the track.
 // usage: node render.mjs <film/index.html> <out.mp4> [--preset crisp|motionblur|draft] [--fps N] [--from s] [--to s] [--scale k] [--audio file|none]
 //        node render.mjs --stop <out.mp4>        stop that render (and only that one)
-//   crisp       60 fps                                   (measured ~3.5 s of render per second of film idle; 2–3x that when other renders run)
+//   crisp       60 fps                                   (measured ~2–3.5 s of render per second of film on an idle machine; 2–3x that when other renders run)
 //   motionblur  240 fps blended 4:1 into 60 fps (tmix)   (measured ~3–4× slower than crisp; 2 subframes ghost, 4 is the minimum)
 //   draft       30 fps at half resolution                (fast timing checks)
 // Audio: --audio, else track.(mp3|wav|m4a|aac|flac) next to index.html, else silent.
@@ -17,8 +17,6 @@ import { help, args, openFilm, die, num, known } from "./lib/common.mjs";
 help(import.meta.url);
 
 const a = args();
-known(a, ["preset", "fps", "from", "to", "scale", "audio", "stop"]);
-known(a, ["preset", "fps", "from", "to", "scale", "audio", "stop"]);
 known(a, ["preset", "fps", "from", "to", "scale", "audio", "stop"]);
 const USAGE = "usage: node render.mjs <film/index.html> <out.mp4> [--preset crisp|motionblur|draft] [--fps N] [--from s] [--to s] [--scale k] [--audio file|none]\n       node render.mjs --stop <out.mp4>";
 
@@ -122,8 +120,9 @@ ff = spawn("ffmpeg", [
   "-y", "-loglevel", "error",
   "-f", "image2pipe", "-framerate", String(fps), "-c:v", "mjpeg", "-i", "-",
   ...(audio ? ["-ss", String(from), "-t", String(to - from), "-i", audio, "-map", "0:v", "-map", "1:a", "-af", "apad", "-c:a", "aac", "-b:a", "256k", "-shortest", "-t", String(to - from)] : ["-an"]),
-  ...(blend > 1 ? ["-vf", `tmix=frames=${blend}:weights=${Array(blend).fill(1).join(" ")},fps=60`] : []),
-  "-c:v", "libx264", "-preset", "slow", "-crf", "14", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+  // JPEG frames are full-range BT.601 (yuvj420p): convert to standard limited-range BT.709 yuv420p, the format social platforms and phones expect
+  "-vf", `${blend > 1 ? `tmix=frames=${blend}:weights=${Array(blend).fill(1).join(" ")},fps=60,` : ""}scale=in_range=full:out_range=limited:in_color_matrix=bt601:out_color_matrix=bt709:flags=accurate_rnd+full_chroma_int,setparams=range=tv:colorspace=bt709:color_primaries=bt709:color_trc=bt709`,
+  "-c:v", "libx264", "-preset", "slow", "-crf", "14", "-pix_fmt", "yuv420p", "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-movflags", "+faststart",
   "-f", "mp4", part,
 ], { stdio: ["pipe", "ignore", "pipe"] });
 ff.stderr.on("data", (d) => { ffErr += d; });

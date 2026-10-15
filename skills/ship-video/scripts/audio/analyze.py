@@ -141,10 +141,15 @@ for k, e in enumerate(sh):
     if len(seg) < 8: continue                       # < 2 s
     corr = float(np.corrcoef(np.arange(len(seg)), seg)[0, 1]) if seg.std() > 1e-6 else 0.0
     rise = float(seg[-4:].mean() / max(seg[:4].mean(), 1e-3))
-    score_r = corr * min(rise, 2.0) * len(seg) * step * (0.3 + e / end)   # tracks build to the drop in their second half: later risers win ties
+    # the real drop is followed by the biggest SUSTAINED energy step (low end + rms over the next 4 s vs the 3 s before); a riser that
+    # only leads into a pause or a quiet verse scores low even if its sweep is clean
+    after = 0.5 * mean(lown, e + 0.3, e + 4.0) + 0.5 * mean(rmsn, e + 0.3, e + 4.0)
+    before = 0.5 * mean(lown, max(0, e - 3.0), e - 0.2) + 0.5 * mean(rmsn, max(0, e - 3.0), e - 0.2)
+    step_up = max(after - before, 0.0) + 0.1 * after
+    score_r = corr * min(rise, 2.0) * len(seg) * step * (0.3 + e / end) * (0.15 + step_up * 4)
     if os.environ.get("DEBUG"): print(f"riser cand end {e:.2f} start {s0:.2f} corr {corr:.2f} rise {rise:.2f} jump {[h[2] for h in hits if abs(h[0] - e) < 0.01]}", file=sys.stderr)
     if corr >= 0.5 and rise >= 1.2:
-        cands_r.append((score_r, float(s0), float(e)))
+        cands_r.append((score_r, float(s0), float(e), float(step_up)))
         if score_r > best: best = score_r; riser = (float(s0), float(e))
 if riser:
     drop = riser[1]
@@ -159,6 +164,18 @@ for t, v in zip(grid_t, L):
     if (v >= 0.12 or t >= grid_t[-1]) and st is not None:
         if t - st >= 1.0: nolow.append((float(st), float(t)))
         st = None
+# a drop often follows a BREAK (the kick drops out, then a full-band hit): score each such break end like a riser, by the sustained energy step after it
+for a0, b0 in nolow:
+    if b0 > end - 2.0 or b0 - a0 < 0.7: continue
+    e = min([hits[i][0] for i in strong if b0 - 0.15 <= hits[i][0] <= b0 + 0.6] or [None], key=lambda x: 0 if x is None else abs(x - b0))
+    if e is None: continue
+    w1 = min(e + 7.0, end)  # a drop holds: the 7 s after it (to the end) stay loud, a break that leads into a quiet verse does not
+    after = 0.5 * mean(lown, e + 0.3, w1) + 0.5 * mean(rmsn, e + 0.3, w1)
+    before = 0.5 * mean(lown, a0, b0) + 0.5 * mean(rmsn, a0, b0)
+    step_up = max(after - before, 0.0) + 0.1 * after
+    sc = 8.0 * min(b0 - a0, 1.0) * (0.15 + step_up * 4) * (0.3 + e / end)
+    cands_r.append((sc, float(a0), float(e), float(step_up)))
+    if sc > best: best = sc; drop = float(e)
 # sections: intro until the first section start, build = riser, drop(s) = levels above 0.7 of the loudest 2 s, break = dips, outro = tail
 rms_at = lambda t: mean(rmsn, t, t + 1.0)
 dlevel = rms_at(drop + 0.2) if drop else None
@@ -206,8 +223,9 @@ print("gaps:  ", " ".join(f"{a:.2f}–{b:.2f}" for a, b in gaps) or "none")
 print("no low end:", " ".join(f"{a:.2f}–{b:.2f}" for a, b in nolow) or "none", "   (risers / breakdowns: the kick is gone)")
 print(f"onsets: {len(onsets)}  " + short([float(o) for o in onsets], 12))
 print("riser: ", f"{riser[0]:.2f}–{riser[1]:.2f}" if riser else "none")
-alts = [f"{e:.2f} (riser {s0:.2f}–{e:.2f})" for _, s0, e in sorted(cands_r, reverse=True)[1:3]]
-print("drop:  ", f"{drop:.2f}   (the hit that closes the best riser; the loudest hit is not always the drop){'  other candidates: ' + ', '.join(alts) if alts else ''}" if drop else "none found")
+alts = [f"{e:.2f} (riser {s0:.2f}–{e:.2f}, score {sc:.1f}, energy step {su:.2f})" for sc, s0, e, su in sorted(cands_r, reverse=True)[:4] if abs(e - (drop or -9)) > 0.01]
+if cands_r: print("drop candidates (score = sweep x sustained energy step after it):", ", ".join(f"{e:.2f} score {sc:.1f}" for sc, s0, e, su in sorted(cands_r, reverse=True)))
+print("drop:  ", f"{drop:.2f}   (best candidate: the hit that closes a riser or a break, scored by the sustained energy after it; the loudest hit is not always the drop){'  other candidates: ' + ', '.join(alts) if alts else ''}" if drop else "none found")
 print("sections:", "  ".join(f"{t:.2f} {n}" for t, n in secs), "   (guesses from the energy curve: check against the plot)")
 print("\n    t   rms  sub  low  mid high")
 for s in np.arange(0, dur, 0.25):
