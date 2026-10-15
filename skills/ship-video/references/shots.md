@@ -17,11 +17,11 @@ Read at step 6 (build), after `film-api.md`. 14 shots, each with code that was r
 12. Theme reveal
 13. Quick aside (1–2 s)
 14. End card with a live input
-Also: dialog or palette shot, payoff shot (after 14), step-bar caption, drag and drop, frame a rect, move a captured overlay into frame (after the payoff shot)
+Also: dialog or palette shot, key number over dimmed UI, payoff shot (after 14), step-bar caption, drag and drop, frame a rect, move a captured overlay into frame (after the payoff shot)
 
 All snippets are from a proof film rendered on a placeholder app and checked in stills. `s` is the scene element, `cam = wrap(s)`, `box = rect($(s, ".app"))`. Times are absolute seconds; `t0` is the scene start. Selectors (`.o-in`, `.o-stat`, …) are placeholders: use the replica's classes.
 
-**Entrances:** which tweens take `NI` and which a plain `fromTo` is explained once, in `film-api.md` (*Entrances*). Comments below say "plain fromTo" where it matters.
+**Entrances:** bring things in with the engine's `enter(el, from, t)` (hidden until `t`, then a plain `fromTo`); `NI` is for moves that start from where the element already is. The rule is explained once, in `film-api.md` (*Entrances*). Comments below say "plain fromTo" where it matters.
 
 ### Helpers used by several shots
 
@@ -202,21 +202,25 @@ tl.fromTo(ca, focus(P.detail, 1.6), { ...focus(P.detail, 1.75), duration: 1.5, e
 tl.fromTo(splitChars($(s, ".end")), { y: 120 }, { y: 0, duration: 0.7, stagger: 0.05, ease: "expo.out" }, t0);   // offset only: sharp on the first frame
 type($(s, ".q2"), "orbit.app", t0 + 0.7, t0 + 1.4);
 press($(s, ".go"), t0 + 1.7);
-tl.to($(s, ".center"), { scale: 1.06, duration: 2.8, ease: "none" }, t0);
+tl.to($(s, ".center"), { scale: 1.06, duration: 1.4, ease: "none" }, t0);
 ```
+Total about 2–2.5 s: lines in by ~0.6 s, then at least 1.2 s of readable rest with the slow push, then the landing (`land`). Never a 4–5 s static card (`direction.md`, *End card*).
 Don't `splitChars` a `.gtext` word (lessons #9).
 
 ### Dialog or palette shot
 A scrim darkens the whole captured frame, so a dialog at camera 1.0 is a dark frame with a small box in it. Zoom onto the dialog until it fills at least 50% of the frame (usually 1.8-2.4×), aim `focus()` at its centre (measure it with `UI.measure`), and keep the scrim at the edges only. Type into its input as in shot 2 and cut out on the Enter press. Never two dark shots in a row.
 
+### Key number over dimmed UI (dense or plain products)
+For tables, forms and admin screens: the UI proves it is real, the number is what the viewer reads. Dim the captured screen (a dark scrim of about 0.55 opacity or `filter: brightness(.45)` on the app layer, applied from the first frame so the cut frame is sharp), put the figure in 60–70% of the frame width as display type, and `count` it to the app's real value. Then cut to a one-cell zoom (`focusRect(rect(cell), 60)`) on what changes, 1–1.5 s, and pull back. Table shots never exceed ~1.5 s each (`direction.md`, *Dense, dated or plain UI*).
+
 ### Payoff shot
 The payoff is the peak of the film: the tightest framing (the result fills 60-70% of the frame), the biggest motion (the largest zoom or count of the film, a pull-back on the hit) and the longest hold (about 1 s with a slow push still running, never shorter than the shots before it). If an earlier shot is bigger or tighter, shrink that one.
 
 ### Step-bar caption (how-to films)
-A how-to's instruction must stay on screen while the viewer watches the action, and full-bleed UI has no free margin. Reserve a **caption band** (a strip of about 160-180 px at the bottom or top, solid colour) and frame the app in the rest of the frame: clip the scene to the remaining area and offset every `focus()` target by half the band so the target is centred in what is left. Use the engine's step-band helper (names: `film-api.md`) rather than hand-clipping. Each step swaps its caption on the step's first frame ("1 Press and hold the card", number in a chip) with a thin progress line across the band; the caption text is 28 px or more (56 for feeds). The band is not content: don't count it toward the 40-70% rule.
+A how-to's instruction must stay on screen while the viewer watches the action, and full-bleed UI has no free margin. Reserve a **caption band** (a strip of about 160-180 px at the bottom or top, solid colour) and frame the app in the rest of the frame: clip the scene to the remaining area and offset every `focus()` target by half the band so the target is centred in what is left. Use the engine's `band()` (`film-api.md`) rather than hand-clipping. Each step swaps its caption on the step's first frame ("1 Press and hold the card", number in a chip) with a thin progress line across the band; the caption text is 28 px or more (56 for feeds). The band is not content: don't count it toward the 40-70% rule.
 
 ### Drag and drop
-The capture has no pointer drag, so stack states and tween the ghost.
+If the page's own drag handler works with the capture's `drag` action, record the states from it; otherwise stack states and tween the ghost.
 1. Capture `drag-start` (card lifted or source dimmed, column highlight off), `drag-over` (target column highlighted) and `dropped` (card in its new place, counts updated) as stacked states (`UI.stack`).
 2. A **ghost** (a clone of the card, slight tilt and shadow) tweens from the card to the target along the cursor path: the cursor hides under it or rides its corner.
 3. **Swap `drag-start` to `drag-over` when the ghost crosses the column boundary**, and `drag-over` to `dropped` on the release frame. Compute the crossing time from the ease (`ease(p)` solved for the boundary x), not by eye, so the highlight changes as the ghost crosses.
@@ -224,7 +228,7 @@ The capture has no pointer drag, so stack states and tween the ghost.
 If the real page's own drag handler can be driven by the capture's drag action, use that for the states and keep the ghost tween for the motion.
 
 ### Frame a rect
-`focus()` frames a point and a scale. To fit a column, a card or a form with padding, use the engine's rect-framing helper (it derives the scale from the rect, the padding and the frame). In a narrow or top-heavy app it keeps crop edges on column and card boundaries so no word is sliced at the frame edge.
+`focus()` frames a point and a scale. To fit a column, a card or a form with padding, use the engine's `focusRect(rect(el), pad)` (it derives the scale from the rect, the padding and the frame). In a narrow or top-heavy app it keeps crop edges on column and card boundaries so no word is sliced at the frame edge.
 
 ### Move a captured overlay into frame
-A fixed toast, snackbar or portal is anchored to a far corner of the 1080 wrapper and lands outside a zoomed frame. Move the overlay's parent next to its target inside the scene (`el.parentElement`, then re-append and position by the measured rect of the target) and animate it there; check each toast state's HTML contains the toast text (capture with the root that includes portals).
+A fixed toast, snackbar or portal is anchored to a far corner of the 1080 wrapper and lands outside a zoomed frame. Move it next to its target with `dock(el, ref, { side, gap })` (pass `el.parentElement` when the parent is the fixed wrapper) at build time and animate it there; check each toast state's HTML contains the toast text (capture with the root that includes portals).

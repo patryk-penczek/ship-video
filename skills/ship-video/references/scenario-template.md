@@ -53,8 +53,8 @@ The climax lands on the drop (or on the strongest bar of the grid in a silent fi
 Call to action: <real next step: URL or button text; ask the owner if none is known>
 | t (s) | music | on screen | copy (final) |
 |---|---|---|---|
-| … | final hit | logo + tagline + CTA | "…" |
-| last 1.5 s | decay | everything fades | — |
+| … | final hit | logo + tagline + CTA (brand line held longer than any caption) | "…" |
+| ~2–2.5 s card | final hit | lines in by +0.6 s, readable rest ≥ 1.2 s, landing | — |
 
 Column rules:
 - **cut or in-shot:** *cut* = the picture changes (the hit check will verify it); *in-shot* = something moves inside a shot on a kick (an alert slides in, a button presses). In-shot events are not listed in `hits.mjs`.
@@ -113,4 +113,7 @@ Run it on the scenario before the gate (answer from the table) and on the stills
 | 11a | Is every click target framed in the central ~60% of the frame, readable, with a visible cursor path (no clicks at the edge, in a corner or off-screen)? | | |
 | 11 | Causality: does every click/keypress hit a control in its *before* state and change the screen on that frame (no clicking an already-active tab, toggle or selected item)? | | |
 | 12 | Is everything that is live in the app (map/radar, chart, spinner, clock, typing) alive in the film, with distinct frames, not a still or a crossfade? | | |
-| 13 | Does the ending land: last copy complete ≥ 1.2 s before the end, motion at rest, short fade or clean loop frame? | | |
+| 13 | Does the ending land: end card about 2–2.5 s in total (entrance ~0.6 s, readable rest ≥ 1.2 s, landing), last copy complete ≥ 1.2 s before the end, motion at rest, short fade or clean loop frame? Brand line held longer than any caption. | | |
+| 14 | Static spans: is there any span over ~1 s without a visible change other than the landing rest (`motion.mjs` on the render; from the table: no row holds one picture for more than a second)? | | |
+| 15 | Is the story thread set up in the first act (the hero and the situation shown before the payoff, not first named in the payoff caption)? | | |
+| 16 | Dense or plain UI: are the key numbers lifted into big type, table shots ≤ 1.5 s, no run of near-identical shots? (n/a for a visual product) | | |

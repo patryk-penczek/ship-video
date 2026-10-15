@@ -180,7 +180,7 @@ To show the user replicas before animating: `node $S/snap.mjs <film>/gallery.htm
 
 Read `references/film-api.md`, `references/shots.md` (the 14-shot library) and `references/motion-vocabulary.md`; the starter film shows each pattern. In `film.js` set `track` and `duration` from the `MUSIC.md` header, replace the starter's sample `hits` with the cut times from `MUSIC.md` as `[t, shake]` (silent film: `hits: []`), then write the scenes in scenario order at the scenario's times. Preview by opening `<film>/index.html` (Space play, ←/→ 1 s, Alt+←/→ one beat, Shift+←/→ one frame, `?t=12.5`).
 
-Density while you build (`references/direction.md`, *Pacing* and *Framing*): something changes every beat; nothing is fully still for more than a bar; app UI is zoomed 1.4–2.3× on the element that matters and pulls back on the hit; in a montage, cut on every kick; every cut frame is sharp and opaque; the payoff is the peak of the film. The costliest pitfalls (`fromTo` vs `NI`, measuring before tweening, camera overlap, determinism): `references/lessons.md` 5–8 and 16, `references/film-api.md`.
+Density while you build (`references/direction.md`, *Pacing* and *Framing*): something changes every beat; no span over ~1 s without a visible change except the end card's landing rest; bring things in with `enter`; the story thread (hero, situation) is set up before the payoff; the end card is about 2–2.5 s in total; dense or canvas-first UI: `direction.md`, *Film types*; app UI is zoomed 1.4–2.3× on the element that matters and pulls back on the hit; in a montage, cut on every kick; every cut frame is sharp and opaque; the payoff is the peak of the film. The costliest pitfalls (`fromTo` vs `NI`, measuring before tweening, camera overlap, determinism): `references/lessons.md` 5–8 and 16, `references/film-api.md`.
 
 Then a one-second test render, which catches a broken page, a missing track or a bad output path in seconds: `node $S/render.mjs <film>/index.html <film>/out/test.mp4 --preset draft --from 0 --to 1`.
 
@@ -207,15 +207,15 @@ No full render until the user approves the stills. After each round of fixes, sh
 
 ## 8. QA
 
-Follow `references/qa-checklist.md`. The loop: run `node $S/audit.mjs <film>/index.html`, fix each clipped text that isn't a deliberate transition (mark deliberate crops with `data-clip-ok`), re-run until clean. If a fix changes anything visible, show those frames again (the Review gate applies).
+Follow `references/qa-checklist.md`. The loop: run `node $S/audit.mjs <film>/index.html`, fix each clipped text that isn't a deliberate transition (mark deliberate crops with `data-clip-ok`) and each jump, click-placement or hidden-cursor line it prints, re-run until clean. Then `node $S/motion.mjs <mp4>` on a render for static spans. If a fix changes anything visible, show those frames again (the Review gate applies).
 
 ## 9. Render and report
 
 Read `references/render.md`. In short:
-1. Ask which render they want (*Crisp*, ~2–3.5 s per film second, recommended for UI and how-to films since blur smears text; *Motion blur*, 3–4× slower, for kinetic launch films; or both) and give the range, not a promise.
+1. Ask which render they want (*Crisp*, ~2–3.5 s per film second, recommended for UI and how-to films since blur smears text; *Motion blur*, 3–4× slower, for kinetic launch films; or both) and give the range, not a promise (on a shared machine it can be 2–3× the idle estimate).
 2. **Always render crisp first**, in the background (`run_in_background`); read `<out>.progress` within a minute. Never `pkill`; stop with `render.mjs --stop`.
 3. For a README or post, make an animated WebP with `webp.mjs` (GitHub never autoplays an MP4).
-4. **Verify** the crisp MP4 with `hits.mjs <mp4> <film>/review/hits.png <cut times>` and read it (silent film: skip).
+4. **Verify** the crisp MP4 with `hits.mjs <mp4> <film>/review/hits.png <cut times>` and read it (silent film: skip). Run `node $S/motion.mjs <mp4>` too: nothing over ~1 s static except the ending rest.
 5. **Clean up** (processes you started, `out/test.mp4`, `*.part`, `*.progress`, `*.pid`) and **report**: paths, length, sizes, how to preview, and what couldn't match the real app.
 
 **Changes after the render** need a re-render of the chosen version: copy or look only → show changed frames, get a yes, re-render, re-run the hit check; timing or a new track → re-time (`music-map.md`), a move over one bar means a new approval; a new or removed scene or any `SCENARIO.md` change → re-approve (new `Approved:` date) and rebuild the affected scenes.
@@ -254,4 +254,4 @@ Read `references/render.md`. In short:
 | `references/render.md` | step 9 |
 | `references/sharing.md` | before starting a dev server or a render |
 
-Scripts (all in `$S`, all take `--help`): `lib/check.mjs`, `setup.sh`, `new-film.mjs`, `music.mjs`, `capture.mjs`, `port-css.mjs`, `compare.mjs`, `snap.mjs`, `sheet.mjs`, `shots.mjs`, `audit.mjs`, `render.mjs`, `webp.mjs`, `hits.mjs`.
+Scripts (all in `$S`, all take `--help`): `lib/check.mjs`, `setup.sh`, `new-film.mjs`, `music.mjs`, `capture.mjs`, `port-css.mjs`, `compare.mjs`, `snap.mjs`, `sheet.mjs`, `shots.mjs`, `audit.mjs`, `motion.mjs`, `render.mjs`, `webp.mjs`, `hits.mjs`.

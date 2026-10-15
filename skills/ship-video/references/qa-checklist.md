@@ -5,12 +5,16 @@ Step 8 runs the first three sections before the full render. "After the crisp re
 ## Automated
 - [ ] `node $S/audit.mjs <film>/index.html` is clean, or every remaining line is a deliberate transition. Mark deliberate masks and crops (an app window that crops its content) with `data-clip-ok` on the wrapper. Fix, re-run, repeat.
 - [ ] No `[page]` / `[pageerror]` lines in any script output.
+- [ ] The audit's jump check, click-placement (safe area) and hidden-cursor lines are fixed: an entrance that jumps is `enter`, not `NI`; a click lands in the central part of the frame with the cursor visible.
 
 ## Stills (full resolution; Read every one)
 - [ ] Each hit, each resting frame, the end card.
 - [ ] Every click hits a control in its before state and changes the screen on the press; nothing already active gets clicked.
 - [ ] Live elements (radar, charts, clocks) animate with distinct frames.
-- [ ] The ending lands: last copy complete ≥ 1.2 s before the end, motion at rest on the final frame, then a short fade or a clean loop frame. Check stills at end−1.2, end−0.5 and the last frame.
+- [ ] Every swap or reveal hides the copy it covers (no glass ghosting); counters end on the app's real value.
+- [ ] The hero and situation appear in the first act, not only in the payoff caption.
+- [ ] The ending lands: last copy complete ≥ 1.2 s before the end, motion at rest on the final frame, then a short fade or a clean loop frame. Check stills at end−1.2, end−0.5 and the last frame. The end card is about 2–2.5 s in total, never a 4–5 s static hold.
+- [ ] Static spans: `node $S/motion.mjs <crisp.mp4>` (or on a draft render) reports no span over ~1 s without visible change except the ending rest; fix or justify each one.
 - [ ] Right fonts everywhere. A system fallback means a face is missing from `fonts:` or `@font-face` failed.
 - [ ] Images loaded: no broken boxes; avatars present (`images:`).
 - [ ] Descenders (g, y, p) intact in gradient text and rolling words.

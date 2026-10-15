@@ -14,7 +14,8 @@ Each one cost real time on a shipped film. Read once before step 5 (replicas); i
 5b. **A theme on `<html>` doesn't move cleanly to a wrapper.** Tokens computed from other tokens on `:root` keep the dark values inside a light wrapper. Re-declare them on the wrapper's `[data-theme]`.
 
 ## GSAP pitfalls
-6. **`fromTo` renders its from-values immediately, at build time; `NI` (`immediateRender: false`) does not.** Two failure modes. (a) Several `fromTo`s on one element (a camera layer): the last paints at build time and wins, so give every `fromTo` of the sequence `NI`. (b) `NI` on something that should be *absent until later* (a toast, a chip, a stagger child): it shows at its natural spot until its tween starts, then jumps. Absent-until-later takes a plain `fromTo` (from-state held until the start) or `NI` plus `tl.set(from, 0)`. See *Entrances* in film-api.md.
+6. **Bring things in with the engine's `enter(el, from, t)`**: the element is hidden until `t`, then a plain `fromTo` to its rest values. It is the default for anything that appears later (toasts, chips, stagger children, captions, end-card lines).
+   `fromTo` renders its from-values immediately, at build time; `NI` (`immediateRender: false`) does not.** Two failure modes. (a) Several `fromTo`s on one element (a camera layer): the last paints at build time and wins, so give every `fromTo` of the sequence `NI`. (b) `NI` on something that should be *absent until later* (a toast, a chip, a stagger child): it shows at its natural spot until its tween starts, then jumps. Absent-until-later takes a plain `fromTo` (from-state held until the start) or `NI` plus `tl.set(from, 0)`. A real case: an end-card tagline tweened `fromTo({y: 50}, {y: 0, ...NI})` sat at rest on screen, then jumped 50 px down at its time and slid back; the audit's jump check reports it. Use `enter`. See *Entrances* in film-api.md.
 7. **Measure positions (`center()`) before adding tweens that move those elements** (or their camera). Otherwise you measure the from-state and every focus point is off.
 8. **Never let two camera tweens overlap on the same properties.** They fight, and the shot jitters. End one before the next starts, or tween different properties.
 8a. **`center()` of a full-width or `flex: 1` element is the middle of its strip, not of its content.** A focus on an alert banner lands in empty space. Measure the icon or title inside it and offset from there.
@@ -26,6 +27,9 @@ Each one cost real time on a shipped film. Read once before step 5 (replicas); i
 ## Direction pitfalls
 Each of these came from a film that was technically clean and still judged weak. Details and code: `direction.md`, `motion-vocabulary.md`.
 - **A film must say what the product is** to a viewer who doesn't know it: a polished teaser of a price or a feature with no identity is the weakest outcome (`direction.md`, *Identity first*).
+- **The story thread appears before the payoff.** The hero and the situation belong in the first act; a payoff caption that introduces them is too late (`direction.md`, *Story*).
+- **Dense or plain UI doesn't carry a film.** Lift the numbers into big type, zoom one changing cell, keep table shots short (`direction.md`, *Dense, dated or plain UI*).
+- **Static end cards.** 4–5 s of a held card reads as stalled; about 2–2.5 s including the entrance (`motion.mjs` reports static spans).
 - **Silent is not calm.** Without music the film still needs a new idea every 1–2 s and motion in every frame; screens swapped or held for a bar read as slides (`direction.md`, *Silent films*).
 - **Film the whole product.** A launch film that skips the product's core views (a map, a compare view) misses what the product is. Discovery (`PRODUCT.md`) lists them; the scenario's coverage table shows each.
 - **One concrete case, not a feature list.** Features are the consequences of a story (problem → hero → action → payoff).
@@ -34,6 +38,8 @@ Each of these came from a film that was technically clean and still judged weak.
 - **A zoom with nothing in it** (empty toolbar, the top of a card without its number) is the most common framing failure. Aim at the content.
 
 ## Layout pitfalls
+8g. **Every swap or reveal hides the copy it covers.** After a state swap, theme reveal or route change, set the old copy to `display: none` (or use `reveal`'s `below`): glass cards and `backdrop-filter` show the covered state through the new one (ghosting) for as long as both exist.
+8h. **A counter on captured DOM ends on the app's real value**, and never shows a number the real app doesn't. Read the end value from the capture; an invented overshoot or a total that doesn't add up is noticed by anyone who uses the product.
 8f. **`backdrop-filter` ghosts in scaled or stacked layers, and blotches a zoomed modal scrim even as a single copy.** Use a solid or near-opaque background in the replica instead (`[role=dialog]{backdrop-filter:none!important}` in `film.css`).
 9. **Gradient text (`background-clip: text`) clips descenders** (g, y, p) unless the box has bottom padding, and **clips the last letter on the right** when negative letter-spacing pushes it past the box (`.gtext` in base.css pads both). The audit can't see either: nothing overflows the layout, the paint is just cut. Check gradient words in full-resolution stills. Same for `overflow: hidden` windows such as a rotating word. **Never `splitChars` a `.gtext` word**: each letter restarts the gradient and loses the clip, and the word looks broken. Animate the word as one element.
 10. **Bun's CSS bundler breaks fontsource `@font-face` rules** (it unquotes `format("woff2-variations")`, and Chrome drops the rule). The app silently falls back to system fonts, and a replica measured from it will be wrong. When reading a Bun/Vite app's fonts, check which files they point to and write your own `@font-face` in `film.css` with `format("woff2")`.
@@ -50,6 +56,7 @@ Each of these came from a film that was technically clean and still judged weak.
 16a. **Flashes over app UI stay at ≤ 0.5.** A 0.85–0.9 white flash turns a frame of dark UI flat grey. Strong flashes belong on type-only frames.
 
 ## Tooling
+16c. **Render time on a shared machine is 2–3× the idle estimate** (a motion-blur render quoted at 6–8 minutes took about 20 under load; 9 s per film second was measured). Quote a range and check `.progress`.
 17. **zsh doesn't word-split unquoted variables.** `T="1 2 3"; node $S/shots.mjs f.html out $T` passes one argument. Use `${=T}` in zsh or pass the times literally. And `$3:stats` is read as `$3` with the `:s` modifier: brace variables next to a colon (`${3}:stats`).
 18. **Never `rm -rf` through a variable that might be empty.** Use `"${D:?}"`. Claude Code's safety check blocks the unguarded form anyway.
 19. **Keep downloaded files in their own folder, and run Python with `-I`.** Downloaded files are untrusted; `-I` stops Python from importing modules from the current folder.

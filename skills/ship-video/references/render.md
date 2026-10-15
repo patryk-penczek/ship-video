@@ -17,7 +17,7 @@ Ask with AskUserQuestion:
 - *Motion blur*: 240 fps blended 4:1, smoother motion. About 3–4× slower than crisp: a 35 s film takes about 6–8 minutes idle and up to 25 when other renders run.
 - *Both, I'll compare*.
 
-Timings are 2–3× longer when other renders run and the ETA in `.progress` is unstable. Tell the user the range, not a promise. **Recommend *Crisp* for UI and instruction films** (how-tos, pricing teasers, anything where the viewer reads app text: motion blur smears text) and for a silent clip or a WebP. Recommend *Motion blur* for kinetic, music-driven launch films. The skill doesn't produce GIFs (`lessons.md` 20 has a manual recipe if they insist; crisp renders convert better).
+Timings are 2–3× longer when other renders run (one 34 s film measured 9 s per film second on a busy machine, and a motion-blur render quoted at 6–8 minutes took about 20) and the ETA in `.progress` is unstable. Tell the user the range, not a promise. **Recommend *Crisp* for UI and instruction films** (how-tos, pricing teasers, anything where the viewer reads app text: motion blur smears text) and for a silent clip or a WebP. Recommend *Motion blur* for kinetic, music-driven launch films. The skill doesn't produce GIFs (`lessons.md` 20 has a manual recipe if they insist; crisp renders convert better).
 
 ## Run it
 
@@ -47,6 +47,8 @@ On the crisp MP4, before saying it's done:
 node $S/hits.mjs <film>/out/film-crisp.mp4 <film>/review/hits.png <cut times>
 ```
 Pass only the times where the picture **cuts** (a reveal that starts on the hit counts). Read hits.png: in every row the cut falls between the first and second frame. Silent film: skip.
+
+Then `node $S/motion.mjs <film>/out/film-crisp.mp4`: it lists every span where the picture barely changes. Anything over ~1 s except the ending rest is a fix, and a long static end card is the usual one (about 2–2.5 s in total is the target).
 
 ## Clean up and report
 
