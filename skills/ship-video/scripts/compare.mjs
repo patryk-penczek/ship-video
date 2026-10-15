@@ -1,67 +1,83 @@
 // Real app vs replica, one state at a time: screenshots the running app after each state's actions and the matching
-// .frame[data-state] of the replica gallery, and stacks them (real on top) into <outDir>/<state>.png. Read every PNG.
-// usage: node compare.mjs <app-url> <film>/gallery.html <outDir> --states states.json [--width 1920 --height 1080]
-// states.json: [{ "name": "home", "path": "/", "actions": [{ "click": ".add-city" }, { "type": "Bar" }, { "press": "Enter" }, { "wait": 200 }] }]
-//   actions: click <selector> · fill [<selector>, <text>] · type <text> · press <key> · hover <selector> · wait <ms> · eval <js>
+// .frame[data-state] of the replica gallery, prints a pixel-diff % per state and stacks real / replica / diff into <outDir>/<state>.png
+// (the diff alone: <state>-diff.png). Read every PNG. Target: under ~2 % per state; text anti-aliasing alone is about 0.3 %.
+// usage: node compare.mjs <app-url> <film>/gallery.html <outDir> --states states.json [--width 1920 --height 1080] [--scale 0.5] [--full] [--max-diff 2]
+//   states.json is the file capture.mjs reads (actions: click fill type press hover select check set scroll waitFor wait goto eval;
+//   `continue: true` reuses the previous state's page). Each state name must match a gallery .frame[data-state].
+//   --scale   size of the images in the stacked PNG (default 0.5; 1 = pixel for pixel)
+//   --full    compare the whole page height instead of the 1080 viewport (replica frame is stretched to the real page's height)
+//   --max-diff N  mark states above N % as OVER (default 2)
 // The app runs with reduced motion and CSS animations/transitions frozen, so screenshots are stable.
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { help, args, load } from "./lib/common.mjs";
+import { help, args, load, die, mustExist } from "./lib/common.mjs";
+import { drive, readStates } from "./lib/drive.mjs";
 help(import.meta.url);
 
-const a = args();
+const a = args(undefined, ["full", "help"]);
 const [url, gallery, outDir] = a._;
-if (!url || !gallery || !outDir || !a.states) { console.error("usage: node compare.mjs <app-url> <gallery.html> <outDir> --states states.json"); process.exit(1); }
-const states = JSON.parse(readFileSync(a.states, "utf8"));
-const W = Number(a.width ?? 1920), H = Number(a.height ?? 1080);
+if (!url || !gallery || !outDir || !a.states) die("usage: node compare.mjs <app-url> <gallery.html> <outDir> --states states.json [--scale 1] [--full]");
+mustExist(gallery, "gallery"); mustExist(a.states, "states file");
+const states = readStates(a.states);
+const W = Number(a.width ?? 1920), H = Number(a.height ?? 1080), scale = Number(a.scale ?? 0.5), max = Number(a["max-diff"] ?? 2);
 mkdirSync(outDir, { recursive: true });
+
+// Runs in a blank page: per-pixel diff of two PNGs (a channel differing by more than 24/255 counts) and a diff image.
+async function diff(page, real, replica) {
+  return page.evaluate(async ([A, B]) => {
+    const load = (b) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = `data:image/png;base64,${b}`; });
+    const [ia, ib] = [await load(A), await load(B)], w = ia.width, h = ia.height;
+    const px = (img) => { const c = document.createElement("canvas"); c.width = w; c.height = h; const x = c.getContext("2d"); x.fillStyle = "#f0f"; x.fillRect(0, 0, w, h); x.drawImage(img, 0, 0); return x.getImageData(0, 0, w, h); };
+    const da = px(ia), db = px(ib), out = new ImageData(w, h);
+    let bad = 0;
+    for (let i = 0; i < da.data.length; i += 4) {
+      const d = Math.max(Math.abs(da.data[i] - db.data[i]), Math.abs(da.data[i + 1] - db.data[i + 1]), Math.abs(da.data[i + 2] - db.data[i + 2]));
+      const g = (da.data[i] + da.data[i + 1] + da.data[i + 2]) / 3 * 0.25;
+      if (d > 24) { bad++; out.data[i] = 255; out.data[i + 1] = 40; out.data[i + 2] = 40; } else { out.data[i] = out.data[i + 1] = out.data[i + 2] = g; }
+      out.data[i + 3] = 255;
+    }
+    const c = document.createElement("canvas"); c.width = w; c.height = h; c.getContext("2d").putImageData(out, 0, 0);
+    return { pct: bad / (w * h) * 100, png: c.toDataURL("image/png").split(",")[1], size: [w, h, ib.width, ib.height] };
+  }, [real, replica]);
+}
 
 const { chromium } = load("playwright");
 const browser = await chromium.launch({ args: ["--allow-file-access-from-files"] });
-const FREEZE = "*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition:none!important;caret-color:transparent!important}";
-const errors = [];
+const errors = [], rows = [];
 try {
   const gal = await browser.newPage({ viewport: { width: W, height: H } });
   gal.on("pageerror", (e) => errors.push(`[gallery] ${e.message}`));
   await gal.goto(pathToFileURL(path.resolve(gallery)).href);
+  await gal.addStyleTag({ content: ".frame::before{display:none!important}" }); // the state label would count as a difference
   await gal.evaluate(() => document.fonts.ready);
   await gal.waitForTimeout(300);
+  const tool = await browser.newPage({ viewport: { width: 400, height: 300 } });
 
-  for (const st of states) {
-    const app = await browser.newPage({ viewport: { width: W, height: H }, reducedMotion: "reduce" });
-    app.on("pageerror", (e) => errors.push(`[app ${st.name}] ${e.message}`));
-    await app.goto(new URL(st.path ?? "", url).href, { waitUntil: "networkidle" });
-    await app.addStyleTag({ content: FREEZE });
-    for (const act of st.actions ?? []) {
-      const [k, v] = Object.entries(act)[0];
-      if (k === "click") await app.click(v);
-      else if (k === "fill") await app.fill(v[0], v[1]);
-      else if (k === "type") await app.keyboard.type(v);
-      else if (k === "press") await app.keyboard.press(v);
-      else if (k === "hover") await app.hover(v);
-      else if (k === "wait") await app.waitForTimeout(v);
-      else if (k === "eval") await app.evaluate(v);
-      else throw new Error(`state ${st.name}: unknown action "${k}"`);
-    }
-    await app.evaluate(() => document.fonts.ready);
-    await app.waitForTimeout(150);
-    const real = (await app.screenshot()).toString("base64");
-    await app.close();
-
+  await drive(browser, url, states, { width: W, height: H, errors }, async (app, st) => {
+    const realBuf = await app.screenshot({ fullPage: !!a.full });
+    const real = realBuf.toString("base64");
     const frame = await gal.$(`.frame[data-state="${st.name}"]`);
-    if (!frame) { errors.push(`gallery has no .frame[data-state="${st.name}"]`); continue; }
+    if (!frame) { errors.push(`gallery has no .frame[data-state="${st.name}"]`); return; }
+    const full = a.full ? await app.evaluate(() => document.documentElement.scrollHeight) : H;
+    if (a.full) await frame.evaluate((f, h) => { f.style.height = `${h}px`; f.querySelectorAll(".app-shot").forEach((s) => { s.style.height = `${h}px`; }); }, full);
     const replica = (await frame.screenshot()).toString("base64");
+    if (a.full) await frame.evaluate((f) => { f.style.height = ""; f.querySelectorAll(".app-shot").forEach((s) => { s.style.height = ""; }); });
+    const d = await diff(tool, real, replica);
+    writeFileSync(path.join(outDir, `${st.name}-diff.png`), Buffer.from(d.png, "base64"));
 
-    const sheet = await browser.newPage({ viewport: { width: W / 2, height: H + 80 } });
+    const sheet = await browser.newPage({ viewport: { width: Math.round(W * scale), height: 100 } });
+    const img = (b) => `<img src="data:image/png;base64,${b}" style="display:block;width:100%">`;
+    const bar = (c, t) => `<div style="padding:6px 10px;background:${c}">${t}</div>`;
     await sheet.setContent(`<body style="margin:0;background:#111;font:600 16px system-ui;color:#fff">
-      <div style="padding:6px 10px;background:#0a6">REAL · ${st.name}</div><img src="data:image/png;base64,${real}" style="display:block;width:100%">
-      <div style="padding:6px 10px;background:#a40">REPLICA · ${st.name}</div><img src="data:image/png;base64,${replica}" style="display:block;width:100%"></body>`);
+      ${bar("#0a6", `REAL · ${st.name}`)}${img(real)}${bar("#a40", `REPLICA · ${st.name}`)}${img(replica)}${bar(d.pct > max ? "#c22" : "#446", `DIFF · ${st.name} · ${d.pct.toFixed(2)} %`)}${img(d.png)}</body>`);
     await sheet.screenshot({ path: path.join(outDir, `${st.name}.png`), fullPage: true });
     await sheet.close();
-    console.log(`${st.name} → ${path.join(outDir, `${st.name}.png`)}`);
-  }
+    rows.push({ name: st.name, pct: +d.pct.toFixed(2), real: d.size.slice(0, 2), replica: d.size.slice(2) });
+    console.log(`${st.name.padEnd(18)} diff ${d.pct.toFixed(2).padStart(6)} %${d.pct > max ? "  OVER" : ""}${d.size[1] !== d.size[3] ? `  (size ${d.size[0]}x${d.size[1]} vs ${d.size[2]}x${d.size[3]})` : ""}  → ${path.join(outDir, `${st.name}.png`)}`);
+  });
 } finally {
   await browser.close();
 }
+writeFileSync(path.join(outDir, "summary.json"), JSON.stringify(rows, null, 1));
 if (errors.length) { console.error(errors.join("\n")); process.exit(1); }

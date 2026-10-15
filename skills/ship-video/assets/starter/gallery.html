@@ -7,6 +7,7 @@
 <meta charset="utf-8" />
 <title>Replica gallery</title>
 <link rel="stylesheet" href="base.css" />
+<link rel="stylesheet" href="app.css" />
 <link rel="stylesheet" href="film.css" />
 <style>
   html, body { height: auto; overflow: auto; background: #000; }
@@ -16,12 +17,15 @@
 </head>
 <body>
 <div id="gallery"></div>
+<script src="screens.js"></script>
 <script src="ui.js"></script>
 <script>
   // name → HTML of that state. Mirror the real app: same data, same open dialogs, same selected items.
   const STATES = {
     "tasks": () => UI.app(),
   };
+  // captured states (scripts/capture.mjs → screens.js) get a frame each, named as in states.json; the sample goes away
+  if (window.SCREENS) { delete STATES.tasks; for (const n of Object.keys(SCREENS)) STATES[n] = () => UI.shot(n); }
   const g = document.getElementById("gallery");
   for (const [name, html] of Object.entries(STATES)) {
     const f = document.createElement("div");
