@@ -1,7 +1,4 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/readme/logo-dark.png">
-  <img src="docs/readme/logo-light.png" alt="/ship-video">
-</picture>
+![/ship-video](docs/readme/logo.png)
 
 ### Turn your app into a music-synced launch film, as code.
 
