@@ -1,0 +1,49 @@
+/* Hero film tokens. Claude UI replica styles live in claude.css, Breeze in breeze.css. */
+:root {
+  --bg: #0b0b0c;
+  --fg: #f4f2ee;
+  --muted: #9a968e;
+  --line: #262624;
+  --accent: #d97757;
+  --grad: linear-gradient(100deg, #d97757 5%, #f0b27a 50%, #ffc857 100%);
+  --glow: radial-gradient(900px 600px at 80% 0%, rgb(217 119 87 / .16), transparent 70%), radial-gradient(900px 600px at 10% 100%, rgb(106 209 255 / .10), transparent 70%);
+  --font-display: "Inter Variable", system-ui, sans-serif;
+  --font-body: "Inter Variable", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+}
+
+/* captions: which part of the flow we're in */
+.cap { position: absolute; left: 72px; top: 52px; display: flex; align-items: center; gap: 20px; z-index: 5; }
+.cap > i { width: 7px; height: 64px; border-radius: 9px; background: var(--accent); box-shadow: 0 0 24px rgb(217 119 87 / .6); }
+.cap .n { font: 600 17px var(--font-mono); letter-spacing: .24em; color: var(--muted); }
+.cap .t { font: 800 56px var(--font-display); letter-spacing: -0.04em; color: var(--fg); margin-top: 4px; white-space: nowrap; }
+.capfade { position: absolute; left: 0; right: 0; top: 0; height: 190px; background: linear-gradient(#0b0b0c 72%, transparent); z-index: 4; pointer-events: none; }
+
+/* floating window treatment for the pull-back */
+.float { border-radius: 28px; overflow: hidden; box-shadow: 0 80px 200px -40px rgb(0 0 0 / .95), 0 0 0 1px rgb(255 255 255 / .08); }
+
+/* end card */
+.wordmark { font: 800 190px var(--font-display); letter-spacing: -0.06em; line-height: .9; }
+.install { display: inline-flex; align-items: center; gap: 14px; padding: 18px 28px; border-radius: 16px; background: #161615; border: 1px solid #2c2b28; font: 500 30px var(--font-mono); color: var(--fg); }
+.install b { color: var(--accent); font-weight: 600; }
+.tagline { font: 600 44px var(--font-display); letter-spacing: -0.03em; color: var(--muted); }
+
+/* ship-video preview window (act 06) */
+.pv { position: absolute; left: 50%; top: 50%; width: 1380px; margin-left: -690px; margin-top: -372px; border-radius: 22px; overflow: hidden; background: #111; box-shadow: 0 80px 200px -40px rgb(0 0 0 / .95), 0 0 0 1px rgb(255 255 255 / .08); }
+.pv-bar { height: 44px; display: flex; align-items: center; gap: 9px; padding: 0 18px; background: #1b1b1a; border-bottom: 1px solid #2a2a28; }
+.pv-bar i { width: 12px; height: 12px; border-radius: 99px; background: #3a3a37; }
+.pv-bar span { margin-left: 14px; font: 500 15px var(--font-mono); color: var(--muted); }
+.pv-stage { position: relative; width: 1380px; height: 776.25px; overflow: hidden; background: #070b18; }
+.pv-scale { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform: scale(0.71875); transform-origin: 0 0; }
+.pv-inner { position: absolute; inset: 0; transform-origin: 50% 50%; }
+.pv-inner > .pv-shot { position: absolute; inset: 0; transform-origin: 50% 50%; }
+.pv-hud { height: 54px; display: flex; align-items: center; gap: 16px; padding: 0 22px; background: #141413; border-top: 1px solid #2a2a28; font: 500 15px var(--font-mono); color: var(--muted); }
+.pv-hud b { color: var(--fg); font-size: 14px; }
+.pv-track { position: relative; flex: 1; height: 5px; border-radius: 9px; background: #2c2b28; }
+.pv-fill { position: absolute; inset: 0; border-radius: 9px; background: var(--accent); transform-origin: 0 50%; }
+.pv-knob { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 99px; background: #fff; }
+
+/* no film grain: it changes every pixel every frame, which a GIF cannot compress */
+#grain { display: none; }
+/* flat background: gradients band and smear in a 256-colour GIF */
+#vignette, .bg-glow, .bg-grid { display: none; }
