@@ -8,6 +8,9 @@ Step 8 runs the first three sections before the full render. "After the crisp re
 
 ## Stills (full resolution; Read every one)
 - [ ] Each hit, each resting frame, the end card.
+- [ ] Every click hits a control in its before state and changes the screen on the press; nothing already active gets clicked.
+- [ ] Live elements (radar, charts, clocks) animate with distinct frames.
+- [ ] The ending lands: last copy complete ≥ 1.2 s before the end, motion at rest on the final frame, then a short fade or a clean loop frame. Check stills at end−1.2, end−0.5 and the last frame.
 - [ ] Right fonts everywhere. A system fallback means a face is missing from `fonts:` or `@font-face` failed.
 - [ ] Images loaded: no broken boxes; avatars present (`images:`).
 - [ ] Descenders (g, y, p) intact in gradient text and rolling words.
