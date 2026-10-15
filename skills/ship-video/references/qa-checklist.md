@@ -1,6 +1,6 @@
 # QA checklist
 
-Step 8 runs the first three sections before the full render. "After the crisp render" belongs to step 9. `$S` = `${CLAUDE_SKILL_DIR}/scripts`. Tick items as you go; the user sees the main progress checklist at the gates, not this one.
+Step 8 runs the sections before "After the crisp render" (no render exists yet); that one and *Rights* belong to step 9. `$S` = `${CLAUDE_SKILL_DIR}/scripts`. Tick items as you go; the user sees the main progress checklist at the gates, not this one.
 
 ## Automated
 - [ ] `node $S/audit.mjs <film>/index.html` is clean, or every remaining line is a deliberate transition. Mark deliberate masks and crops (an app window that crops its content) with `data-clip-ok` on the wrapper. Fix, re-run, repeat.
@@ -13,8 +13,7 @@ Step 8 runs the first three sections before the full render. "After the crisp re
 - [ ] Live elements (radar, charts, clocks) animate with distinct frames.
 - [ ] Every swap or reveal hides the copy it covers (no glass ghosting); counters end on the app's real value.
 - [ ] The hero and situation appear in the first act, not only in the payoff caption.
-- [ ] The ending lands: last copy complete ≥ 1.2 s before the end, motion at rest on the final frame, then a short fade or a clean loop frame. Check stills at end−1.2, end−0.5 and the last frame. The end card is about 2–2.5 s in total, never a 4–5 s static hold.
-- [ ] Static spans: `node $S/motion.mjs <crisp.mp4>` (or on a draft render) reports no span over ~1 s without visible change except the ending rest; fix or justify each one.
+- [ ] The ending lands (`direction.md`, *End card* and *Landing*): last copy complete ≥ 1.2 s before the end, motion at rest on the final frame, then a short fade or a clean loop frame. Check stills at end−1.2, end−0.5 and the last frame.
 - [ ] Right fonts everywhere. A system fallback means a face is missing from `fonts:` or `@font-face` failed.
 - [ ] Images loaded: no broken boxes; avatars present (`images:`).
 - [ ] Descenders (g, y, p) intact in gradient text and rolling words.
@@ -38,6 +37,7 @@ Step 8 runs the first three sections before the full render. "After the crisp re
 - [ ] Scrubbing backwards and forwards over a busy section in the preview gives the same frames.
 
 ## After the crisp render (step 9)
+- [ ] Static spans: `node $S/motion.mjs <crisp.mp4>` reports no span over ~1 s without visible change except the ending rest; fix or justify each one.
 - [ ] `node $S/hits.mjs <crisp.mp4> <film>/review/hits.png <cut times>`: cuts only, not hits that move something inside a shot. A reveal that starts on the hit counts as a cut. Read the PNG: in each row the cut happens between frame 1 (t−0.02) and frame 2 (t). A cut on frame 3 is late: move the scene start.
 
 ## Rights

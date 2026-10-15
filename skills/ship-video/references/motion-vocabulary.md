@@ -17,7 +17,7 @@ Ten techniques with working engine code, each tied to a music event and a story 
 
 Silent films: use the "yes" rows on the bar grid and follow *Silent films* in `direction.md`.
 
-**Every cut frame is sharp.** Entrances start from an offset or a scale (≤ 1.5×) at full opacity; blur ≤ 6 px; never a fade from 0.
+**Every cut frame is sharp:** see `film-api.md`, *Cut on a hit*.
 
 ## 1. Flood + stamped word
 The accent colour fills the frame and a word lands big, then settles. The word is full size and sharp on the hit frame.
@@ -121,7 +121,7 @@ The caret's stretch ends on the final hit; the flood is the end card's backgroun
 ## Density rules
 
 - Something changes every beat: a new word, a cut, a number step, a camera landing. If a beat has nothing, add a micro-move (counter, cursor, drift) before adding an effect.
-- Stillness limit: one definition, `direction.md` *Pacing rules* 1 (nothing fully still for more than a bar; a 1.0 → 1.07 drift counts).
+- Stillness limit: one definition, `direction.md` *Pacing rules* 1 (no span over ~1 s without a visible change; a 1.0 → 1.07 drift counts).
 - UI is zoomed 1.4–2.3× onto the element that matters; pull back to the whole UI on the hit.
 - In a montage (screen wall, view run) cut on every kick.
 - One idea per shot; effects (glitch, shockwave, stamp) once each per film.

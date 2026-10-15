@@ -74,7 +74,6 @@ count($(s, ".stat-3 .v"), 3.9, 4.8, t0, 1.0, (v) => v.toFixed(1));
 tl.fromTo($$(s, ".bars i"), { scaleY: 0.12 }, { scaleY: 1, duration: 0.7, stagger: 0.05, ease: "back.out(1.5)" }, t0);  // css: transform-origin: 50% 100%
 // slow push on the middle of stats+bars, never on empty margin
 tl.fromTo(cam, focus(mid, 1.2, { box }), { ...focus(mid, 1.45, { box }), duration: 1.6, ease: "power1.inOut", ...NI }, t0);
-caption(s, "Live numbers", t0);
 ```
 
 ### 4. Chart scrubbed continuously, camera follows the marker
@@ -114,10 +113,12 @@ tl.to($(s, ".main"), { x: -260, scale: 0.96, duration: 0.6, ease: "power3.inOut"
 tl.to(view, { xPercent: 0, duration: 0.6, ease: "power3.inOut" }, t0 + 0.5);
 // something in the new view already moves: a radar sweep, a map, a chart
 tl.fromTo(sweep, { rotation: 0 }, { rotation: 540, duration: 1.1, ease: "none", ...NI }, t0 + 0.5);
-// camera: keep the nav in frame until the click, then go to the new view (two tweens, no overlap)
-tl.fromTo(cam, focus(center(app), 1.1, { box }), { ...focus({ x: P.nav.x + 500, y: P.nav.y + 150 }, 1.2, { box }), duration: 0.5, ease: "power1.out", ...NI }, t0);
+// camera: frame the nav item for the press (central 60%, readable), then go to the new view (two tweens, no overlap)
+const navView = focus({ x: P.nav.x + 300, y: P.nav.y }, 1.5, { box });
+tl.fromTo(cam, navView, { ...focus({ x: P.nav.x + 320, y: P.nav.y }, 1.6, { box }), duration: 0.5, ease: "power1.out", ...NI }, t0);
 tl.to(cam, { ...focus(P.vp, 1.3, { box }), duration: 1.1, ease: "power2.inOut" }, t0 + 0.5);
 ```
+A real app's nav sits at the frame's edge (at 1.1× it is in the outer ~15%, and `audit.mjs` prints `click ... edge of frame`), so the camera frames it for the press as above, then travels to the new view.
 If the app has a real route animation, reproduce its easing; if a view is a canvas or map that animates (a radar, a map), use the frames `capture.mjs` grabs (`canvas: { frames }` in `states.json`, played with `UI.frames` from the starter) instead of crossfading stills.
 
 ### 7. Scroll a tall page
@@ -188,7 +189,11 @@ const T = center($(s, ".theme-toggle"));
 cursor(cam, { x: 900, y: 600 }, [{ to: T, t: t0, dur: 0.5, click: true }]);
 reveal(light, T, t0 + 0.5);                                                    // display none until then, disc starts at r = 70
 ```
-Keep the reveal short (about 0.45 s) and `tl.set(old, { display: "none" }, end)` afterwards: translucent cards of the old theme ghost the new one while both show. If the toggle and the content are far apart, see `direction.md` (*Theme reveal when the toggle and the content are far apart*). If the zoom is high the disc looks like a flat blob (a pale circle over empty background): reveal at camera scale ≤ 1.2 with the origin on a content-dense area, so the new theme is recognisable inside the disc, or use a diagonal wipe (`clipPath: polygon()`), the safer default on light themes. Give the edge a highlight so it reads as a surface: a ring element at the same centre and radius (1.5 px accent border, `box-shadow: 0 0 40px rgb(0 0 0 / .35)`) that grows with the same tween as the clip circle.
+Keep the reveal short (about 0.45 s) and `tl.set(old, { display: "none" }, end)` afterwards: translucent cards of the old theme ghost the new one while both show.
+
+**Toggle and content far apart.** On real dashboards the toggle sits in a corner and the number that shows the theme is a thousand pixels away, so one camera can't frame both at 1.4× or more. Either cut to the toggle first (frame it for the press, so the click is readable) and reveal on a cut that already frames the content, or reveal at 1.0–1.2× with the toggle in the central 60% when it can be placed there. Never press a toggle at the frame edge just to keep both in frame.
+
+If the zoom is high the disc looks like a flat blob (a pale circle over empty background): reveal at camera scale ≤ 1.2 with the origin on a content-dense area, so the new theme is recognisable inside the disc, or use a diagonal wipe (`clipPath: polygon()`), the safer default on light themes. Give the edge a highlight so it reads as a surface: a ring element at the same centre and radius (1.5 px accent border, `box-shadow: 0 0 40px rgb(0 0 0 / .35)`) that grows with the same tween as the clip circle.
 
 ### 13. Quick aside (1–2 s)
 For something PRODUCT.md marks *aside*: a delightful detail that isn't core. One motion, one beat, then back to the story; never a scene of its own. A small card that slides in over the current shot, or a single cut in a montage, is enough.
@@ -204,20 +209,20 @@ type($(s, ".q2"), "orbit.app", t0 + 0.7, t0 + 1.4);
 press($(s, ".go"), t0 + 1.7);
 tl.to($(s, ".center"), { scale: 1.06, duration: 1.4, ease: "none" }, t0);
 ```
-Total about 2–2.5 s: lines in by ~0.6 s, then at least 1.2 s of readable rest with the slow push, then the landing (`land`). Never a 4–5 s static card (`direction.md`, *End card*).
-Don't `splitChars` a `.gtext` word (lessons #9).
+Timing: `direction.md`, *End card* (lines in by ~0.6 s, a readable rest with the slow push, then `land`).
+Don't `splitChars` a `.gtext` word (`lessons.md` 16).
 
 ### Dialog or palette shot
 A scrim darkens the whole captured frame, so a dialog at camera 1.0 is a dark frame with a small box in it. Zoom onto the dialog until it fills at least 50% of the frame (usually 1.8-2.4×), aim `focus()` at its centre (measure it with `UI.measure`), and keep the scrim at the edges only. Type into its input as in shot 2 and cut out on the Enter press. Never two dark shots in a row.
 
 ### Key number over dimmed UI (dense or plain products)
-For tables, forms and admin screens: the UI proves it is real, the number is what the viewer reads. Dim the captured screen (a dark scrim of about 0.55 opacity or `filter: brightness(.45)` on the app layer, applied from the first frame so the cut frame is sharp), put the figure in 60–70% of the frame width as display type, and `count` it to the app's real value. Then cut to a one-cell zoom (`focusRect(rect(cell), 60)`) on what changes, 1–1.5 s, and pull back. Table shots never exceed ~1.5 s each (`direction.md`, *Dense, dated or plain UI*).
+For tables, forms and admin screens: the UI proves it is real, the number is what the viewer reads. Dim the captured screen (a dark scrim of about 0.55 opacity or `filter: brightness(.45)` on the app layer, applied from the first frame so the cut frame is sharp), put the figure in 60–70% of the frame width as display type, and `count` it to the app's real value. Then cut to a one-cell zoom (`focusRect(rect(cell), 60)`) on what changes, 1–1.5 s, and pull back. Table shots never exceed ~1.5 s each (`film-types.md`, *Dense, dated or plain UI*).
 
 ### Payoff shot
 The payoff is the peak of the film: the tightest framing (the result fills 60-70% of the frame), the biggest motion (the largest zoom or count of the film, a pull-back on the hit) and the longest hold (about 1 s with a slow push still running, never shorter than the shots before it). If an earlier shot is bigger or tighter, shrink that one.
 
 ### Step-bar caption (how-to films)
-A how-to's instruction must stay on screen while the viewer watches the action, and full-bleed UI has no free margin. Reserve a **caption band** (a strip of about 160-180 px at the bottom or top, solid colour) and frame the app in the rest of the frame: clip the scene to the remaining area and offset every `focus()` target by half the band so the target is centred in what is left. Use the engine's `band()` (`film-api.md`) rather than hand-clipping. Each step swaps its caption on the step's first frame ("1 Press and hold the card", number in a chip) with a thin progress line across the band; the caption text is 28 px or more (56 for feeds). The band is not content: don't count it toward the 40-70% rule.
+A how-to's instruction must stay on screen while the viewer watches the action, and full-bleed UI has no free margin. Reserve a **caption band** (a strip of about 160-180 px at the bottom or top, solid colour) and frame the app in the rest of the frame: clip the scene to the remaining area and offset every `focus()` target by half the band so the target is centred in what is left. Use the engine's `band()` (`film-api.md`) rather than hand-clipping. Each step swaps its caption on the step's first frame ("1 Press and hold the card", number in a chip) with a thin progress line across the band; the caption text size follows `direction.md`, *Framing*. The band is not content: don't count it toward the 40-70% rule.
 
 ### Drag and drop
 If the page's own drag handler works with the capture's `drag` action, record the states from it; otherwise stack states and tween the ghost.

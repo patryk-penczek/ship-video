@@ -24,7 +24,7 @@ Rule: bars = length / bar. 25 s fits 96 BPM (10 bars of 2.5 s). With 120 BPM, 25
 
 ## 2. Suno setup
 1. Create, Songs tab, switch **Simple** to **Advanced**. Advanced shows two fields: **Lyrics** and **Styles**.
-2. Model (top right): **v6** (paid, most precise) or **v6-mini** (free). Do not use **v6-wild**: it ignores tight cues.
+2. Model (top right): at the time of writing **v6** (paid, most precise) or **v6-mini** (free); check which models your plan offers. Avoid any *wild* variant: it ignores tight cues.
 3. Lyrics field: the bracketed structure only (section 4), with `[Instrumental]` first. (An empty Lyrics field also means instrumental, but then there is no structure.)
 4. Styles field: the style line (section 3), about 1000 characters at most.
 5. **More Options**: set the **Duration** slider to the target (for example 0:25 or 0:30), put 2 or 3 unwanted things in **Exclude Styles** (for example `vocals, spoken word, long outro`). Optional: Variety Normal, Weirdness about 30%, Style Influence about 65%.
@@ -75,5 +75,5 @@ Planned times: intro 0 to 2 s, verse 2 to 6, build 6 to 10, groove 10 to 14, bre
 ## 5. Generate and pick
 - Audition all takes. Pick by the clearest hits and the cleanest ending. The silence before a hit is the most fragile part: Suno rarely makes true silence, so a riser instead of a gap is fine.
 - Suno often runs longer than asked and may ignore `[End]`. Use Suno's crop on the take, or cut on a bar line later (SKILL.md step 3). Do not leave a long silent tail.
-- **While the user generates, don't wait idle.** Write MUSIC.md from the grid, mark its first line `GRID DRAFT`, draft SCENARIO.md against it and ask the copy questions. Only the approval waits for the real take. When the take arrives, analyse it, re-time (music-map.md), and ask the approval again if any act moved by more than one bar.
+- While the user generates, work against a `GRID DRAFT` (SKILL.md step 2, B). When the take arrives, analyse it, re-time (`music-map.md`), and ask the approval again if any act moved by more than one bar.
 - If after 6 takes the structure is wrong, change the prompt: fewer sections, shorter sections, clearer instrument words.

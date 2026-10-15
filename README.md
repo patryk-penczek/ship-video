@@ -37,9 +37,11 @@ bash ~/.claude/skills/ship-video/scripts/setup.sh   # optional: Claude runs it o
 
 ## What happens
 
-1. **Brief.** Claude reads your repo, then asks a few clickable questions: goal and film type (launch, how-to, one-feature teaser, landing page), who watches and what they already know, where it will be posted, length, music.
+A film is a long guided session: a scenario to approve, stills to review, a render of a few minutes. It works best with a strong model at high effort.
+
+1. **Brief.** Claude reads your repo, then asks a few clickable questions (only what it can't find itself): goal and film type (launch, how-to, one-feature teaser, landing page), who watches and what they already know, where it will be posted, length, music.
 2. **Discovery.** It opens every view of your app and finds the moments worth filming, then shows you a product map.
-3. **Music.** It analyses your track's tempo, hits and drop, and writes a music map.
+3. **Music.** It analyses your track's tempo, hits and drop (or the generated beat's) and writes a music map; with no music it works on a tempo grid.
 4. **Scenario.** It writes a table of seconds, music, picture and exact copy. **Nothing is built until you approve it.**
 5. **Replicas.** It captures your running app's real DOM and CSS (or rebuilds from source) and compares each screen with the real thing.
 6. **Build.** It animates those screens on the beat.
@@ -59,13 +61,14 @@ Already partway through? Claude picks up from the files in the film folder, and 
 
 ## Music
 
-Pick one of three paths when Claude asks:
+Pick one of four paths when Claude asks:
 
 | path | what you do | good for |
 |---|---|---|
 | **Your track** | drop in an audio file | music you made or licensed |
 | **Suno** | paste the style and structure Claude writes into [Suno](https://suno.com) (Advanced mode), download the best of 4–6 takes. Needs a Suno account, and a paid plan for public use | a track shaped to your film's bars |
-| **None** | nothing | drafts. Cuts snap to a tempo grid and the preview plays a metronome; add music later |
+| **Generated beat** | nothing | a free, license-free score from your film's own bar plan (`music.mjs synth`): a functional beat, not a song |
+| **None** | nothing | drafts and silent films. Cuts snap to a tempo grid and the preview plays a metronome; add music later |
 
 > [!IMPORTANT]
 > **Suno licensing:** per Suno's terms at the time of writing, songs made on the **free plan can't be used commercially**, and upgrading later doesn't change that. Songs made while on a **paid plan** can. Check [Suno's terms](https://suno.com) before publishing. Claude asks where the film will be shown, and which plan you'll generate on, before you generate anything.
@@ -97,8 +100,8 @@ macOS or Linux with **Node 20+**, **ffmpeg** and **Python 3** ([uv](https://docs
 
 ```
 skills/ship-video/
-├─ SKILL.md            the guided flow: steps, approval gates, scripts, gotchas
-├─ references/         read on demand: lessons, replicas, direction, shots, motion vocabulary, film API, music map, Suno prompt, scenario template, QA checklist, render, sharing
+├─ SKILL.md            the guided flow: steps, approval gates, limits, resume table
+├─ references/         read on demand: film types, direction, shots, motion vocabulary, film API, replicas, lessons, music map, Suno prompt, synth, scenario template, subagents, QA checklist, render, sharing
 ├─ scripts/            render, stills, replica compare, audit, hit check, music analysis (all take --help)
 └─ assets/starter/     the film template
 evals/                 test prompts for the skill
@@ -107,15 +110,7 @@ evals/                 test prompts for the skill
 
 ## Compared to other tools
 
-| | ship-video | [HyperFrames](https://github.com/heygen-com/hyperframes) | [Remotion](https://github.com/remotion-dev/remotion) | [OpenMontage](https://github.com/calesthio/OpenMontage) |
-|---|---|---|---|---|
-| What it is | one skill: a guided workflow for product films | HTML → MP4 framework for agents | React → video framework | agentic video production system |
-| Writes in | HTML + GSAP | HTML + seekable animations | React | many pipelines |
-| Music sync | built in: hit detection, music map, hit check | bring your own | bring your own | varies by pipeline |
-| Recreates your app's UI | yes, from your real components | not the focus | not the focus | not the focus |
-| Best for | one polished launch or feature film for your app | general HTML video, templates | programmatic video at scale | broad AI video production |
-
-What this repo adds is the workflow and the lessons around a small renderer. Comparison as of October 2026; check the other projects for what they do today.
+Closest alternatives: [HyperFrames](https://github.com/heygen-com/hyperframes), [Remotion](https://github.com/remotion-dev/remotion) and [OpenMontage](https://github.com/calesthio/OpenMontage). As we understand them (October 2026), they are general frameworks or production systems for video; this repo is one guided workflow for a single job: a film of your own app, with its real UI recreated and every cut tied to the music. It adds the workflow and the lessons around a small renderer. Check the other projects for what they do today.
 
 ## Troubleshooting
 

@@ -17,11 +17,11 @@ Ask with AskUserQuestion:
 - *Motion blur*: 240 fps blended 4:1, smoother motion. About 3–4× slower than crisp: a 35 s film takes about 6–8 minutes idle and up to 25 when other renders run.
 - *Both, I'll compare*.
 
-Timings are 2–3× longer when other renders run (one 34 s film measured 9 s per film second on a busy machine, and a motion-blur render quoted at 6–8 minutes took about 20) and the ETA in `.progress` is unstable. Tell the user the range, not a promise. **Recommend *Crisp* for UI and instruction films** (how-tos, pricing teasers, anything where the viewer reads app text: motion blur smears text) and for a silent clip or a WebP. Recommend *Motion blur* for kinetic, music-driven launch films. The skill doesn't produce GIFs (`lessons.md` 20 has a manual recipe if they insist; crisp renders convert better).
+Timings are 2–3× longer when other renders run (one 34 s film measured 9 s per film second on a busy machine, and a motion-blur render quoted at 6–8 minutes took about 20) and the ETA in `.progress` is unstable. Tell the user the range, not a promise. **Recommend *Crisp* for UI and instruction films** (how-tos, pricing teasers, anything where the viewer reads app text: motion blur smears text) and for a silent clip or a WebP. Recommend *Motion blur* for kinetic, music-driven launch films. The skill doesn't produce GIFs (`lessons.md` 29 has a manual recipe if they insist; crisp renders convert better).
 
 ## Run it
 
-**Always render crisp first**, even if they only want motion blur: it is several times cheaper and the hit check runs on it. Keep the crisp MP4 unless they chose motion blur only; then delete it after the hit check. Run every full render **in the background** (`run_in_background`), since a long one outlives the tool's 10-minute limit:
+**Always render crisp first**, even if they only want motion blur: it is several times cheaper and the hit and motion checks run on it. Keep the crisp MP4 unless they chose motion blur only; then delete it after the hit check. Run every full render **in the background** (`run_in_background`), since a long one outlives the tool's 10-minute limit:
 ```
 node $S/render.mjs <film>/index.html <film>/out/film-crisp.mp4
 node $S/render.mjs <film>/index.html <film>/out/film-motionblur.mp4 --preset motionblur
@@ -34,11 +34,11 @@ node $S/render.mjs <film>/index.html <film>/out/film-motionblur.mp4 --preset mot
 
 ## Animated WebP
 
-For a README or a post: an animated WebP autoplays and loops in full colour. GitHub never autoplays an uploaded MP4.
+For a README or a website: an animated WebP autoplays and loops in full colour. GitHub never autoplays an uploaded MP4.
 ```
 node $S/webp.mjs <film>/out/film-crisp.mp4 <film>/out/film.webp
 ```
-A WebP is for READMEs and websites; **X and LinkedIn don't accept it: post the MP4** (note it in the report when they said where it's shown). Defaults: `--fps 30 --width 960 --quality 70 --max-mb 8`; if the result is over `--max-mb` it lowers quality, then width, until it fits. Check the printed size. A silent film for a README: *Silent films* in `direction.md`.
+A WebP is for READMEs and websites; **X and LinkedIn don't accept it: post the MP4** (note it in the report when they said where it's shown). Defaults: `--fps 30 --width 960 --quality 70 --max-mb 8`. If the result is over `--max-mb` it lowers quality (to 50), then the frame rate (24, 20, 15), and never goes below 960 px wide or quality 50, because soft text reads worse than a lower frame rate; `--force-fit` keeps degrading (quality 25, width 480). Still too big: post the MP4, trim with `--from/--to`, or raise `--max-mb`. Check the printed size. A silent film for a README: *Silent films* in `direction.md`.
 
 ## Verify
 
@@ -48,7 +48,7 @@ node $S/hits.mjs <film>/out/film-crisp.mp4 <film>/review/hits.png <cut times>
 ```
 Pass only the times where the picture **cuts** (a reveal that starts on the hit counts). Read hits.png: in every row the cut falls between the first and second frame. Silent film: skip.
 
-Then `node $S/motion.mjs <film>/out/film-crisp.mp4`: it lists every span where the picture barely changes. Anything over ~1 s except the ending rest is a fix, and a long static end card is the usual one (about 2–2.5 s in total is the target).
+Then `node $S/motion.mjs <film>/out/film-crisp.mp4`: it lists every span where the picture barely changes. Anything over ~1 s except the ending rest is a fix, and a long static end card is the usual one (`direction.md`, *End card*).
 
 ## Clean up and report
 

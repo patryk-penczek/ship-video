@@ -31,8 +31,7 @@ node $S/compare.mjs <url> <film>/gallery.html <film>/review/compare --states <fi
   { "name": "palette", "actions": [{ "press": "Control+k" }, { "wait": 150 }] },
   { "name": "query", "continue": true, "actions": [{ "type": "Reyk" }, { "wait": 150 }] },
   { "name": "added", "continue": true, "actions": [{ "press": "Enter" }, { "wait": 300 }] },
-  { "name": "radar", "path": "/radar", "actions": [{ "waitFor": "canvas" }], "canvas": { "frames": 4, "every": 400 } },
-  { "name": "not-found", "path": "/nope" }
+  { "name": "radar", "path": "/radar", "actions": [{ "waitFor": "canvas" }], "canvas": { "frames": 4, "every": 400 } }
 ]
 ```
 
@@ -62,7 +61,7 @@ UI.frames(tl, $(UI.pick(s, "radar"), "img"), 8, 12);               // step a cap
 ## Pitfalls
 
 - **Stacked copies are `display:none` when measuring.** With all copies visible the page is several screens tall and every `center()`/`rect()` is wrong. Always `UI.measure`.
-- **After a theme reveal, hide the covered copy** (`UI.swap` does). `backdrop-filter` cards blur whatever is stacked beneath, so a dark copy under a light one ghosts.
+- **Hide the covered copy; no glass.** After a swap, theme reveal or route change the old copy must be `display: none` (`UI.swap` does it; `reveal`'s `below` option too). `backdrop-filter` cards blur whatever is stacked beneath, so a dark copy under a light one ghosts, they smear in scaled or stacked layers, and a zoomed modal scrim blotches even as a single copy. Use a solid or near-opaque background in the replica (`background: rgb(20 22 28 / .92)`, or `[role=dialog]{backdrop-filter:none!important}` in `film.css`) and check a still at the zoom the shot uses.
 - **Duplicate SVG ids** make a copy paint with another copy's gradient; capture suffixes them, and for hand-made markup do the same.
 - **Tall pages.** The wrapper is a 1920×1080 window. Scroll by tweening `y` on `.main` (the sidebar stays put) and subtract the scroll from `focus()` coordinates. `page height` in the capture log and `SCREENS_META[name].height` give the length. A target at the very bottom needs the extra-scroll recipe in `shots.md` 7.
 - **Fixed overlays** (toasts, dialogs, scrims) are handled by the port; if one is missing in the replica, check that the app root is `position: static` in `app.css`.

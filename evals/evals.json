@@ -7,7 +7,7 @@
       "files": [
         "app/"
       ],
-      "expected_output": "A film folder with PRODUCT.md, MUSIC.md from a tempo grid and a SCENARIO.md awaiting approval; nothing built yet.",
+      "expected_output": "In this turn: a film folder with PRODUCT.md, MUSIC.md from a tempo grid and a SCENARIO.md awaiting approval, ending at the scenario gate; nothing built.",
       "expectations": [
         "Runs scripts/lib/check.mjs before anything else and only runs setup.sh if it reports missing deps",
         "Reads app/src (components, tokens, copy) before asking questions",
@@ -15,7 +15,9 @@
         "Chooses the no-music path and runs `music.mjs grid` with a BPM and a duration of about 20 s",
         "Writes SCENARIO.md with exact seconds on bar starts, the camera, and word-for-word copy",
         "Asks for scenario approval and copy choices with the AskUserQuestion tool (options + previews), not as questions in prose",
-        "Stops and asks for scenario approval; does not write ui.js or film.js scenes before approval"
+        "Stops and asks for scenario approval; does not write ui.js or film.js scenes before approval",
+        "Every AskUserQuestion call has at most four questions, and Brief questions cover only what the repo does not already say",
+        "At most three captions in a 20 s film, each one justified (the picture cannot say it); the copy column is filled only where needed"
       ]
     },
     {
@@ -199,7 +201,7 @@
       "expected_output": "Legacy folder: does Discovery first.",
       "expectations": [
         "Starts at Discovery (PRODUCT.md is missing), not at Replicas",
-        "Writes PRODUCT.md and shows the product map, then checks the approved scenario covers every view and reports gaps"
+        "Writes PRODUCT.md and shows the product map, then lists the core views the approved scenario does not cover and asks whether to add them, without rewriting the scenario"
       ]
     },
     {
@@ -246,7 +248,8 @@
         "Silent film: MUSIC.md first line is SILENT with a BPM whose beat is a whole number of frames and whose bars fill 15 s (e.g. 144 BPM, 9 bars); no 'drop' or music-map language in the scenario",
         "Uses capture with --root body for the static page and captures scroll-reveal sections after scrolling to them",
         "Does not run three parallel Discovery agents for a tiny single-page site, or justifies it",
-        "Final report says to post the MP4 because WebP is not accepted by X or LinkedIn"
+        "Final report says to post the MP4 because WebP is not accepted by X or LinkedIn",
+        "Every click target sits in the central ~60% of the frame at a readable size before the press (audit.mjs prints no click-placement lines)"
       ]
     },
     {
@@ -264,7 +267,8 @@
         "Plans a drag-and-drop shot with stacked drag states and a ghost tween",
         "No music: MUSIC.md is SILENT and nothing in the scenario refers to a drop or hits",
         "Recommends a crisp render (motion blur smears text) and does not delete crisp after rendering it",
-        "Critic is told the intended viewer and gets full-resolution stills for text-size judgments"
+        "Critic is told the intended viewer and gets full-resolution stills for text-size judgments",
+        "Every click target sits in the central ~60% of the frame at a readable size before the press (audit.mjs prints no click-placement lines)"
       ]
     },
     {
@@ -281,6 +285,69 @@
         "Opens with full identity for strangers within about 3 s (name, promise, the page's core view moving)",
         "Asks whether the hero plays muted and loops, and makes the story readable without sound with a last frame matching the first if it loops",
         "Plans the tall page as a document-scroll shot (shots.md 7), not a view-by-view tour"
+      ]
+    },
+    {
+      "id": 21,
+      "prompt": "Make a 15 s trailer for app/. I don't have music and I don't want Suno, make something that fits.",
+      "files": [
+        "app/"
+      ],
+      "expected_output": "Path D: a beat.json from the planned acts, a synthesised track.wav, analysed like any track, with no rights question.",
+      "expectations": [
+        "Chooses the generated-beat path (step 2D): writes beat.json from the planned acts and runs `music.mjs synth --plan ... --out <film>/track.wav`",
+        "Does not ask a rights question and says the track is free to publish",
+        "Says plainly that it is a functional score, not a song, and offers Suno for a richer final",
+        "Analyses track.wav like any track and writes MUSIC.md with a `# Track: track.wav` header"
+      ]
+    },
+    {
+      "id": 22,
+      "prompt": "Our app is a PWA built for a phone. Make a 20 s teaser of it for the landing page.",
+      "files": [
+        "app/ (a 390x844 web app)"
+      ],
+      "expected_output": "A scenario for a narrow app: finger, high zoom, big copy in the side margins, a bright hook.",
+      "expectations": [
+        "Captures with a phone viewport and touch (`--viewport 390x844 --touch`)",
+        "Uses a finger, not an arrow cursor, and a camera zoom of about 2.0-2.4x so text reaches a readable size",
+        "Puts big copy in the side margins outside the camera layer (the template's margin copy column), one side per act",
+        "Gives the pale column a flood colour or bright type card behind it for the hook"
+      ]
+    },
+    {
+      "id": 23,
+      "prompt": "Whiteboard app in app/, canvas-based. Make a 30 s launch film.",
+      "files": [
+        "app/ (a canvas whiteboard)"
+      ],
+      "expected_output": "A scenario and capture plan built on recorded real-mouse frames, not an SVG redraw.",
+      "expectations": [
+        "Plans a `record` state in states.json (real mouse strokes) and replays it with UI.recording / follow, rather than rebuilding the drawing in SVG",
+        "Keeps toolbars and panels as captured DOM and only the canvas area as frames",
+        "Frames the drawing happening within the sharp-resolution limit (does not push the canvas beyond about 1.9x)"
+      ]
+    },
+    {
+      "id": 24,
+      "prompt": "Make a 20 s launch film for app/. The app has a /missing route that shows an error page.",
+      "files": [
+        "app/"
+      ],
+      "expected_output": "Discovery treats the error page as a skip-level view; nothing in the film or the capture list is about it.",
+      "expectations": [
+        "Lists the error page in PRODUCT.md as skip (plumbing), or leaves it out, and does not add an unknown-route or error state to states.json",
+        "The scenario does not spend any shot on it"
+      ]
+    },
+    {
+      "id": 25,
+      "prompt": "I have a native iOS app, no web version. Make a 20 s launch video of it.",
+      "files": [],
+      "expected_output": "States the native-app limit in the first reply and offers a screenshot-based path.",
+      "expectations": [
+        "Says in the first reply that a native app has no DOM, so replicas come from screenshots or design files, take longer and match less exactly",
+        "Asks for screenshots or design files instead of starting a capture"
       ]
     }
   ]
