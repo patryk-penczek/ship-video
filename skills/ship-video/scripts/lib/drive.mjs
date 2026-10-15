@@ -27,30 +27,34 @@ async function open(page, href, freeze) {
   if (freeze) await page.addStyleTag({ content: FREEZE });
 }
 
+export const ACTION_TIMEOUT = 5000; // a wrong selector fails in 5 s instead of Playwright's 30 s
+
 export async function runActions(page, actions, { name, base, freeze = true } = {}) {
   for (const act of actions ?? []) {
     const [k, v] = Object.entries(act)[0] ?? [];
+    const T = { timeout: ACTION_TIMEOUT };
     try {
-      if (k === "click") await page.click(v);
-      else if (k === "dblclick") await page.dblclick(v);
-      else if (k === "fill") await page.fill(v[0], v[1]);
+      if (k === "click") await page.click(v, T);
+      else if (k === "dblclick") await page.dblclick(v, T);
+      else if (k === "fill") await page.fill(v[0], v[1], T);
       else if (k === "type") await page.keyboard.type(v);
       else if (k === "press") await page.keyboard.press(v);
-      else if (k === "hover") await page.hover(v);
-      else if (k === "select") await page.selectOption(v[0], v[1]);
-      else if (k === "check") await page.check(v);
+      else if (k === "hover") await page.hover(v, T);
+      else if (k === "select") await page.selectOption(v[0], v[1], T);
+      else if (k === "check") await page.check(v, T);
       else if (k === "set") await page.$eval(v[0], (el, val) => {
         Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), "value").set.call(el, val);
         el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true }));
       }, String(v[1]));
       else if (k === "scroll") await page.evaluate(([sel, y]) => (sel ? document.querySelector(sel) : window).scrollTo(0, y), Array.isArray(v) ? v : [null, v]);
-      else if (k === "waitFor") await page.waitForSelector(v);
-      else if (k === "wait") await page.waitForTimeout(v);
+      else if (k === "waitFor") await page.waitForSelector(v, T);
+      else if (k === "wait") await (page.clocked ? page.clock.runFor(v) : page.waitForTimeout(v));
       else if (k === "goto") await open(page, new URL(v, base).href, freeze);
       else if (k === "eval") await page.evaluate(v);
       else throw new Error(`unknown action "${k}" (click dblclick fill type press hover select check set scroll waitFor wait goto eval)`);
     } catch (e) {
-      throw new Error(`state ${name}, action ${JSON.stringify(act)}: ${String(e.message).split("\n")[0]}`);
+      const timedOut = /Timeout/.test(e.message);
+      throw new Error(`state ${name}, action ${JSON.stringify(act)}: ${timedOut ? `nothing matched or became actionable within ${ACTION_TIMEOUT / 1000} s for ${JSON.stringify(v)} (wrong selector, or covered/disabled; compare with review/discovery/inventory.json buttons)` : String(e.message).split("\n")[0]}`);
     }
   }
 }
@@ -62,7 +66,12 @@ export async function drive(browser, url, states, { width = 1920, height = 1080,
     for (const st of states) {
       if (!(st.continue && page)) {
         await page?.close();
-        page = await browser.newPage({ viewport: { width, height }, reducedMotion: "reduce" });
+        // A state with canvas.frames > 1 needs a running animation: most apps pause it under prefers-reduced-motion, so that
+        // state gets "no-preference" and a controllable clock (page.clock.runFor advances rAF/timers deterministically).
+        const animated = (st.canvas?.frames ?? 0) > 1;
+        page = await browser.newPage({ viewport: { width, height }, reducedMotion: animated ? "no-preference" : "reduce" });
+        page.clocked = false;
+        if (animated) { try { await page.clock.install(); page.clocked = true; } catch {} }
         page.on("pageerror", (e) => errors.push(`[app ${st.name}] ${e.message}`));
         await open(page, new URL(st.path ?? "", url).href, freeze);
       } else if (st.path) await open(page, new URL(st.path, url).href, freeze);

@@ -169,9 +169,12 @@ export async function portCss(browser, sheets, info, film, out = path.join(film,
   const loc = await localize(`${faces.join("\n")}\n${r.css}`, film);
   mkdirSync(path.dirname(out), { recursive: true });
   writeFileSync(out, `/* Ported from the running app by scripts/port-css.mjs: scoped under .app-shot, ${W}x${H} viewport units. Regenerate, don't hand-edit. */\n${loc.css}`);
+  // variable fonts declare a range ("font-weight: 200 800"): list the heaviest weight (one file covers the whole range) and report the range
+  const ranges = [];
   const fontList = [...loc.css.matchAll(/@font-face\s*\{[^}]*\}/g)].map((m) => {
-    const fam = m[0].match(/font-family:\s*"?([^";]+?)"?\s*;/)?.[1], w = m[0].match(/font-weight:\s*([^;]+);/)?.[1]?.split(" ")[0] ?? "400";
-    return fam && `${w} 40px '${fam}'`;
+    const fam = m[0].match(/font-family:\s*"?([^";]+?)"?\s*;/)?.[1], ws = (m[0].match(/font-weight:\s*([^;]+);/)?.[1] ?? "400").trim().split(/\s+/);
+    if (fam && ws.length > 1 && ws[0] !== ws.at(-1)) ranges.push(`${fam} ${ws[0]}-${ws.at(-1)}`);
+    return fam && `${ws.at(-1)} 40px '${fam}'`;
   }).filter(Boolean);
-  return { out, rules: r.css.split("\n").length, fontFaces: faces.length, copied: loc.copied, stats: r.stats, fonts: [...new Set(fontList)] };
+  return { out, rules: r.css.split("\n").length, fontFaces: faces.length, copied: loc.copied, stats: r.stats, fonts: [...new Set(fontList)], variable: [...new Set(ranges)] };
 }
