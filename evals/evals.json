@@ -26,7 +26,7 @@
       "expected_output": "Track analysed, MUSIC.md updated, scenes moved to the real hits, stills shown before rendering.",
       "expectations": [
         "Resumes at the music/analysis steps instead of restarting the brief",
-        "Asks about the track's rights with AskUserQuestion and keeps the track out of git unless its license allows redistribution",
+        "Asks where the film will be shown (draft vs public) with AskUserQuestion before asking about the track's license, and keeps the track out of git unless its license allows sharing the file",
         "Copies the track into the film folder and runs `music.mjs analyze` and `music.mjs envelope`",
         "Updates MUSIC.md and shifts scene times in film.js to the detected strong hits",
         "Shows contact sheets or stills and asks for approval before the full render, even though the user said 'render it'",

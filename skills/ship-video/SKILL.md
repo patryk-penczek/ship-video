@@ -74,9 +74,16 @@ Create the folder: `node $S/new-film.mjs <film>` (outside the product repo unles
 ## 2. Music
 
 If the brief didn't settle it, ask with AskUserQuestion: own file / Suno / no music.
-- **A. Own file.** If they just downloaded it, take the newest audio file in `~/Downloads` and confirm the name. Copy it to `<film>/track.<ext>`. Ask about rights in the same AskUserQuestion call: *I made or licensed it* / *Suno paid plan* / *CC0 or CC BY* / *Not sure*. "Not sure" means it's fine for a private draft but not for publishing; say so. If the film folder is inside a git repo, add `track.*` to its `.gitignore` unless the license allows redistribution.
+- **A. Own file.** If they just downloaded it, take the newest audio file in `~/Downloads` and confirm the name. Copy it to `<film>/track.<ext>`.
 - **B. Suno.** Read `references/suno-prompt.md`, pick a BPM so a bar is a round number of seconds, map the planned acts to bars, and give the user the style line and the bracketed structure to paste. They generate 2–4 takes and download the best. **The track is as long as Suno makes it: shape the film to the track.** Free-plan songs can't be used commercially; paid-plan songs can.
 - **C. None.** Pick a BPM (default 120). Cuts snap to the grid, the preview plays a metronome, and music can be added later by re-timing.
+
+**Rights (paths A and B).** Ask where the film will be shown, not which license the track has; most people don't know the license names, but they know the audience:
+- *Just me / internal draft*: no rights check; the track stays local.
+- *Public or for a client*: follow up with "Where does the track come from?" → *I made it / bought a license* · *Suno, paid plan* · *Free library (CC0 / CC BY)* · *Somewhere else*. A free-plan Suno track or "somewhere else" isn't publishable: say so and offer path B or C for the final version. CC BY needs a credit line in the film's description.
+- *Not decided yet*: treat it as a draft and ask again before step 9.
+
+Whatever the answer, if `<film>` is inside a git repo, add `track.*` to its `.gitignore` unless the track's license allows sharing the file itself (own work, CC0, CC BY).
 
 Set `track` and `duration` in `film.js`. **Exit:** a track in `<film>`, or a BPM. **Then:** step 3.
 
