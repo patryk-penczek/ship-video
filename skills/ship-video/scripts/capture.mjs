@@ -15,7 +15,8 @@
 //   --storage k=v;k2=v2  localStorage seeded before the first navigation (once per tab): log in without a login state. Same as "init" in states.json
 //   Default root: the app container's only child; the container itself (#root) when it has siblings inside (toasts); body when
 //   visible elements sit outside it (portals) or the page has no container (static sites). A warning names what a root leaves out.
-//        node capture.mjs <app-url> <film> --discover [--routes /,/radar,/compare] [--depth 2] [--parallel 4] [--no-clicks]
+//        node capture.mjs <app-url> <film> --discover [--routes /,/radar,/compare] [--depth 2] [--parallel 4] [--max-pages 40] [--no-clicks]
+//   --routes alone does not crawl further (depth 0; add --depth N to follow links). Routes that differ only by an id (/orders/1042, /orders/1043) are visited once.
 //   --discover visits routes in parallel (--parallel, default 4) and prints a line per route as it finishes; --no-clicks skips clicking nav/tab controls to
 //   find more routes (the slow part). A single route found means the interesting states need clicks: write a states.json (see replicas.md).
 // states.json (same file compare.mjs reads): [{ "name": "palette", "path": "/", "actions": [{ "press": "Control+k" }, { "type": "Rey" }, { "wait": 200 }] }]
@@ -49,7 +50,7 @@ import { detectRoot, outsideRoot, pageInfo, collectSheets, portCss } from "./lib
 help(import.meta.url);
 
 const a = args(undefined, ["css", "full", "discover", "touch", "motion", "prune-hidden", "no-clicks", "help"]);
-known(a, ["css", "full", "discover", "root", "only", "routes", "depth", "dpr", "viewport", "touch", "scheme", "storage", "motion", "storage-state", "seed", "init-script", "prune-hidden", "no-clicks", "parallel"]);
+known(a, ["css", "full", "discover", "root", "only", "routes", "depth", "dpr", "viewport", "touch", "scheme", "storage", "motion", "storage-state", "seed", "init-script", "prune-hidden", "no-clicks", "parallel", "max-pages"]);
 for (const k of ["root", "only", "routes"]) if (a[k] === true) die(`--${k} needs a value`);
 const env = envOptions(a);
 const url = a._[0], W = env.width, H = env.height, DPR = num(a, "dpr", 2, { min: 1, max: 4 }); // device pixel ratio: canvas states always, every state when --dpr is given
@@ -73,8 +74,10 @@ async function discover(film) {
   const badRoute = queue.find((r) => !r.startsWith("/") || r.startsWith("//"));
   if (badRoute) die(`--routes: "${badRoute}" must be a path on the app starting with a single /`);
   const errors = [], rows = [];
-  const seen = new Set(), depth = num(a, "depth", 2, { min: 0, max: 6, int: true }), origin = new URL(url).origin;
-  const level = new Map(queue.map((r) => [r, 0]));
+  const seen = new Set(), depth = num(a, "depth", a.routes ? 0 : 2, { min: 0, max: 6, int: true }), maxPages = num(a, "max-pages", 40, { min: 1, max: 200, int: true }), patterns = new Set(), skipped = new Map(),
+    pattern = (r) => r.replace(/\/(\d+|[0-9a-f]{8}-[0-9a-f-]{27,}|[0-9a-f]{16,}|[A-Za-z]*\d[\w-]{5,})(?=\/|\?|$)/g, "/:id"), // /orders/1042 and /orders/1043 are one view: /orders/:id
+    origin = new URL(url).origin;
+  const level = new Map(queue.map((r) => [r, 0])), explicit = new Set(queue);
   try {
     const order = new Map(), PAR = num(a, "parallel", 4, { min: 1, max: 8, int: true });
     const visit = async (route) => {
@@ -127,8 +130,9 @@ async function discover(film) {
     let running = 0; // routes are independent pages: crawl PAR at a time (a serial crawl took ~20 s per route)
     await new Promise((done) => {
       const pump = () => {
-        while (running < PAR && queue.length && seen.size < 40) {
+        while (running < PAR && queue.length && seen.size < maxPages) {
           const route = queue.shift(); if (seen.has(route)) continue;
+          const pt = pattern(route.split("?")[0]); if (!explicit.has(route) && pt !== route.split("?")[0] && patterns.has(pt)) { skipped.set(pt, (skipped.get(pt) ?? 0) + 1); continue; } patterns.add(pt);
           seen.add(route); order.set(route, order.size); running++;
           visit(route).catch((e) => errors.push(`[${route}] ${String(e.message).split("\n")[0]}`)).finally(() => { running--; pump(); });
         }
@@ -141,7 +145,8 @@ async function discover(film) {
   if (!rows.length) { console.error(errors.join("\n")); die(`nothing could be loaded from ${url}: is the app running?`); }
   warnIdentical(rows.map((r) => ({ name: r.route, path: r.route, hash: r.redirectedTo && rows.some((x) => x.route === r.redirectedTo) ? undefined : r.hash }))); // a plain redirect to another listed route is not a login wall
   for (const r of rows) delete r.text;
-  if (rows.length === 1) console.error("note: only one route found. A single-page app keeps its views behind clicks: discovery cannot see them. Write a states.json (name, path, actions) for the screens you need (replicas.md, states.json) and capture those.");
+  if (skipped.size) console.error(`note: skipped repeated routes (one per pattern is enough): ${[...skipped].map(([k, n]) => `${k} +${n}`).join(", ")}`);
+  if (rows.length === 1 && !a.routes) console.error("note: only one route found. A single-page app keeps its views behind clicks: discovery cannot see them. Write a states.json (name, path, actions) for the screens you need (replicas.md, states.json) and capture those.");
   writeFileSync(path.join(dir, "inventory.json"), JSON.stringify(rows, null, 1));
   for (const r of rows) console.log(`${r.route.padEnd(22)} ${r.status}  h=${String(r.height).padEnd(5)} ${r.file.padEnd(16)} ${r.h1 ?? ""}${r.scrollers?.length ? `  scroll:${r.scrollers.join(", ")}` : ""}${r.canvases ? `  canvas:${r.canvases}` : ""}`);
   console.log(`inventory → ${path.join(dir, "inventory.json")}  (buttons/links per route are in the json; states that need clicks are not crawled)`);

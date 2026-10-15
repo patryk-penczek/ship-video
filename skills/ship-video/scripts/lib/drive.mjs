@@ -50,10 +50,12 @@ export async function makeContext(browser, url, opts, st = {}, init = {}) {
   });
   // deterministic demo data: a seeded Math.random and a fixed clock, installed before any app script runs
   const seed = opts.seed ?? init.seed, date = init.date;
-  if (seed != null || date) await ctx.addInitScript(([seed, date]) => {
+  if (seed != null || date) await ctx.addInitScript(([seed, date, frozen]) => {
     if (seed != null) { let a = seed >>> 0; Math.random = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-    if (date) { const D = Date, fixed = new D(date).getTime(); const F = class extends D { constructor(...r) { r.length ? super(...r) : super(fixed); } static now() { return fixed; } }; window.Date = F; }
-  }, [seed ?? null, date ?? null]);
+    // The clock STARTS at `date` and keeps running (animation libraries read Date.now: a frozen clock leaves ECharts/d3 charts at frame 0, axes only).
+    // "dateFrozen": true stops it (screenshots of "just now" labels that must not change).
+    if (date) { const D = Date, t0 = D.now(), fixed = new D(date).getTime(), now = () => frozen ? fixed : fixed + (D.now() - t0); const F = class extends D { constructor(...r) { r.length ? super(...r) : super(now()); } static now() { return now(); } }; window.Date = F; }
+  }, [seed ?? null, date ?? null, !!init.dateFrozen]);
   const script = [opts.initScript, init.script].filter(Boolean).join("\n");
   if (script) await ctx.addInitScript(script);
   const ser = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === "string" ? v : JSON.stringify(v)]));
@@ -162,14 +164,24 @@ export const ACTION_TIMEOUT = 5000; // a wrong selector fails in 5 s instead of 
 async function pick(page, sel, name, act) {
   const loc = page.locator(sel), n = await loc.count();
   if (n <= 1) return loc;
-  const i = await loc.evaluateAll((els) => {
-    const vis = (e) => { const r = e.getBoundingClientRect(), s = getComputedStyle(e); return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none"; };
-    const ok = els.map((e, k) => [e, k]).filter(([e]) => vis(e));
-    const inside = (q) => ok.find(([e]) => e.closest(q));
-    return (inside("dialog[open], [role=dialog], [aria-modal=true]") ?? inside("main") ?? ok[0] ?? [null, 0])[1];
+  const order = await loc.evaluateAll((els) => {
+    const vis = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && (e.checkVisibility ? e.checkVisibility({ visibilityProperty: true, opacityProperty: false }) : getComputedStyle(e).visibility !== "hidden") && !e.closest("[aria-hidden=true], [hidden], [inert]"); };
+    const ix = els.map((e, k) => k), ok = ix.filter((k) => vis(els[k])), rank = (k) => els[k].closest("dialog[open], [role=dialog], [aria-modal=true]") ? 0 : els[k].closest("main") ? 1 : 2;
+    return [...ok.sort((x, y) => rank(x) - rank(y) || x - y), ...ix.filter((k) => !ok.includes(k))]; // visible matches first (dialog, then <main>), hidden ones last
   });
-  console.error(`WARNING [${name}] ${JSON.stringify(act)}: selector matches ${n} elements, using #${i} (the first visible one, preferring a dialog, then <main>); scope it (e.g. "[role=dialog] input") to be sure`);
-  return loc.nth(i);
+  console.error(`WARNING [${name}] ${JSON.stringify(act)}: selector matches ${n} elements, using #${order[0]} (the first visible one, preferring a dialog, then <main>); scope it (e.g. "[role=dialog] input") to be sure`);
+  const first = loc.nth(order[0]);
+  first.alternatives = order.slice(1).map((k) => loc.nth(k)); // tried in turn when the first is not actionable
+  return first;
+}
+// runs fn(locator) on the picked match; when it times out, on the next visible match, so a hidden duplicate does not fail the action
+async function withPick(page, sel, name, act, fn) {
+  const loc = await pick(page, sel, name, act);
+  try { return await fn(loc); } catch (e) {
+    if (!/Timeout/.test(e.message) || !loc.alternatives?.length) throw e;
+    for (const alt of loc.alternatives.slice(0, 3)) { try { return await fn(alt); } catch {} }
+    throw e;
+  }
 }
 
 // A point on the page: [x, y] as is, or the centre of an element (scrolled into view).
@@ -202,9 +214,9 @@ export async function runActions(page, actions, { name, base, freeze = true } = 
     const [k, v] = Object.entries(act)[0] ?? [];
     const T = { timeout: ACTION_TIMEOUT };
     try {
-      if (k === "click") { if (Array.isArray(v)) await page.mouse.click(v[0], v[1], v[2]); else await (await pick(page, v, name, act)).click(T); } // [x, y] = real mouse click at page coordinates
-      else if (k === "dblclick") { if (Array.isArray(v)) await page.mouse.dblclick(v[0], v[1]); else await (await pick(page, v, name, act)).dblclick(T); }
-      else if (k === "fill") await (await pick(page, v[0], name, act)).fill(v[1], T);
+      if (k === "click") { if (Array.isArray(v)) await page.mouse.click(v[0], v[1], v[2]); else await withPick(page, v, name, act, (l) => l.click(T)); } // [x, y] = real mouse click at page coordinates
+      else if (k === "dblclick") { if (Array.isArray(v)) await page.mouse.dblclick(v[0], v[1]); else await withPick(page, v, name, act, (l) => l.dblclick(T)); }
+      else if (k === "fill") await withPick(page, v[0], name, act, (l) => l.fill(v[1], T));
       else if (k === "upload") { // <input type=file> (hidden ones too): [selector, path | [paths]]; relative paths resolve from the working directory
         const files = [].concat(v[1]).map((f) => path.resolve(f)), miss = files.find((f) => !existsSync(f));
         if (miss) throw new Error(`upload: file not found: ${miss}`);
@@ -212,9 +224,9 @@ export async function runActions(page, actions, { name, base, freeze = true } = 
       }
       else if (k === "type") await page.keyboard.type(v);
       else if (k === "press") await page.keyboard.press(v);
-      else if (k === "hover") await (await pick(page, v, name, act)).hover(T);
-      else if (k === "select") await (await pick(page, v[0], name, act)).selectOption(v[1], T);
-      else if (k === "check") await (await pick(page, v, name, act)).check(T);
+      else if (k === "hover") await withPick(page, v, name, act, (l) => l.hover(T));
+      else if (k === "select") await withPick(page, v[0], name, act, (l) => l.selectOption(v[1], T));
+      else if (k === "check") await withPick(page, v, name, act, (l) => l.check(T));
       else if (k === "set") await page.$eval(v[0], (el, val) => {
         Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), "value").set.call(el, val);
         el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true }));
