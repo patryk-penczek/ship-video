@@ -16,12 +16,6 @@
 }
 #grain, #vignette, .bg-glow, .bg-grid { display: none; }
 
-/* act caption, top left */
-.cap { position: absolute; left: 96px; top: 76px; display: flex; gap: 22px; align-items: center; }
-.cap > i { width: 8px; height: 84px; border-radius: 9px; background: var(--accent); }
-.cap .n { font: 600 22px var(--font-mono); letter-spacing: .3em; color: var(--accent); }
-.cap .t { font: 800 58px var(--font-display); letter-spacing: -0.04em; color: var(--fg); margin-top: 6px; white-space: nowrap; }
-
 /* 0 · prompt: a plain input, not any product's UI */
 .inbar { position: relative; width: 1240px; height: 150px; border-radius: 40px; background: #141416; border: 3px solid #2e2f35; display: flex; align-items: center; padding: 0 56px; font: 600 84px var(--font-display); letter-spacing: -0.03em; color: var(--fg); transform-origin: 50% 50%; }
 .inbar .caret { width: 6px; height: 84px; margin-left: 6px; }
@@ -41,46 +35,26 @@
 .pill.on .rec { color: #b5481f; }
 
 /* 2 · hear */
-.wave { position: absolute; left: 100px; right: 100px; top: 400px; height: 500px; }
+.wave { position: absolute; left: 100px; right: 100px; top: 470px; height: 480px; }
 .wave svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .mark { position: absolute; top: -40px; bottom: -20px; width: 4px; margin-left: -2px; background: var(--accent); box-shadow: 0 0 24px var(--accent); }
 .mark span { position: absolute; top: -70px; left: 50%; transform: translateX(-50%); padding: 6px 16px; border-radius: 10px; background: var(--accent); color: #111; font: 700 30px var(--font-mono); white-space: nowrap; }
 .mark.end span { left: auto; right: -2px; transform: none; }
-
-/* 3 · plan */
-.rows { position: absolute; left: 160px; right: 160px; top: 300px; display: flex; flex-direction: column; gap: 16px; }
-.trow { display: grid; grid-template-columns: 330px 1fr; align-items: baseline; padding: 22px 0; border-bottom: 2px solid var(--line); }
-.trow em { font: 600 54px var(--font-mono); font-style: normal; color: var(--accent); }
-.trow span { font: 700 68px var(--font-display); letter-spacing: -0.03em; }
-.stamp { position: absolute; left: 50%; top: 50%; padding: 18px 60px; border: 12px solid var(--ok); border-radius: 28px; color: var(--ok); font: 900 190px var(--font-display); letter-spacing: -0.02em; background: rgb(11 11 12 / .82); white-space: nowrap; }
-
-/* 4 · build (pieces of the real app) */
-.stagewrap { position: absolute; inset: 0; perspective: 2000px; }
-
-/* 5 · review */
-.wallwrap { position: absolute; inset: 0; perspective: 2400px; }
-.wall { position: absolute; left: 50%; top: 52%; width: 1830px; height: 1050px; margin: -525px 0 0 -915px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; transform-style: preserve-3d; }
-.tile { position: relative; border-radius: 18px; background: #000 center / cover no-repeat; box-shadow: 0 30px 80px -20px rgb(0 0 0 / .9), 0 0 0 1px rgb(255 255 255 / .08); }
-.tile span { position: absolute; left: 0; top: 0; padding: 6px 14px; background: #e11; color: #fff; font: 700 26px var(--font-mono); border-radius: 18px 0 12px 0; }
-.tile .okring { position: absolute; inset: -10px; border-radius: 24px; border: 8px solid var(--ok); opacity: 0; }
-
-/* 6 · render */
-.counter { font: 700 330px var(--font-mono); letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
-.counter small { display: block; font: 600 34px var(--font-mono); letter-spacing: .3em; color: var(--muted); text-align: center; margin-top: 18px; }
-.strip { position: absolute; left: 0; bottom: 70px; display: flex; gap: 18px; }
-.strip i { width: 400px; height: 225px; border-radius: 12px; background: #000 center / cover no-repeat; opacity: .55; flex: none; }
-.hitrow { position: absolute; left: 50%; top: 50%; display: flex; gap: 30px; margin-left: -810px; margin-top: -146px; }
-.hitrow div { position: relative; width: 520px; height: 292px; border-radius: 16px; background: #000 center / cover no-repeat; }
-.hitrow div.cut { outline: 8px solid var(--ok); }
-.hitrow span { position: absolute; left: 14px; bottom: 12px; padding: 4px 12px; border-radius: 8px; background: rgb(0 0 0 / .8); font: 700 28px var(--font-mono); }
-.verdict { position: absolute; left: 0; right: 0; top: 760px; text-align: center; font: 800 76px var(--font-display); letter-spacing: -0.03em; color: var(--ok); }
-
-/* 7 · the film */
-.shot { position: absolute; inset: 0; }
-.float { border-radius: 30px; overflow: hidden; box-shadow: 0 80px 200px -40px rgb(0 0 0 / .95), 0 0 0 2px rgb(255 255 255 / .08); }
 
 /* end */
 .wordmark { font: 800 210px var(--font-display); letter-spacing: -0.06em; line-height: .95; }
 .tagline { font: 600 50px var(--font-display); letter-spacing: -0.03em; color: var(--muted); }
 .install { display: inline-flex; gap: 16px; padding: 20px 34px; border-radius: 18px; background: #17171a; border: 2px solid #2c2c31; font: 500 34px var(--font-mono); }
 .install b { color: var(--accent); font-weight: 600; }
+
+/* plan → render: one word a bar */
+.bgflip { position: absolute; inset: 0; }
+.word { font: 900 340px var(--font-display); letter-spacing: -0.06em; line-height: 1; padding-bottom: .08em; white-space: nowrap; display: flex; align-items: center; gap: 40px; }
+.word.dark { color: #0b0b0c; }
+.word .ch { display: inline-block; }
+.stamp { position: absolute; left: 50%; top: 50%; padding: 18px 60px; border: 14px solid var(--ok); border-radius: 30px; color: var(--ok); font: 900 200px var(--font-display); letter-spacing: -0.02em; background: rgb(11 11 12 / .85); white-space: nowrap; }
+.tick { width: 230px; height: 230px; border-radius: 99px; background: var(--ok); color: #0b0b0c; display: grid; place-items: center; font: 900 150px var(--font-display); font-style: normal; flex: none; }
+.frames { margin-top: 24px; text-align: center; font: 700 90px var(--font-mono); color: #0b0b0c; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.frames .cn { color: var(--accent); }
+.hear { position: absolute; left: 0; right: 0; top: 150px; text-align: center; font: 900 200px var(--font-display); letter-spacing: -0.06em; }
+.ship { font: 900 400px var(--font-display); letter-spacing: -0.07em; line-height: 1.05; padding-bottom: .1em; }

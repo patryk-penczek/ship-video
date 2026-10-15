@@ -2,9 +2,9 @@
 
 **Turn your app into a music-synced launch film, as code, from one Claude Code prompt.**
 
-<p align="center">
-  <img src="docs/hero.gif" alt="Typing /ship-video opens the flow: it asks how long and which music, maps the hits in the track, gets the plan and the stills approved, rebuilds the real UI, renders frame-exact, and plays the result: a launch film for a weather app" width="900">
-</p>
+<!-- Hero video: upload docs/hero/out/hero-motionblur.mp4 by dragging it into this file in GitHub's editor;
+     GitHub inserts a https://github.com/user-attachments/assets/… link that renders as a player. Keep it on its own line here. -->
+
 <p align="center"><sub>Made with ship-video itself: one HTML page on a 120 BPM grid. <a href="docs/hero">View source</a>.</sub></p>
 
 ship-video is a [Claude Code skill](https://code.claude.com/docs/en/skills) that directs and builds a 15–45 s product video for your app. Claude reads your UI code, finds the hits in your music, agrees a shot-by-shot scenario with you, rebuilds your screens in HTML and animates them with GSAP. A small engine then renders the page frame by frame to MP4. No video editor, no After Effects.
@@ -60,7 +60,7 @@ Pick one of three paths when Claude asks:
 
 ## Try it on the demo app
 
-[`demo-app/`](demo-app) is **Breeze**, a weather app (Bun + React, static data) with enough going on to film a 30-second trailer: a ⌘K command palette, weather alerts, minute-by-minute rain, an hourly chart you can scrub, a 7-day forecast, air quality, wind, sun and moon, "best time to…" activity picks, an animated rain radar with a timeline, a compare view that ranks your places, °C/°F, and a light/dark theme that switches with a circular reveal.
+[`demo-app/`](demo-app) is **Breeze**, a weather app (Bun + React, static data) with enough going on to film a 35-second trailer: a ⌘K command palette, weather alerts, minute-by-minute rain, an hourly chart you can scrub, a 7-day forecast, air quality, wind, sun and moon, "best time to…" activity picks, an animated rain radar with a timeline, a compare view that ranks your places, °C/°F, and a light/dark theme that switches with a circular reveal.
 
 ```bash
 cd demo-app && bun install && bun run dev   # http://localhost:4783

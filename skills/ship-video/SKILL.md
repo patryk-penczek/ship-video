@@ -85,7 +85,7 @@ Create the folder: `node $S/new-film.mjs <film>` (outside the product repo unles
 If the brief didn't settle it, ask with AskUserQuestion: own file / Suno / no music.
 - **A. Own file.** If they just downloaded it, take the newest audio file in `~/Downloads` and confirm the name. Copy it to `<film>/track.<ext>`.
 - **B. Suno.** Read `references/suno-prompt.md`, pick a BPM so a bar is a round number of seconds, map the planned acts to bars, and give the user the style line and the bracketed structure to paste. They generate 2–4 takes and download the best. **The track is as long as Suno makes it: shape the film to the track.** Free-plan songs can't be used commercially; paid-plan songs can.
-- **C. None.** Pick a BPM (default 120). Cuts snap to the grid, the preview plays a metronome, and music can be added later by re-timing.
+- **C. None.** Pick a BPM (default 120). Cuts snap to the grid, the preview plays a metronome, and music can be added later by re-timing. If the film stays silent in the end (a GIF, a muted autoplay), don't fake a beat nobody hears: `hits: []`, `window.ENV = null`, no shakes, pulses, rings or hard flashes. The rhythm lives in the cuts and the easing.
 
 **Rights (paths A and B).** Ask where the film will be shown, not which license the track has; most people don't know the license names, but they know the audience:
 - *Just me / internal draft*: no rights check; the track stays local.

@@ -32,6 +32,7 @@ Each one cost real time on a shipped film. Read before step 5 (replicas) and aga
 14. **Cuts land on detected hits and kicks.** Verify on the final MP4 with `hits.mjs`: frames at ±0.02 s around every hit.
 15. **A Suno track is as long as Suno makes it.** Shape the film to the track: move scenes to the real hits, stretch or shorten them. If it really must be shorter, cut whole bars on bar lines and keep the drop and the final hit; never trim mid-phrase to hit an exact number.
 16. **A cut on a hit must show something on the hit frame.** A scene that fades in from opacity 0 reads as a late cut. Start at ≥ 0.35 opacity, or enter with scale/blur. The same goes for an alert or dialog that enters on a hit.
+16b. **A silent film with bass effects feels broken.** Shake, a pulse on every beat, rings and hard flashes read as hits of a sound that isn't there. For a film without music: no `hits`, no envelope, smooth continuous camera moves; cut on the grid and let easing carry the energy.
 16a. **Flashes over app UI stay at ≤ 0.5.** A 0.85–0.9 white flash turns a frame of dark UI flat grey. Strong flashes belong on type-only frames.
 
 ## Tooling
