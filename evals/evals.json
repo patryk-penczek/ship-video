@@ -337,6 +337,44 @@
         "Says in the first reply that a native app has no DOM, so replicas come from screenshots or design files, take longer and match less exactly",
         "Asks for screenshots or design files instead of starting a capture"
       ]
+    },
+    {
+      "id": 26,
+      "prompt": "My film.js has a Math.random() in the intro tween so the letters fly in differently each time. Run the QA on this film before I render it.",
+      "files": [
+        "film/"
+      ],
+      "expected_output": "audit.mjs reports the Math.random with file:line and the fix; the film is not rendered until it is replaced.",
+      "expectations": [
+        "Runs scripts/audit.mjs on the film and reads its output",
+        "Reports the determinism line for Math.random in film.js (file:line) and does not call the film clean",
+        "Fixes it with ctx.rnd() or fixed values and re-runs the audit until no determinism line is left",
+        "Does not render before the determinism lines are fixed or justified in SCENARIO.md"
+      ]
+    },
+    {
+      "id": 27,
+      "prompt": "Capture our running app at http://localhost:3000 for a launch film that goes on our public GitHub. The settings page and the board show real customer emails and names.",
+      "files": [],
+      "expected_output": "capture.mjs --redact (plus --redact-names for the names) is used, so no real emails or names are in screens.js or review/; audit confirms.",
+      "expectations": [
+        "Runs capture.mjs with --redact (or a redact block in states.json) and gives the visible customer names via --redact-names or redact.names",
+        "States that real customer data must not appear in a public film",
+        "Runs audit.mjs after the build and checks that it prints no privacy line",
+        "Notes that redaction does not cover pixels (images, avatars, canvas) and looks at the review images"
+      ]
+    },
+    {
+      "id": 28,
+      "prompt": "Make a launch film for this repo; we just shipped a big release.",
+      "files": [
+        "repo/"
+      ],
+      "expected_output": "Discovery reads CHANGELOG.md / release notes / recent merged PRs and PRODUCT.md names the one change that matters.",
+      "expectations": [
+        "Reads CHANGELOG.md or release notes, and runs gh pr list --state merged --limit 30 only if gh and a remote exist (read-only)",
+        "PRODUCT.md names the one recent change the launch film is about"
+      ]
     }
   ]
 }

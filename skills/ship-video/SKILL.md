@@ -104,6 +104,7 @@ If you can run subagents and the product is not tiny, split this step into three
 1. **Inventory** from the router and components: every route, every view, empty/error/loading states, modals and palettes, theme and unit toggles, and everything animated or live (charts, maps, canvas, transitions).
 2. **See each one.** If the app runs (reuse its server, see *Sharing the machine*): `node $S/capture.mjs <url> <film> --discover [--routes /,/radar] [--depth 2]` writes a screenshot per route to `<film>/review/discovery/*.png` plus `inventory.json`. Read the PNGs.
    Login, landing pages, hash routes and interaction-only states (dialogs, palettes, toasts): `replicas.md`, *Capture options*; list those from the code. Not running: use the app's own screenshots or docs and say so. Capturing here is research, not building: the gate below doesn't apply.
+   Also read what changed lately: `CHANGELOG.md`, release notes and, if `gh` is installed and the repo has a remote, `gh pr list --state merged --limit 30` (read-only). For a launch or feature film find the one change that matters and note it in PRODUCT.md (`subagents.md`, *Product research*).
 3. **Find the 3–5 wow moments:** what moves, what's unique to this product, what a user would show a friend. Not the longest feature list.
 4. **Write `<film>/PRODUCT.md`:** the one-sentence promise; the audience; a table of views (view · route · states · screenshot · **core / aside / skip**: core carries the film, aside earns a 1–2 s glimpse, skip is plumbing; your judgment, not a checklist); the wow moments; the one concrete case that could carry the film; what can't be shown.
 5. **Show the product map** to the user (a few lines and the path) before the scenario. They correct what you misread.
@@ -216,7 +217,7 @@ No full render until the user approves the stills. After each round of fixes, sh
 
 ## 8. QA
 
-Follow `qa-checklist.md`. The loop: run `node $S/audit.mjs <film>/index.html`, fix each clipped text that isn't a deliberate transition (mark deliberate crops with `data-clip-ok`) and each jump, click-placement or hidden-cursor line it prints, re-run until clean. A line that stays needs a written reason in SCENARIO.md (*Changes vs scenario*) before the render; no audit line ends unexplained.
+Follow `qa-checklist.md`. The loop: run `node $S/audit.mjs <film>/index.html`, fix each clipped text that isn't a deliberate transition (mark deliberate crops with `data-clip-ok`) and each jump, click-placement or hidden-cursor line it prints, re-run until clean. A line that stays needs a written reason in SCENARIO.md (*Changes vs scenario*) before the render; no audit line ends unexplained. The audit also lints determinism (Math.random, Date, timers, `repeat: -1`), pixel-compares repeated seeks, reports text contrast below WCAG AA and greps the film for emails, phones and keys; real customer data never goes in a public film (capture with `--redact`, `replicas.md`).
 If a fix changes anything visible, delete `review/APPROVED`, show those frames again and get approval again. Static spans are measured in step 9, on the crisp render.
 
 ## 9. Render and report

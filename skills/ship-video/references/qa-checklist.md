@@ -5,6 +5,9 @@ Step 8 runs the sections before "After the crisp render" (no render exists yet);
 ## Automated
 - [ ] `node $S/audit.mjs <film>/index.html` is clean, or every remaining line is a deliberate transition. Mark deliberate masks and crops (an app window that crops its content) with `data-clip-ok` on the wrapper. Fix, re-run, repeat.
 - [ ] Nothing ends unexplained: every remaining audit line is either fixed or justified in SCENARIO.md (*Changes vs scenario* / a QA note: what the line is and why it stays) before the render. "Deliberate" with no written reason doesn't count.
+- [ ] Audit determinism lines are fixed: no `Math.random`, `Date`, timers, `repeat: -1`, tweened `display` or measuring inside tween callbacks in `film.js`/`ui.js`/`data.js`; the pixel compare of repeated seeks, scrubbing back and a fresh load finds no difference.
+- [ ] Audit contrast lines are fixed: film text is at least 4.5:1 (3:1 for 24 px+ or bold 18.66 px+) against what is behind it for 0.5 s or more; `data-contrast-ok` only for deliberately dim text.
+- [ ] Audit privacy lines are fixed: no emails, phones, keys or real names in the rendered film or in `screens.js`.
 - [ ] No `[page]` / `[pageerror]` lines in any script output.
 - [ ] The audit's jump check, click-placement (safe area) and hidden-cursor lines are fixed: an entrance that jumps is `enter`, not `NI`; a click lands in the central part of the frame with the cursor visible.
 
@@ -28,7 +31,7 @@ Step 8 runs the sections before "After the crisp render" (no render exists yet);
 ## Replicas
 - [ ] Every state was compared with the running app (`compare.mjs`) or, if it can't run, with its source components.
 - [ ] Mismatches you couldn't fix are listed for the final report.
-- [ ] No real emails, names, tokens or IDs in captured HTML or in `review/` images.
+- [ ] No real emails, names, tokens or IDs in captured HTML or in `review/` images: capture with `--redact` (`replicas.md`, *Privacy*) and look at the images, redaction does not touch pixels.
 
 ## Scenario
 - [ ] Every departure from SCENARIO.md (time, effect, framing) is in its "Changes vs scenario" section and was shown to the user before the stills were approved.
