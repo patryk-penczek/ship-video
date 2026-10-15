@@ -29,6 +29,10 @@ try {
   cpSync(path.join(nm, "gsap/dist/gsap.min.js"), path.join(dir, "gsap.min.js"));
   cpSync(path.join(nm, "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"), path.join(dir, "fonts/inter.woff2"));
   cpSync(path.join(nm, "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2"), path.join(dir, "fonts/mono.woff2"));
+  for (const [pkg, name] of [["inter", "OFL-Inter.txt"], ["jetbrains-mono", "OFL-JetBrainsMono.txt"]]) {   // the SIL OFL travels with the fonts
+    const lic = path.join(nm, `@fontsource-variable/${pkg}/LICENSE`);
+    if (existsSync(lic)) cpSync(lic, path.join(dir, "fonts", name));
+  }
   if (theme !== "auto") { // fix the look instead of following the captured app
     const f = path.join(dir, "index.html"), h = readFileSync(f, "utf8").replace('<html lang="en" data-theme="auto">', theme === "light" ? '<html lang="en" data-theme="light" class="light">' : '<html lang="en" data-theme="dark">');
     writeFileSync(f, h);
