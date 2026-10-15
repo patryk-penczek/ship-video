@@ -16,7 +16,7 @@ Read at step 6 (build), after `film-api.md`. 14 shots, each with code that was r
 11. Parallax tilt
 12. Theme reveal
 13. Quick aside (1–2 s)
-14. End card with a live input
+14. End card with a live input (and *Into the end card* below)
 Also: dialog or palette shot, key number over dimmed UI, payoff shot (after 14), step-bar caption, drag and drop, frame a rect, move a captured overlay into frame (after the payoff shot)
 
 All snippets are from a proof film rendered on a placeholder app and checked in stills. `s` is the scene element, `cam = wrap(s)`, `box = rect($(s, ".app"))`. Times are absolute seconds; `t0` is the scene start. Selectors (`.o-in`, `.o-stat`, …) are placeholders: use the replica's classes.
@@ -211,6 +211,18 @@ tl.to($(s, ".center"), { scale: 1.06, duration: 1.4, ease: "none" }, t0);
 ```
 Timing: `direction.md`, *End card* (lines in by ~0.6 s, a readable rest with the slow push, then `land`).
 Don't `splitChars` a `.gtext` word (`lessons.md` 16).
+
+### Into the end card (seamless, ~0.6 s overlap)
+The product scene runs ~0.6 s past the card's start; the camera pulls back while the card's colour grows from the last click point, then the line rises. `P.last` is the last click point measured before tweens; `cam9` the product scene's camera.
+```js
+const T = cardStart, s9 = scene(UI.shot("final"), t9, T + 0.6), cam9 = wrap(s9);
+tl.to(cam9, { ...focus(P.center, 0.9), duration: 0.6, ease: "focused" }, T);   // pull back: the UI recedes
+const card = scene(`<div class="card-bg"></div><div class="end">Name</div><div class="line">Promise.</div>`, T, null);
+reveal($(card, ".card-bg"), P.last, T, 0.6, 70, 2600);                        // brand colour grows from the click
+enter($(card, ".end"), { y: 60 }, T + 0.35, 0.5);                              // lines rise inside the colour
+enter($(card, ".line"), { y: 40 }, T + 0.5, 0.5);
+```
+Alternatives: move the payoff element itself (a number, a chip) to the headline position with a FLIP tween and fade the UI out behind it; or shrink the UI into a rounded tile (`scale` 0.5, `borderRadius`) that slides up as the card text enters below. Keep one direction of motion across the join.
 
 ### Dialog or palette shot
 A scrim darkens the whole captured frame, so a dialog at camera 1.0 is a dark frame with a small box in it. Zoom onto the dialog until it fills at least 50% of the frame (usually 1.8-2.4×), aim `focus()` at its centre (measure it with `UI.measure`), and keep the scrim at the edges only. Type into its input as in shot 2 and cut out on the Enter press. Never two dark shots in a row.

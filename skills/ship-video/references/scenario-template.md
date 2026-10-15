@@ -114,6 +114,7 @@ Run it on the scenario before the gate (answer from the table) and on the stills
 | 11a | Is every click target framed in the central ~60% of the frame, readable, with a visible cursor path (no clicks at the edge, in a corner or off-screen)? | | |
 | 11 | Causality: does every click/keypress hit a control in its *before* state and change the screen on that frame (no clicking an already-active tab, toggle or selected item)? | | |
 | 12 | Is everything that is live in the app (map/radar, chart, spinner, clock, typing) alive in the film, with distinct frames, not a still or a crossfade? | | |
+| 13a | Does the last product shot flow into the end card (shared motion, ~0.5 s overlap) instead of a hard jump? | | |
 | 13 | Does the ending land (`direction.md`, *End card*): about 2–2.5 s in total, last copy complete ≥ 1.2 s before the end, motion at rest, short fade or clean loop frame, brand line held longer than any caption? Existing users: a recap line or the end card, with no pitch. | | |
 | 14 | Static spans: is there any span over ~1 s without a visible change other than the landing rest (`motion.mjs` on the render; from the table: no row holds one picture for more than ~1 s)? | | |
 | 15 | Is the story thread set up in the first act (the hero and the situation shown before the payoff, not first named in the payoff caption)? | | |
