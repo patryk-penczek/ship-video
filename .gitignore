@@ -21,3 +21,4 @@ review/
 *.pid
 .setup.lock
 dist/
+__pycache__/

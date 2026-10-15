@@ -1,0 +1,43 @@
+# Cheap checks on every PR and push to main: no paid services, one standard runner, a few seconds of work.
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Plugin manifests, SKILL.md, script headers
+        run: node .github/scripts/validate.mjs
+
+      - name: Script syntax
+        run: |
+          for f in $(git ls-files '*.mjs' 'skills/**/*.js' 'docs/hero/*.js'); do node --check "$f"; done
+          python3 -m py_compile skills/ship-video/scripts/audio/*.py
+          bash -n skills/ship-video/scripts/setup.sh
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Demo app typechecks and builds
+        working-directory: demo-app
+        run: |
+          bun install --frozen-lockfile
+          bun run typecheck
+          bun run build
