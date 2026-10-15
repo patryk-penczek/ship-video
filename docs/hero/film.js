@@ -114,7 +114,7 @@ Film({
     const { s: s8 } = card(8, `<div class="center"><div class="iwrap">
         <div class="word dark">Iterate.<i class="tick loop">↻</i></div>
         <div class="inbar">${TWEAKS.map((_, i) => `<span class="t8 t8-${i}"></span>`).join("")}<span class="caret c8"></span><i class="send">↑</i></div>
-        <div class="frames dark">${[0, 1, 2, 3].map((v) => `<span class="vn v-${v}">${v ? "round " + v : "first cut"}</span>`).join("")}</div></div></div>`, ACCENT, END);
+        <div class="frames dark">${TWEAKS.map((_, i) => `<span class="vn v-${i}">round ${i + 1}</span>`).join("")}</div></div></div>`, ACCENT, END);
     const t8 = at(8), send8 = $(s8, ".send"), loop = $(s8, ".loop");
     slam($(s8, ".word"), t8, 1.4);
     tl.fromTo($(s8, ".inbar"), { y: 120 }, { y: 0, duration: 0.45, ease: "expo.out" }, t8);
@@ -129,9 +129,11 @@ Film({
       tl.set(send8, { className: "send on" }, p + 0.6);
       press(send8, p + 0.85);                                                        // Enter: the loop turns, the next round
       tl.fromTo(loop, { rotation: i * 360 }, { rotation: (i + 1) * 360, duration: 0.6, ease: "expo.out", ...NI }, p + 0.85);
-      tl.set($(s8, `.v-${i}`), { display: "none" }, p + 0.85);
-      tl.set($(s8, `.v-${i + 1}`), { display: "" }, p + 0.85);
-      tl.fromTo($(s8, `.v-${i + 1}`), { scale: 1.5 }, { scale: 1, duration: 0.3, ease: "back.out(3)" }, p + 0.85);
+      if (i) {                                                                       // each change is its own round, labelled as it is typed
+        tl.set($(s8, `.v-${i - 1}`), { display: "none" }, p);
+        tl.set($(s8, `.v-${i}`), { display: "" }, p);
+        tl.fromTo($(s8, `.v-${i}`), { scale: 1.5 }, { scale: 1, duration: 0.3, ease: "back.out(3)" }, p);
+      }
       if (i < TWEAKS.length - 1) { tl.set(line, { display: "none" }, p + 1.1); tl.set(send8, { className: "send" }, p + 1.1); }
     });
     tl.set($(s8, ".c8"), { opacity: 0 }, t8 + 0.3 + (TWEAKS.length - 1) * STEP + 0.85);
