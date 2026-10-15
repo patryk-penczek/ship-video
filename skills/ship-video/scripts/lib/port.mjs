@@ -61,7 +61,7 @@ export const pageInfo = (page, rootSel) => page.evaluate((sel) => {
     attrs: merged,
     container: p && p.id ? `#${CSS.escape(p.id)}` : null,
     rootPos: root ? getComputedStyle(root).position : "static",
-    rootW: root ? root.getBoundingClientRect().width : innerWidth, viewW: innerWidth,
+    rootW: root ? root.getBoundingClientRect().width : innerWidth, viewW: innerWidth, rootIsBody: !root || root === b || root === de,
     scheme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
     // a fingerprint of the theme: every custom property on :root plus the theme attributes. Apps inject ONE theme block at a time, so a run that
     // switches themes would otherwise keep only the last theme's variables. Colour variables only: sizes and Tailwind's per-element --tw-* change from state to state
@@ -84,18 +84,18 @@ export async function collectSheets(page) {
     .map((s) => ({ href: s.href, base: s.href || document.baseURI, text: s.ownerNode instanceof HTMLStyleElement && s.ownerNode.textContent.trim() ? s.ownerNode.textContent : null,
       css: (() => { try { return [...s.cssRules].map((r) => r.cssText).join("\n"); } catch { return null; } })() })));
   const out = [];
-  const add = async (base, text, depth = 0) => { // @import: the imported file's rules come first
+  const add = async (base, text, depth = 0, alt = null) => { // @import: the imported file's rules come first
     if (depth < 4) for (const [, , u] of text.matchAll(/@import\s+(?:url\()?\s*(["']?)([^"')\s;]+)\1/g)) {
       try { const href = new URL(u, base).href, r = await fetch(href); if (r.ok) await add(href, await r.text(), depth + 1); } catch {}
     }
-    out.push({ base, text });
+    out.push({ base, text, alt });
   };
   for (const s of raw) {
     let text = s.text;
     if (text == null && s.href) { try { const r = await fetch(s.href); if (r.ok) text = await r.text(); } catch {} }
-    text ??= s.css;
+    const alt = s.css; text ??= s.css;
     if (text == null) console.error(`port-css: could not read ${s.href ?? "a stylesheet"}`);
-    else await add(s.base, text);
+    else await add(s.base, text, 0, alt);
   }
   return out;
 }
@@ -104,10 +104,10 @@ export const sheetsFromFiles = (files) => files.map((f) => ({ base: pathToFileUR
 
 // Runs in a blank page at 1920x1080 so @media/@supports resolve for the film's viewport.
 function transform({ sheets, info, W, H, SC, tail: withTail }) {
-  const esc = (s) => s.replace(/[^\w-]/g, "\\$&");
+  const esc = (s) => s.replace(/[^\w-]/g, "\\$&"), THEME_CLS = /^(dark|light|theme-dark|theme-light|dark-mode|light-mode|dark-theme|light-theme)$/;
   const attrNames = Object.keys(info.attrs).filter((a) => a !== "class" && a !== "style");
   const classes = (info.attrs.class ?? "").split(/\s+/).filter(Boolean);
-  const out = [], fonts = [], stats = { keyframes: 0, media: 0, fixed: 0 };
+  const out = [], fonts = [], stats = { keyframes: 0, media: 0, fixed: 0 }, seen = { media: 0, container: 0, property: 0 };
   let keyframes = null; const uses = [];
   const split = (s) => { const r = []; let d = 0, q = null, cur = ""; for (const c of s) { if (q) { cur += c; if (c === q) q = null; continue; } if (c === '"' || c === "'") { q = c; cur += c; continue; } if ("([".includes(c)) d++; if (")]".includes(c)) d--; if (c === "," && !d) { r.push(cur.trim()); cur = ""; continue; } cur += c; } if (cur.trim()) r.push(cur.trim()); return r; };
   const unit = { vh: H, vw: W, vmin: Math.min(W, H), vmax: Math.max(W, H) };
@@ -122,7 +122,7 @@ function transform({ sheets, info, W, H, SC, tail: withTail }) {
     let m = s.match(lead);
     if (m) { let rest = s.slice(m[0].length), n; while ((n = rest.match(/^\s+(?:body|#root)(?![\w-])|^\s*>\s*body(?![\w-])/))) rest = rest.slice(n[0].length); return SC + rest; }
     if (attrNames.some((a) => s.startsWith(`[${a}`) && /^\[[\w-]+[\]~|^$*=]/.test(s))) return SC + s;
-    if ((m = s.match(/^\.([\w-]+)/)) && classes.includes(m[1])) return SC + s;
+    if ((m = s.match(/^\.([\w-]+)/)) && (classes.includes(m[1]) || THEME_CLS.test(m[1]))) return SC + s; // .dark / .light on <html>: the class sits on the wrapper (set per state from the captured attrs)
     return `:where(${SC}) ${s}`;
   }
   // tiny CSS tokenizer: [{ prelude, body }] at one nesting level (comments stripped; strings and (…) respected)
@@ -151,6 +151,7 @@ function transform({ sheets, info, W, H, SC, tail: withTail }) {
         continue;
       }
       const at = prelude.match(/^@([\w-]+)\s*(.*)$/), name = at[1].replace(/^-\w+-/, ""), cond = at[2];
+      if (name in seen) seen[name]++;
       if (name === "media") { let ok = false; try { ok = matchMedia(cond).matches; } catch {} if (ok) walk(parse(body.slice(1, -1)), base); else stats.media++; }
       else if (name === "supports") { let ok = true; try { ok = CSS.supports(cond); } catch {} if (ok) walk(parse(body.slice(1, -1)), base); }
       else if (name === "font-face") fonts.push(val(`@font-face ${body}`, base));
@@ -161,12 +162,16 @@ function transform({ sheets, info, W, H, SC, tail: withTail }) {
   }
   // Sanity: an independent count of top-level style blocks (quotes ignored, so a tokenizer that mis-reads a string cannot fool it) against what parse() found
   const naiveTop = (src) => { let d = 0, n = 0, at = false, start = true; for (let i = 0; i < src.length; i++) { const c = src[i]; if (c === "\\") { i++; start = false; continue; } if (c === "{") { if (!d && !at) n++; d++; } else if (c === "}") { d = Math.max(0, d - 1); if (!d) { start = true; at = false; } } else if (c === ";" && !d) { start = true; at = false; } else if (!d && start && !/\s/.test(c)) { start = false; at = c === "@"; } } return n; };
-  const check = { parsed: 0, naive: 0 };
+  const check = { parsed: 0, naive: 0, seen, src: { media: 0, container: 0, property: 0 }, tokens: [] };
   for (const s of sheets) {
     const text = s.text.replace(/\/\*[\s\S]*?\*\//g, ""), nodes = parse(text);
     check.parsed += nodes.filter((n) => n.body != null && !n.prelude.startsWith("@")).length; check.naive += naiveTop(text);
+    for (const k of Object.keys(check.src)) check.src[k] += (text.match(new RegExp(`@${k}\\b`, "g")) ?? []).length;
+    for (const [, n] of text.matchAll(/(?:^|[;{}\s])(--[\w-]+)\s*:/g)) if (/^--(background|foreground|primary|card|border|muted|accent|ring|bg|fg|color-background)$/.test(n)) check.tokens.push(n);
     walk(nodes, s.base);
   }
+  check.tokens = [...new Set(check.tokens)];
+  check.css = out.join("\n");
   const b = info.base, bm = info.bodyMargin ?? [0, 0, 0, 0];
   const head = `:where(${SC}) { color: ${b.color}; font: ${b.fontWeight} ${b.fontSize}/${b.lineHeight} ${b.fontFamily}; ${b.background ? `background: ${b.background}; ` : ""}${bm.some((v) => v) ? "display: flow-root; " : ""}-webkit-font-smoothing: antialiased; }
 :where(${SC} *:not(button, input, select, textarea, progress, meter)), :where(${SC} *:not(button, input, select, textarea, progress, meter))::before, :where(${SC} *:not(button, input, select, textarea, progress, meter))::after { box-sizing: content-box; }
@@ -180,7 +185,7 @@ function transform({ sheets, info, W, H, SC, tail: withTail }) {
   const full = info.rootW >= info.viewW - 1;
   const pad = bm.some((v) => v) ? ` padding: ${bm.map((v) => v + "px").join(" ")};` : ""; // body margin → wrapper padding (flow-root in the head keeps children's margins inside)
   const tail = withTail ? `/* film adaptations */
-.app-shot { isolation: isolate; position: absolute; left: ${(1920 - W) / 2}px; top: ${(1080 - H) / 2}px; width: ${W}px; height: ${H}px; margin: 0; overflow: hidden; box-sizing: border-box;${pad} }${info.rootPos === "relative" && full ? `\n.app-shot > :first-child { position: static; } /* fixed overlays anchor to the ${W}x${H} wrapper */` : ""}` : "";
+.app-shot { isolation: isolate; position: absolute; left: ${(1920 - W) / 2}px; top: ${(1080 - H) / 2}px; width: ${W}px; height: ${H}px; margin: 0; overflow: hidden; box-sizing: border-box;${pad} }${!full && !info.rootIsBody && info.rootW > 100 ? `\n:where(.app-shot > :first-child) { width: ${Math.round(info.rootW)}px; max-width: 100%; margin-left: auto; margin-right: auto; } /* the real root is ${Math.round(info.rootW)} px wide, not the ${info.viewW} px viewport */` : ""}${info.rootPos === "relative" && full ? `\n.app-shot > :first-child { position: static; } /* fixed overlays anchor to the ${W}x${H} wrapper */` : ""}` : "";
   return { css: `${head}\n${out.join("\n")}\n${tail}\n`, check, rules: out, fonts, stats, keyframes: keyframes ?? [], animations: uses.flatMap(([sel, toks]) => toks.filter((t) => (keyframes ?? []).includes(t)).map((t) => `${t} on ${sel}`)) };
 }
 
@@ -222,7 +227,12 @@ export async function portCss(browser, sheets, info, film, out = path.join(film,
     try { await page.setContent("<!doctype html><html><head></head><body></body></html>"); return await page.evaluate(transform, { sheets: sh, info: inf, W: vw, H: vh, SC, tail }); }
     finally { await page.close(); }
   };
-  const r = await run(sheets, info, ".app-shot", true);
+  const bad = (c) => c.naive >= 20 && c.parsed < c.naive * 0.8 || [...Object.keys(c.src)].some((k) => c.src[k] >= 10 && c.seen[k] < c.src[k] * 0.8);
+  let r = await run(sheets, info, ".app-shot", true);
+  if (bad(r.check) && sheets.every((x) => x.alt)) { // the stylesheet text defeated the tokenizer: the browser's own serialisation (CSSOM) of the same rules is cleaner
+    const r2 = await run(sheets.map((x) => ({ ...x, text: x.alt })), info, ".app-shot", true);
+    if (!bad(r2.check) || r2.rules.length > r.rules.length) { console.error(`note port-css: the stylesheet text was only partly parsed (${r.check.parsed}/${r.check.naive} rules); used the browser's CSSOM copy of the rules instead (${r2.rules.length} rules)`); r = r2; }
+  }
   const selOf = (q) => q.slice(0, q.indexOf("{")).trim(), lastBase = new Map(r.rules.map((q) => [selOf(q), q])); // the last rule per selector wins in the cascade: an extra theme keeps what differs from THAT, not from any earlier rule
   for (const x of extra) { const e = await run(x.sheets, x.info, ".app-shot", false), keep = e.rules.filter((q) => lastBase.get(selOf(q)) !== q).map((q) => q.replace(/\.app-shot(?![\w-])/g, `.app-shot[data-tk="${x.key}"]`)); r.css += `\n/* theme ${x.key} (${keep.length} rules differ) */\n${keep.join("\n")}\n`; r.fonts.push(...e.fonts); r.stats.keyframes += e.stats.keyframes; r.keyframes.push(...e.keyframes); r.animations.push(...e.animations); }
   // @font-face rules for fonts the page registered through the FontFace API (capture.mjs collects them); skipped when the CSS already has the file
@@ -240,6 +250,9 @@ export async function portCss(browser, sheets, info, film, out = path.join(film,
     return fam && `${ws.at(-1)} 40px '${fam.replace(/'/g, "")}'`;
   }).filter(Boolean);
   if (loc.failed.length) console.error(`port-css: ${loc.failed.length} file(s) could not be copied; app.css still points at them (absolute URLs): fix the paths, the film would not render offline`);
+  { const c = r.check, short = Object.keys(c.src).filter((k) => c.src[k] >= 10 && c.seen[k] < c.src[k] * 0.8);
+    if (short.length) console.error(`WARNING port-css: ${short.map((k) => `${c.seen[k]} of ${c.src[k]} @${k} blocks`).join(", ")} were ported: responsive rules went missing, the replica would show the mobile layout. Check app.css for md:/lg: rules; report the stylesheet if they are absent.`);
+    const miss = c.tokens.filter((n) => !c.css.includes(`${n}:`)); if (miss.length) console.error(`WARNING port-css: design token(s) ${miss.join(", ")} are defined in the app's CSS but missing from app.css: colours will fall back to the film's own tokens.`); }
   if (r.check.naive >= 20 && r.check.parsed < r.check.naive * 0.8) console.error(`WARNING port-css: only ${r.check.parsed} of ${r.check.naive} top-level CSS rules were parsed: the tokenizer lost most of the stylesheet (an exotic selector or string). The replica will be badly broken: report the stylesheet, or write the missing rules by hand.`);
   return { out, check: r.check, rules: r.css.split("\n").length, fontFaces: faces.length, copied: loc.copied, stats: r.stats, keyframes: [...new Set(r.keyframes)], animations: [...new Set(r.animations)], fonts: [...new Set(fontList)], variable: [...new Set(ranges)], failed: loc.failed };
 }
