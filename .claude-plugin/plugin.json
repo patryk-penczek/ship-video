@@ -1,6 +1,6 @@
 {
   "name": "ship-video",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Turn your app into a music-synced launch film, as code: beat detection, UI replicas, frame-exact MP4.",
   "author": {
     "name": "Patryk Penczek"
