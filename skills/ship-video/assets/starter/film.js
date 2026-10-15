@@ -66,7 +66,7 @@ Film({
     tl.fromTo(c2, focus({ x: P.input.x + 120, y: P.input.y }, 1.6, { box }), { ...focus({ x: P.input.x + 160, y: P.input.y }, 1.8, { box }), duration: 1.4, ease: "power1.inOut" }, 4);
     tl.set($(s2, ".demo-app-in"), { className: "demo-app-in" }, 0);
     tl.set($(s2, ".demo-app-in"), { className: "demo-app-in on" }, 4.25);
-    type($(s2, ".q"), "Render the launch film", 4.3, 5.2);
+    type($(s2, ".q"), "Book flights to Lisbon", 4.3, 5.2);
     tl.set($(s2, ".q"), { textContent: "Add a task…" }, 0);
     tl.to(c2, { ...focus(P.add, 2.0, { box }), duration: 0.35, ease: "power3.inOut" }, 5.15);
     press($(s2, ".demo-app-btn"), 5.5);
@@ -75,7 +75,7 @@ Film({
     // the new row: hidden until Add, then pops in
     tl.set(newRow, { display: "none" }, 0);
     tl.set(newRow, { display: "" }, 5.5);
-    tl.set($(newRow, ".demo-txt"), { textContent: "Render the launch film" }, 5.5);
+    tl.set($(newRow, ".demo-txt"), { textContent: "Book flights to Lisbon" }, 5.5);
     tl.fromTo(newRow, { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(2)", ...NI }, 5.5);
     // 6.0 bar: pull back to see the list, then tick a box on every beat
     tl.to(c2, { ...focus({ x: P.app.x, y: P.app.y + 20 }, 1.15, { box }), duration: 0.6, ease: "power3.out" }, 6.0);

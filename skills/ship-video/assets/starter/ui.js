@@ -13,8 +13,8 @@ window.UI = (() => {
         <div class="demo-app-new"><div class="demo-app-in"><span class="q">Add a task…</span></div><div class="demo-app-btn">Add</div></div>
         <div class="demo-app-list">
           ${row("", "now", "new")}
-          ${row("Write the scenario", "9:00")}
-          ${row("Pick the music", "11:30")}
+          ${row("Call the dentist", "9:00")}
+          ${row("Buy oat milk", "11:30")}
         </div>
       </div>
     </div>`;
