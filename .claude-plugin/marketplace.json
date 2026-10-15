@@ -1,0 +1,16 @@
+{
+  "name": "ship-video",
+  "owner": {
+    "name": "Patryk Penczek"
+  },
+  "metadata": {
+    "description": "Music-synced product videos with Claude Code"
+  },
+  "plugins": [
+    {
+      "name": "ship-video",
+      "source": "./",
+      "description": "Make short, music-synced product videos for your app: brief → music → scenario → replicas → MP4."
+    }
+  ]
+}

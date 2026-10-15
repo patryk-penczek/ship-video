@@ -1,0 +1,7 @@
+{
+  "name": "ship-video",
+  "version": "0.1.0",
+  "description": "Make short, music-synced product videos for your app with Claude Code: HTML + GSAP rendered frame-exact to MP4.",
+  "author": { "name": "Patryk Penczek" },
+  "repository": "https://github.com/patryk-penczek/ship-video"
+}
