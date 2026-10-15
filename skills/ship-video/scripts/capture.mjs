@@ -25,6 +25,7 @@
 //   the file may be { "init": { "storage": {…}, "sessionStorage": {…}, "cookies": [{ "name", "value" }], "scheme", "seed", "date", "script" },
 //     "setup": { "path": "/", "actions": [{ "click": "text=Try the demo" }, { "waitFor": ".budget" }] }, "states": [...] }
 //   setup runs once before all states (onboarding, login form); its storage is reused by every state, and compare.mjs replays the same setup
+//   record steps are actions too: { "press": "ArrowLeft" } (keyboard games), { "wait": 80 }, mouse moves, strokes; one frame is grabbed after each.
 //   state keys for hard layouts: "image": true (store a screenshot of the root as the state: JS-measured grids / chart containers that break in a
 //   replica; text is no longer live) · "pin": true | "<selector>" (inline the resolved width/height of grid children, absolutely positioned
 //   boxes and svg in the live page before capturing: freezes container-query / ResponsiveContainer layouts; it edits the live page, so keep such a state last)
@@ -60,7 +61,7 @@ const hashRoute = (u) => (/^#!?\//.test(u.hash) ? u.hash : ""); // hash routers:
 function warnIdentical(rows) {
   const by = new Map();
   for (const r of rows) if (r.hash) (by.get(r.hash) ?? by.set(r.hash, []).get(r.hash)).push(r);
-  for (const g of by.values()) { const names = g.map((r) => r.name); if (g.length > 1 && new Set(g.map((r) => r.path ?? r.name)).size > 1) console.error(`WARNING identical screenshots: ${names.join(", ")}. Most likely every one redirected to a login or error page: seed auth with --storage k=v or "init" in states.json (see replicas.md), then capture again.`); }
+  for (const g of by.values()) { const names = g.map((r) => r.name); if (g.length > 1 && new Set(g.map((r) => r.path ?? r.name)).size > 1) console.error(`WARNING identical screenshots: ${names.join(", ")}. Either they are the same view (a hash anchor, a default route) or every one redirected to a login or error page; in that case seed auth with --storage k=v or "init" in states.json (see replicas.md), then capture again.`); }
 }
 const { chromium } = load("playwright");
 
@@ -338,7 +339,7 @@ async function main(statesFile, film) {
   const SCREENS = Object.create(null), META = Object.create(null), errors = [], usedImg = new Set(), allImages = [];
   const browser = await chromium.launch();
   let cssSummary = null;
-  let lastLen = null; const tks = new Map(), tall = [], META_REC = Object.create(null), jsFonts = new Map(), cssBy = new Map(), shots = [], warned = new Set(), animSeen = new Map(), bakedAll = new Set();
+  const usedFonts = new Set(); let lastLen = null; const tks = new Map(), tall = [], META_REC = Object.create(null), jsFonts = new Map(), cssBy = new Map(), shots = [], warned = new Set(), animSeen = new Map(), bakedAll = new Set();
   const warnOnce = (msg) => { if (!warned.has(msg)) { warned.add(msg); console.error(msg); } };
   try {
     await drive(browser, url, states, { width: W, height: H, errors, dpr: DPR, dprAll: !!env.dprGiven, touch: env.touch, motion: env.motion, scheme: env.scheme, storage: env.storage, init: states.init, setup: states.setup, seed: env.seed, initScript: env.initScript, storageState: env.storageState }, async (page, st) => {
@@ -439,6 +440,7 @@ async function main(statesFile, film) {
         const norm = (v) => (v || "U+0-10FFFF").replace(/\s+/g, "");
         for (const f of got.made) if (f.source && got.loaded.some((k) => { const [fam, ur, sty] = k.split("|"); return fam === f.family.replace(/^["']|["']$/g, "") && norm(ur) === norm(f.desc.unicodeRange) && sty === (f.desc.style || "normal"); })) jsFonts.set(`${f.family}|${f.source}|${JSON.stringify(f.desc)}`, { ...f, base: page.url() });
       }
+      for (const f of await page.evaluate((sel) => { const out = new Set(); for (const e of document.querySelector(sel).querySelectorAll("*")) { if (![...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue; const cs = getComputedStyle(e); if (cs.display === "none" || cs.visibility === "hidden") continue; cs.fontFamily.split(",").forEach((x) => out.add(x.trim().replace(/^["']|["']$/g, ""))); } return [...out]; }, sel)) usedFonts.add(f);
       for (const n of snap.animated) { const [k, ...r] = n.split(" on "); (animSeen.get(k) ?? animSeen.set(k, new Set()).get(k)).add(r.join(" on ")); }
       snap.baked.forEach((b) => bakedAll.add(b));
       if (snap.height > H * 1.1) tall.push(st.name);
@@ -481,7 +483,8 @@ async function main(statesFile, film) {
   console.log(`screens → ${path.join(film, "screens.js")} (${names.length} states)`);
   if (allImages.length) console.log(`images (list in film.js "images:"): ${JSON.stringify([...new Set(allImages)])}`);
   if (cssSummary?.failed.length) errors.push(`--css: ${cssSummary.failed.length} font/image file(s) could not be copied (see above)`);
-  if (cssSummary) console.log(`css → ${cssSummary.out} (${cssSummary.copied.length} files copied; ${cssSummary.stats.keyframes} @keyframes dropped, ${cssSummary.stats.fixed} position:fixed → absolute)\nfonts (list in film.js "fonts:"): ${JSON.stringify(cssSummary.fonts)}${cssSummary.variable.length ? `\n  variable fonts (weight range; any weight inside it loads the same file): ${cssSummary.variable.join(", ")}` : ""}`);
+  const fontsUsed = cssSummary ? (cssSummary.fonts.filter((f) => { const fam = f.match(/'([^']+)'/)?.[1]; return !usedFonts.size || !fam || usedFonts.has(fam); })) : [];
+  if (cssSummary) console.log(`css → ${cssSummary.out} (${cssSummary.copied.length} files copied; ${cssSummary.stats.keyframes} @keyframes dropped, ${cssSummary.stats.fixed} position:fixed → absolute)\nfonts (list in film.js "fonts:"): ${JSON.stringify(fontsUsed)}${fontsUsed.length < cssSummary.fonts.length ? `\n  (${cssSummary.fonts.length - fontsUsed.length} face(s) of families no visible text uses were left out)` : ""}${cssSummary.variable.length ? `\n  variable fonts (weight range; any weight inside it loads the same file): ${cssSummary.variable.join(", ")}` : ""}`);
   if (errors.length) { console.error(errors.join("\n")); process.exit(1); }
 }
 
