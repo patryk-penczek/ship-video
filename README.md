@@ -206,8 +206,6 @@ Every font face must be listed in `fonts:` in `film.js` and declared with `@font
 
 ## ⭐ Like it?
 
-![A star with a shine sweeping across it](docs/readme/star.webp)
-
 If ship-video made you a film you like, **star the repo**: it's the simplest way to help other people find it. And show us the film: [open a discussion or an issue](https://github.com/patryk-penczek/ship-video/issues/new/choose) with a link.
 
 ## 🤝 Contributing
