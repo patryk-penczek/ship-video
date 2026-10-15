@@ -110,6 +110,7 @@ Run it on the scenario before the gate (answer from the table) and on the stills
 | 8 | Launch/teaser: does the payoff land on the drop (silent: the strongest bar) and is it the peak: tightest framing, biggest motion, longest hold? How-to: is the final state of the task clear and held ≥ 1.5 s? | | |
 | 9 | Dark-UI launch/teaser: is at least half the film bright/rich? (n/a for a how-to or a light app) | | |
 | 10 | Does anything on screen show something the real app doesn't do? | | |
+| 11a | Is every click target framed in the central ~60% of the frame, readable, with a visible cursor path (no clicks at the edge, in a corner or off-screen)? | | |
 | 11 | Causality: does every click/keypress hit a control in its *before* state and change the screen on that frame (no clicking an already-active tab, toggle or selected item)? | | |
 | 12 | Is everything that is live in the app (map/radar, chart, spinner, clock, typing) alive in the film, with distinct frames, not a still or a crossfade? | | |
 | 13 | Does the ending land: last copy complete ≥ 1.2 s before the end, motion at rest, short fade or clean loop frame? | | |
