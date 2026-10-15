@@ -70,6 +70,11 @@ Film({
 | `edge(scene, name?)` | gives the scene the captured page's background so the empty edge of `focus(.., { over })` matches the app |
 | `dock(el, ref, {side, gap, align}?)` | puts a captured toast or popover next to a reference element; composes with its CSS transform; call before `enter` |
 | `finger(host, from, steps)` / `band(opts)` / `follow(el, pts, t0)` / `focusRect(rect, pad?)` | touch pointer, step-caption band, recorded pointer path, camera that frames a rect |
+| `target(sel, {scene, in, text, withText, fx, fy, dx, dy, t}?)` / `targetRect(sel, opts)` | stage-space point / rect of a selector or element inside a scene (default: the last `scene()`), measured with the camera neutral and the timeline at `t`; stacked copies: the displayed one wins, `in: "state"` picks one. `cursor`/`finger` steps take the same thing as `to` |
+| `autoCam(cam, steps, opts?)` | camera tweens from the click steps (clusters, safe area, spring eases, manual tweens win): see *Camera, pointers and looks* |
+| `spot(scene, target, t0, t1, {dim, pad, radius, ring}?)` / `loupe(scene, target, t0, t1, {scale, size, shape, side, at}?)` | dim everything but the target / a magnified live inset |
+| `frame(scene, opts?)` or `scene(html, s, e, { frame: true })` | framed stage: the app as a rounded window with shadow and bar on a token-built backdrop; returns `{ box, content, win }` (landing, hero, README; not feeds) |
+| `spring(w?, z?)`; eases `"focused"`, `"smooth"` | spring ease function (also registered with GSAP by name) |
 | `UI.spin(tl, el, t0, t1, {turns}?)` | (ui.js, not ctx) rotates a captured CSS spinner whose keyframes were not ported |
 | `put(el, str)` | writes into captured markup: input value+attribute, only the first text node when the element has children (`21<sup>°</sup>`); `count`/`type`/`typeOn` use it |
 | `land(t0, dur?, color?)` | fades the frame to the background from t0; `land(D - 0.4, 0.4)` lands the film instead of a hard cut |
@@ -83,10 +88,20 @@ Film({
 | `hash(n)` | deterministic number 0..1 from `n` |
 | `stage`, `cam` | the stage and camera DOM roots |
 
+## Camera, pointers and looks
+
+- **Selector targets.** `cursor(cam, from, [{ to: ".btn-add", t, dur, click: true }])`: `to` is a selector or element inside the scene (also `from`). Extra step keys: `in` (stacked state), `withText`, `text`, `fx`/`fy` (0..1 inside the box), `dx`/`dy`. Not found, or hidden: the build throws a one-line error. Measured where the element is at the step's time, so earlier tweens count; tweens added after the call do not.
+- **Pointer size.** Cursor, finger and ripple keep their on-screen size at any camera zoom (default cursor 66 px, finger 64 px). `Film({ pointer: 2 })` or `{ size: 2 }` per pointer multiplies it (1.5-3 for feeds); `scaleWithCamera: true` restores growing with the camera. `cursor()` returns the wrapper `.ptr` (pass it to `follow`, or its `.__steps` to `autoCam`).
+- **autoCam(cam, steps, opts)** `steps` = the array given to `cursor()`/`finger()` (or the element it returned). Clicks closer than `merge` (2.5 s) share a framing; settled `pad` (0.5 s) before the first click, hold to the last, leave `pad - early` (min 0.35 s) after it; zoom `zoom` 1.7 (max 2.4) so every click stays in the central `safe` 60 %; a cluster too spread for that is split at its longest pause, one that needs < `min` (1.25) zoom or barely moves the camera is skipped (the plan says why). Direct pan to the next framing when the gap is short, else a zoom-out. Pass `box` (the replica or `frame().box`) like `focus()`; `over` default 220. `preset: "smooth"` for longer, softer moves; `also: [{ t, to }]` frames extra moments (typing). Manual tweens on the same layer win: call it after your own `focus()` tweens; it drops framings that would overlap them and never adds overlapping tweens. Returns the plan (also `cam.__plan`). Do not combine with `push()` on the same layer.
+- **Spring eases.** `ease: "focused"` (fast, settles early, no overshoot: UI, how-to) and `"smooth"` (longer, softer: launch films) are critically damped springs, normalised to land exactly on the end value; `spring(freq, zeta)` builds others (zeta < 1 overshoots).
+- **spot / loupe.** Both live in the camera layer (they zoom with the UI); the target should stand still while they show. `loupe` clones the layer each frame, so typing and tweens inside the lens stay live; it sits next to the target (`side`, or `at: { x, y }`), in stage px: keep camera zoom modest while it shows, or place it with `at`. Both carry `data-clip-ok`.
+- **Framed stage.** `scene(html, s, e, { frame: { scale: 0.85, radius, bar, title, bg, shadow } })`, call before `wrap()`; pass `fr.box` to `focus`/`autoCam`. Text gets ~15 % smaller: landing, hero and README films, not 9:16-style feeds or how-tos read on a phone.
+- **Selective motion blur.** `render.mjs --preset selective` (see *render.mjs* header): 4:1 blend only on frames where a tween moves something faster than `--threshold` px/frame (default 2), sharp elsewhere.
+
 ## Shot helpers
 
 Engine helpers, all pure functions of `t`; CSS for `.cursor`, `.ripple`, `.cap` is in `base.css` (override in `film.css`). Snippets using them: `shots.md`, `motion-vocabulary.md`.
-- `cursor(host, from, steps)`: `host` = the camera layer, so the cursor zooms with the UI. `steps: [{ to: {x, y}, t, dur, click? }]` in stage space (`center()`); a click adds a ripple and `press`. Returns the cursor element.
+- `cursor(host, from, steps)`: `host` = the camera layer; the cursor moves with the UI but keeps its size. `steps: [{ to, t, dur, click? }]`, `to` = a stage-space point (`center()`) or a selector/element; a click adds a ripple and `press`. Returns the cursor element.
 - `typeOn(el, text, times, onUpdate?)`: `times` = one absolute second per character (onsets from `music.json`, or `t0 + i·0.1 + (rnd() - 0.5)·0.06` for human timing). Like `type`, show a placeholder through `onUpdate(0)`.
 - `push(el, t0, t1, from = 1, to = 1.06, ease = "power1.out")`: slow drift on a camera layer that eases to rest, so no shot is still. Not at the same time as a `focus()` tween on that layer.
 - `show(el, t0, t1?)`: opacity 0 at build time, 1 at `t0`, 0 again at `t1`. Word-per-beat layers, tiles, stamps.

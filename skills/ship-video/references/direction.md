@@ -101,3 +101,5 @@ Each of these came from a film that was technically clean and still judged weak.
 | A swapped state with the old one showing through (glass ghosting) | Hide the covered copy |
 | Fake beat effects in a silent film | Remove; use motion and cuts (*Silent films*) |
 | A shot that animates something that isn't in the real app | Replace with what the real app does |
+
+**Camera defaults.** One framing per burst of clicks, not one zoom per click: `autoCam` (`film-api.md`) merges clicks closer than 2.5 s, keeps each click in the central 60 % and stays wide when a click cannot be framed. Pointers keep their size under zoom; use `spot`/`loupe` instead of a camera move for a tiny detail.

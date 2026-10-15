@@ -247,3 +247,32 @@ Moves can't be planned by eye, and a game has no cursor.
 
 ### Move a captured overlay into frame
 A fixed toast, snackbar or portal is anchored to a far corner of the 1080 wrapper and lands outside a zoomed frame. Move it next to its target with `dock(el, ref, { side, gap })` (pass `el.parentElement` when the parent is the fixed wrapper) at build time and animate it there; check each toast state's HTML contains the toast text (capture with the root that includes portals).
+
+### Auto camera from the clicks
+```js
+const steps = [{ to: ".search", fx: 0.3, t: t0, dur: 0.6, click: true }, { to: ".go", t: t0 + 1.4, dur: 0.4, click: true }, { to: ".row:nth-child(2) .tick", t: t0 + 4.5, dur: 0.5, click: true }];
+cursor(cam, { x: 1500, y: 700 }, steps);             // selectors, no coordinates
+autoCam(cam, steps, { box });                         // zooms in before the first click, one framing per burst, eases out; { preset: "smooth" } for launch films
+```
+Manual `tl.to(cam, focus(...))` on the same layer wins; call `autoCam` after it. Read `cam.__plan` if a click got no zoom (it says why).
+
+### Spotlight a detail
+```js
+spot(s, ".price", t0 + 2, t0 + 3.6, { dim: 0.6, ring: true });   // everything else dims, the target stays sharp
+caption(s, "Billed yearly", t0 + 2, { pos: "bc", end: t0 + 3.6 });
+```
+
+### Loupe for tiny UI
+```js
+loupe(s, ".badge", t0 + 2, t0 + 4, { scale: 2.5, size: 320 });     // live magnified inset next to the target; { at: { x, y } } to place it
+```
+
+### Framed stage (landing, hero, README)
+```js
+const s = scene(UI.shot("board"), 0, 8, { frame: { title: "app.example.com" } });
+const cam = wrap(s), fr = s.__frame;                                // fr.box = the window: pass it to focus() / autoCam()
+```
+Not for feeds or how-tos read on a phone: the app is ~15 % smaller.
+
+### Fast moves only: selective motion blur
+`node $S/render.mjs film/index.html out.mp4 --preset selective`: sharp text at rest, blur only where the camera, cursor or cards move fast; cheaper than `motionblur`.

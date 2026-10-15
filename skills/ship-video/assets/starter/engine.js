@@ -467,7 +467,7 @@
       const inner = el.firstElementChild;
       live.push((t) => {
         if (t < t0 - 0.001 || t > t1 + 0.001) return;
-        inner.replaceChildren(...[...host.children].filter((k) => !k.classList.contains("loupe") && !k.classList.contains("spot")).map((k) => k.cloneNode(true)));
+        inner.replaceChildren(...[...host.children].filter((k) => !/\b(loupe|spot|ptr)\b/.test(k.className)).map((k) => k.cloneNode(true)));
         const imgs = [...inner.querySelectorAll("img")];
         return imgs.length ? Promise.all(imgs.map((i) => (i.decode ? i.decode().catch(() => {}) : null))) : null;
       });
