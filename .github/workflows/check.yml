@@ -33,11 +33,3 @@ jobs:
           python3 -m py_compile skills/ship-video/scripts/audio/*.py
           bash -n skills/ship-video/scripts/setup.sh
 
-      - uses: oven-sh/setup-bun@v2
-
-      - name: Demo app typechecks and builds
-        working-directory: demo-app
-        run: |
-          bun install --frozen-lockfile
-          bun run typecheck
-          bun run build

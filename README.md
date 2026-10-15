@@ -69,16 +69,6 @@ Pick one of three paths when Claude asks:
 > [!IMPORTANT]
 > **Suno licensing:** per Suno's terms at the time of writing, songs made on the **free plan can't be used commercially**, and upgrading later doesn't change that. Songs made while on a **paid plan** can. Check [Suno's terms](https://suno.com) before publishing. Claude asks where the film will be shown, and which plan you'll generate on, before you generate anything.
 
-## Try it on the demo app
-
-[`demo-app/`](demo-app) is **Breeze**, a weather app (Bun + React, static data) with enough going on to film a 35-second trailer: a ⌘K command palette, weather alerts, minute-by-minute rain, an hourly chart you can scrub, a 7-day forecast, air quality, wind, sun and moon, "best time to…" activity picks, an animated rain radar with a timeline, a compare view that ranks your places, °C/°F, and a light/dark theme that switches with a circular reveal.
-
-```bash
-cd demo-app && bun install && bun run dev   # http://localhost:4783
-```
-
-Then ask Claude: *"Make a 35-second trailer for the weather app in demo-app/."*
-
 ## Requirements
 
 macOS or Linux with **Node 20+**, **ffmpeg** and **Python 3** ([uv](https://docs.astral.sh/uv/) recommended). The setup script installs the rest into `~/.ship-video`, so it survives skill updates, and skips anything already there:
@@ -89,7 +79,6 @@ macOS or Linux with **Node 20+**, **ffmpeg** and **Python 3** ([uv](https://docs
 | GSAP, Inter, JetBrains Mono | the film's timeline and default fonts |
 | Python venv with librosa | tempo, beats, hits, the audio envelope |
 | demucs *(optional, `--demucs`)* | stem separation; pulls in PyTorch, several GB |
-| Bun *(demo app only)* | running the Breeze demo app |
 
 ## How it works
 
@@ -111,7 +100,6 @@ skills/ship-video/
 ├─ references/         read on demand: lessons, replicas, direction, shots, motion vocabulary, film API, music map, Suno prompt, scenario template, QA checklist, render, sharing
 ├─ scripts/            render, stills, replica compare, audit, hit check, music analysis (all take --help)
 └─ assets/starter/     the film template
-demo-app/              Breeze, the demo weather app
 evals/                 test prompts for the skill
 ```
 </details>

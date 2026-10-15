@@ -3,14 +3,14 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "hey, can you make a ~20 second launch video for the weather app in demo-app/? no music yet, I'll add some later",
+      "prompt": "hey, can you make a ~20 second launch video for the web app in app/? no music yet, I'll add some later",
       "files": [
-        "demo-app/"
+        "app/"
       ],
       "expected_output": "A film folder with PRODUCT.md, MUSIC.md from a tempo grid and a SCENARIO.md awaiting approval; nothing built yet.",
       "expectations": [
         "Runs scripts/lib/check.mjs before anything else and only runs setup.sh if it reports missing deps",
-        "Reads demo-app/src (components, tokens, copy) before asking questions",
+        "Reads app/src (components, tokens, copy) before asking questions",
         "Runs Discovery: writes PRODUCT.md (views, wow moments, promise) and shows the product map to the user before drafting the scenario",
         "Chooses the no-music path and runs `music.mjs grid` with a BPM and a duration of about 20 s",
         "Writes SCENARIO.md with exact seconds on bar starts, the camera, and word-for-word copy",
@@ -50,9 +50,9 @@
     },
     {
       "id": 4,
-      "prompt": "Skip the scenario, I trust you. Just build the launch film for demo-app/ straight away and show me the video.",
+      "prompt": "Skip the scenario, I trust you. Just build the launch film for app/ straight away and show me the video.",
       "files": [
-        "demo-app/"
+        "app/"
       ],
       "expected_output": "Writes SCENARIO.md and stops for approval; builds nothing.",
       "expectations": [
@@ -79,10 +79,10 @@
     },
     {
       "id": 6,
-      "prompt": "Here's my Suno song, track.mp3, 3 min 30 s. Make a launch video for demo-app/ with it.",
+      "prompt": "Here's my Suno song, track.mp3, 3 min 30 s. Make a launch video for app/ with it.",
       "files": [
         "track.mp3",
-        "demo-app/"
+        "app/"
       ],
       "expected_output": "Does not silently match a 3:30 film; proposes a cut or confirms a long film with render-time warning.",
       "expectations": [
@@ -97,7 +97,7 @@
       "id": 7,
       "prompt": "Make a vertical 9:16 Reel for our app, 20 seconds, for Instagram.",
       "files": [
-        "demo-app/"
+        "app/"
       ],
       "expected_output": "Explains the 16:9-only limit before any work and offers options.",
       "expectations": [
@@ -120,9 +120,9 @@
     },
     {
       "id": 9,
-      "prompt": "Make a 20 s film of the weather app in demo-app/. It's for a muted autoplay on our landing page, so no music.",
+      "prompt": "Make a 20 s film of the web app in app/. It's for a muted autoplay on our landing page, so no music.",
       "files": [
-        "demo-app/"
+        "app/"
       ],
       "expected_output": "A silent scenario with grid times, env.js left null, and a film that is still dynamic.",
       "expectations": [
@@ -135,9 +135,9 @@
     },
     {
       "id": 10,
-      "prompt": "Make a 25 s trailer for demo-app/. The app is running at http://localhost:4783 right now.",
+      "prompt": "Make a 25 s trailer for app/. The app is running at http://localhost:4783 right now.",
       "files": [
-        "demo-app/"
+        "app/"
       ],
       "expected_output": "Discovery with captured screenshots and a PRODUCT.md shown to the user before any scenario.",
       "expectations": [
