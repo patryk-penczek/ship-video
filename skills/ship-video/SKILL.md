@@ -92,8 +92,8 @@ For a large product, or if the user asks about quality, say once that the scenar
 
 Create the folder: `node $S/new-film.mjs <film>` (outside the product repo unless the user wants it inside; add `--theme light|dark` if the app's look is known, otherwise it follows the capture). Put assets in `<film>/img`; keep downloads in their own folder.
 
-Every film must let its intended viewer say what this is, why it matters and what to do next (`film-types.md`, *Identity first*): strangers get the name and promise on the working product by ~3 s, existing users a 1 s anchor. Take promise and audience from the product's own words (README, site, store listing).
-If the topic is narrow and the repo doesn't say what's new, or no call to action is known, ask that one question.
+Every film must let its intended viewer say what this is, why it matters and what to do next (`film-types.md`, *Identity first*): strangers and new docs readers get the name and promise on the working product by ~3 s, existing users a 1 s anchor, a personal site a person's name and role. Take promise and audience from the product's own words (README, site, store listing).
+If the topic is narrow and the repo doesn't say what's new, or no call to action is known (a personal site may have no URL), ask that one question.
 
 **Exit:** you can describe the film in two sentences and the user agrees. **Then:** 1b Discovery.
 
@@ -168,7 +168,7 @@ When they approve, write the chosen variants into SCENARIO.md and add `Approved:
 
 ## 5. Replicas
 
-Read `lessons.md` (once; it covers step 6 too) and `replicas.md`. **Capture first**: if the app runs (reuse its dev server or start one, see *Sharing the machine*), its own DOM and CSS are the replica.
+Read `lessons.md` (once; it covers step 6 too) and `replicas.md`. **Capture first**: if the app runs (reuse its dev server or start one, see *Sharing the machine*; warm each route first, or capture a production build if the dev server is slow), its own DOM and CSS are the replica.
 1. Write `<film>/states.json`: one entry per screen the scenario needs (`{name, path?, actions?, continue?, canvas?}`). Use `fill` for inputs (never Control+A), `wait` for timers.
 2. `node $S/capture.mjs <url> <film>/states.json <film> --css` writes `screens.js`, `app.css`, `fonts/`, `img/`, and prints the `fonts:` / `images:` lists for `film.js`.
 3. `node $S/compare.mjs <url> <film>/gallery.html <film>/review/compare --states <film>/states.json`, with the same `--storage/--viewport/--scheme/--touch` flags you captured with. Read every PNG (real, replica, diff); fix until every state is under ~2 %.
@@ -216,7 +216,7 @@ No full render until the user approves the stills. After each round of fixes, sh
 
 ## 8. QA
 
-Follow `qa-checklist.md`. The loop: run `node $S/audit.mjs <film>/index.html`, fix each clipped text that isn't a deliberate transition (mark deliberate crops with `data-clip-ok`) and each jump, click-placement or hidden-cursor line it prints, re-run until clean.
+Follow `qa-checklist.md`. The loop: run `node $S/audit.mjs <film>/index.html`, fix each clipped text that isn't a deliberate transition (mark deliberate crops with `data-clip-ok`) and each jump, click-placement or hidden-cursor line it prints, re-run until clean. A line that stays needs a written reason in SCENARIO.md (*Changes vs scenario*) before the render; no audit line ends unexplained.
 If a fix changes anything visible, delete `review/APPROVED`, show those frames again and get approval again. Static spans are measured in step 9, on the crisp render.
 
 ## 9. Render and report

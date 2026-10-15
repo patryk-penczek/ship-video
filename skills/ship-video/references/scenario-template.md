@@ -80,7 +80,7 @@ Every view and wow moment in PRODUCT.md and the shot that shows it (or why it is
 - Only real decisions the user must make. Everything else is decided and written above.
 
 ## Changes vs scenario
-Filled during build and review (step 7): every place the film departs from this scenario, one line each: what, why. Empty = no departures. The user approved the table above, so a silent change is a broken promise.
+Filled during build and review (step 7), and in QA (step 8) for each audit line that stays: what it is and why. Every place the film departs from this scenario, one line each: what, why. Empty = no departures. The user approved the table above, so a silent change is a broken promise.
 - …
 
 ## Silent variant
@@ -106,7 +106,7 @@ Run it on the scenario before the gate (answer from the table) and on the stills
 | 3 | Coverage: does every view/wow moment that serves this film type appear, and is every skipped one named with a reason? | | |
 | 4 | Motion: does something move in every shot (launch/teaser: every beat, nothing still for more than ~1 s; how-to: something moves even during a 1.5–2 s result hold)? | | |
 | 5 | Framing: does the camera land on content that fills 40–70% of the frame, no empty chrome (exceptions: `direction.md` *Framing rules*: tilt, split screen, zoom-through, dialogs ≥ 50%)? | | |
-| 6 | Is all text ≥ 28 px on screen after zoom (≥ 56 px for a social feed), and not covered by a caption? | | |
+| 6 | Is all text the film adds ≥ 28 px on screen (≥ 56 px for a social feed), and not covered by a caption? Real app UI text can't reach 56 px: its key word or number is lifted out as type and ambient chrome counts as imagery, not chased with zoom. | | |
 | 7 | Do cut frames show the new thing sharp and opaque (no 0.35-opacity entrances)? | | |
 | 8 | Launch/teaser: does the payoff land on the drop (silent: the strongest bar) and is it the peak: tightest framing, biggest motion, longest hold? How-to: is the final state of the task clear and held ≥ 1.5 s? | | |
 | 9 | Dark-UI launch/teaser: is at least half the film bright/rich? (n/a for a how-to or a light app) | | |

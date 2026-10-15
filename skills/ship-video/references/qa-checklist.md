@@ -4,6 +4,7 @@ Step 8 runs the sections before "After the crisp render" (no render exists yet);
 
 ## Automated
 - [ ] `node $S/audit.mjs <film>/index.html` is clean, or every remaining line is a deliberate transition. Mark deliberate masks and crops (an app window that crops its content) with `data-clip-ok` on the wrapper. Fix, re-run, repeat.
+- [ ] Nothing ends unexplained: every remaining audit line is either fixed or justified in SCENARIO.md (*Changes vs scenario* / a QA note: what the line is and why it stays) before the render. "Deliberate" with no written reason doesn't count.
 - [ ] No `[page]` / `[pageerror]` lines in any script output.
 - [ ] The audit's jump check, click-placement (safe area) and hidden-cursor lines are fixed: an entrance that jumps is `enter`, not `NI`; a click lands in the central part of the frame with the cursor visible.
 
@@ -18,7 +19,7 @@ Step 8 runs the sections before "After the crisp render" (no render exists yet);
 - [ ] Images loaded: no broken boxes; avatars present (`images:`).
 - [ ] Descenders (g, y, p) intact in gradient text and rolling words.
 - [ ] Nothing important outside 1920×1080 or under the caption bar.
-- [ ] Text size matches where it's shown: 28 px or more (README, website), 56 px or more (social feed).
+- [ ] Text size matches where it's shown: 28 px or more (README, website), 56 px or more (social feed) for copy the film adds; real app UI text is imagery, so carry its key word or number as type instead (`direction.md`, *Framing*).
 - [ ] Stills are overwritten by name: no cleanup needed. Stills for a cut: use the cut time + 0.01 s (at the exact cut float rounding shows the previous scene).
 - [ ] App text readable at film size: zoomed in, or not relied on.
 - [ ] Copy matches SCENARIO.md word for word.

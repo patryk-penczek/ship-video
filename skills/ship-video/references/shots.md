@@ -143,7 +143,7 @@ tl.fromTo($$(panels[1], ".bars i"), { scaleY: 0.12 }, { scaleY: 1, duration: 0.6
 tl.fromTo($$(panels[2], ".row"), { x: 120 }, { x: 0, duration: 0.45, stagger: 0.06, ease: "power3.out" }, t0);
 push(cam, t0, t0 + 1.6, 1, 1.06);
 ```
-Build each panel from the replica's own component builders so it is the real UI, not a mock.
+Build each panel from the replica's own component builders so it is the real UI, not a mock. A screen wall or montage made of **hard camera cuts**: give each cut its own scene (one scene per cut) instead of `tl.set` on the camera inside one scene; the audit reads those as jumps.
 
 ### 9. Zoom through into a component, match cut to its detail
 Zoom until a number fills the frame, then cut to a scene that shows the same number at the same size. `clamp: false` lets the camera aim exactly.
@@ -231,6 +231,16 @@ If the page's own drag handler works with the capture's `drag` action, record th
 3. **Swap `drag-start` to `drag-over` when the ghost crosses the column boundary**, and `drag-over` to `dropped` on the release frame. Compute the crossing time from the ease (`ease(p)` solved for the boundary x), not by eye, so the highlight changes as the ghost crosses.
 4. Land with a small bounce and a ring on the card; the toast or counter updates on the same frame. Hold the result 1.5 s or more in a how-to.
 If the real page's own drag handler can be driven by the capture's drag action, use that for the states and keep the ghost tween for the motion.
+
+### File drop (upload and converter tools)
+The first thing the viewer needs is the file arriving. Carry it as a **file chip** (a small card with thumbnail, name and size) dragged onto the drop zone: the cursor and the chip tween with the **same ease** (`power2.inOut`) so the chip rides the cursor, the zone swells or highlights as the chip crosses its edge, and the chip shrinks into it on release. Then show the **processing wait** over the riser (a progress bar or spinner that keeps moving; a wait is not a still), then cut to the result on the hit. Capture the idle, dragover and result states; the chip is film-made markup, not a capture.
+
+### Turn-based game or keyboard-driven app
+Moves can't be planned by eye, and a game has no cursor.
+1. **Get a move trace.** Run the app's own logic headless with a seeded PRNG (the same seed as the capture, `replicas.md`, *Random demo data*) and record each move: key, tiles before and after, score.
+2. **Tween the real markup.** Build the board from the captured tile or sprite elements and move them from the trace (slide, merge pop, spawn), not a screenshot swap. Verify the trace's board against the captured states at the same moves; a mismatch means the seed or the logic differs.
+3. **Show keycaps instead of a cursor:** a key glyph (arrow, space) that presses on the move frame. The click-placement rules are n/a; the keycap must be readable and press on the frame the board changes.
+4. **A narrow board** (a centred square in a 16:9 frame) leaves wide margins: put big copy and the score or key number in **margin panels** on both sides, outside the camera layer, and keep the board as the hero.
 
 ### Frame a rect
 `focus()` frames a point and a scale. To fit a column, a card or a form with padding, use the engine's `focusRect(rect(el), pad)` (it derives the scale from the rect, the padding and the frame). In a narrow or top-heavy app it keeps crop edges on column and card boundaries so no word is sliced at the frame edge.
