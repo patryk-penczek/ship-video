@@ -162,7 +162,7 @@ const CANVAS_SRC = `window.__svCanvas = {
     const cs = [...root.querySelectorAll("canvas")], bx = cs.map((c) => c.getBoundingClientRect()), res = [];
     // layers sit in the same clipping container; two canvases in DIFFERENT clip containers (a before/after slider: each half is clipped by its own
     // overflow:hidden / clip-path wrapper) are two pictures, even though they overlap
-    const clip = (c) => { for (let e = c; e && e !== root.parentElement; e = e.parentElement) { const s = getComputedStyle(e); if (/hidden|clip/.test(s.overflowX + s.overflowY) || s.clipPath !== "none") return e; } return root; };
+    const clip = (c) => { for (let e = c.parentElement; e && e !== root.parentElement; e = e.parentElement) { const s = getComputedStyle(e); if (/hidden|clip/.test(s.overflowX + s.overflowY) || s.clipPath !== "none") return e; } return root; };
     const cp = cs.map(clip);
     let n = 0;
     cs.forEach((c, i) => {
