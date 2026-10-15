@@ -7,10 +7,11 @@
       "files": [
         "demo-app/"
       ],
-      "expected_output": "A film folder with MUSIC.md from a tempo grid and a SCENARIO.md awaiting approval; nothing built yet.",
+      "expected_output": "A film folder with PRODUCT.md, MUSIC.md from a tempo grid and a SCENARIO.md awaiting approval; nothing built yet.",
       "expectations": [
         "Runs scripts/lib/check.mjs before anything else and only runs setup.sh if it reports missing deps",
         "Reads demo-app/src (components, tokens, copy) before asking questions",
+        "Runs Discovery: writes PRODUCT.md (views, wow moments, promise) and shows the product map to the user before drafting the scenario",
         "Chooses the no-music path and runs `music.mjs grid` with a BPM and a duration of about 20 s",
         "Writes SCENARIO.md with exact seconds on bar starts, the camera, and word-for-word copy",
         "Asks for scenario approval and copy choices with the AskUserQuestion tool (options + previews), not as questions in prose",
@@ -58,15 +59,14 @@
         "Says in one line that the scenario approval gate stays, and why",
         "Writes SCENARIO.md with exact seconds, camera and word-for-word copy",
         "Asks for approval with AskUserQuestion",
-        "Does not write ui.js, film.js scenes or copy components, and does not render, before explicit approval",
-        "Only edits film.js config lines (track, duration) after approval, never before"
+        "Does not write scenes in film.js or ui.js, copy app components or render before explicit approval (setting config lines such as track and duration, and running capture.mjs for Discovery, are allowed)"
       ]
     },
     {
       "id": 5,
       "prompt": "Continue my film in film/. I stopped yesterday.",
       "files": [
-        "film/ (contains index.html, MUSIC.md whose first line is 'GRID DRAFT', SCENARIO.md without an Approved line, an empty review/, out/test.mp4, the starter ui.js and env.js)"
+        "film/ (contains index.html, PRODUCT.md, MUSIC.md whose first line is 'GRID DRAFT', SCENARIO.md without an Approved line, an empty review/, out/test.mp4, the starter ui.js and env.js)"
       ],
       "expected_output": "Resumes at the Scenario step; treats the partial folder correctly.",
       "expectations": [
@@ -88,7 +88,7 @@
       "expectations": [
         "Does not set the film length to the full 3:30 without asking",
         "Proposes a 30-45 s cut on bar lines, keeping the drop and the final hit, or confirms a long film",
-        "Warns about render time (crisp roughly 5-12 s per film second, motion blur 15-30 s)",
+        "Warns that render time scales with length (about 3.5 s per film second crisp, 3-4x that for motion blur, longer when other renders run)",
         "Runs music.mjs analyze and shows MUSIC.md before the scenario",
         "Asks where the film will be shown before talking about the track's license"
       ]
@@ -129,7 +129,106 @@
         "Takes the no-music path, runs `music.mjs grid` without --out and writes MUSIC.md from the printed times",
         "Leaves env.js as window.ENV = null and uses hits: [] (no shakes, pulses or hard flashes)",
         "Makes SCENARIO.md dynamic anyway: cuts on bar lines, camera moves, easing, something moving in every scene, not slow static screens",
-        "Does not ask 'Match the music' or about a track"
+        "Does not ask 'Match the music' or about a track",
+        "Writes MUSIC.md with a first line like 'SILENT, 120 BPM, duration 20 s' and does not use stamp, glitch, shockwave, shake or flashes"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Make a 25 s trailer for demo-app/. The app is running at http://localhost:4783 right now.",
+      "files": [
+        "demo-app/"
+      ],
+      "expected_output": "Discovery with captured screenshots and a PRODUCT.md shown to the user before any scenario.",
+      "expectations": [
+        "Reuses the running server instead of starting another one",
+        "Runs capture.mjs with --discover and Reads the screenshots in review/discovery",
+        "Writes PRODUCT.md with every view (including the 404), the wow moments and one concrete case, and shows it to the user before the scenario",
+        "Later captures the states the scenario needs with states.json and runs compare.mjs before animating, instead of rebuilding the UI by hand",
+        "Does not treat the Discovery capture as building: no approval is needed for it"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "I already have a scenario in film/SCENARIO.md, it's fine, just build it and render.",
+      "files": [
+        "film/ (contains index.html, PRODUCT.md, MUSIC.md, SCENARIO.md without an Approved line, track.mp3)"
+      ],
+      "expected_output": "Does not accept the skipped gate silently: asks for explicit approval, then builds, and still shows stills before rendering.",
+      "expectations": [
+        "Notes in one line that SCENARIO.md has no Approved line and asks for explicit approval with AskUserQuestion (Approve / change something)",
+        "Does not write film.js scenes or ui.js before that approval",
+        "After approval adds an Approved: date line to SCENARIO.md",
+        "Shows contact sheets or stills and waits for approval before the full render even though the user said 'render'"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "I got a new take from Suno after you rendered the film. Update the film to it.",
+      "files": [
+        "film/ (a finished film with out/film-crisp.mp4, review/APPROVED, MUSIC.md for the old track)"
+      ],
+      "expected_output": "Re-time, re-approve if a move exceeds a bar, re-render, re-check hits.",
+      "expectations": [
+        "Runs music.mjs analyze on the new take and compares the old and new MUSIC.md row by row",
+        "Shifts scene times in film.js to the new hits (helper constants per act)",
+        "If any act moves by more than one bar, shows the new act table and asks for approval again",
+        "Shows the changed frames before re-rendering",
+        "Re-renders the chosen version and re-runs hits.mjs on the crisp MP4"
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "Continue my film in film/.",
+      "files": [
+        "film/ (contains index.html, track.mp3 and PRODUCT.md, but no MUSIC.md)"
+      ],
+      "expected_output": "Resumes at Analysis; does not ask the music question again.",
+      "expectations": [
+        "Starts at the Analysis step (music.mjs analyze/envelope/plot on track.mp3)",
+        "Does not ask again whether to use a file, Suno or no music",
+        "Writes MUSIC.md and shows it to the user before the scenario"
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "Continue my film in film/.",
+      "files": [
+        "film/ (contains index.html, MUSIC.md, SCENARIO.md with an Approved line, but no PRODUCT.md)"
+      ],
+      "expected_output": "Legacy folder: does Discovery first.",
+      "expectations": [
+        "Starts at Discovery (PRODUCT.md is missing), not at Replicas",
+        "Writes PRODUCT.md and shows the product map, then checks the approved scenario covers every view and reports gaps"
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "Record a screen tutorial of our dashboard with a voiceover, about 2 minutes.",
+      "files": [],
+      "expected_output": "The skill does not trigger; this is a screen recording with narration.",
+      "expectations": [
+        "Does not invoke ship-video or start its flow",
+        "Says what it can do instead (a screen recording tool, or ship-video only if they want a 15-45 s music-synced film of the UI)"
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "Make an explainer video about how photosynthesis works.",
+      "files": [],
+      "expected_output": "The skill does not trigger; the video is not about the user's app.",
+      "expectations": [
+        "Does not invoke ship-video or start its flow (no scenario, no replicas, no app discovery)"
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "Give me a Suno prompt for a lo-fi study playlist, 2 hours.",
+      "files": [],
+      "expected_output": "The skill does not trigger; there is no app film.",
+      "expectations": [
+        "Does not invoke ship-video or start its flow",
+        "Answers as an ordinary Suno prompt request without bar-grid or film-length maths"
       ]
     }
   ]

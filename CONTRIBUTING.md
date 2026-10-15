@@ -21,7 +21,8 @@ Don't attach music or app screenshots you can't share publicly.
 2. Make a test film: `node skills/ship-video/scripts/new-film.mjs /tmp/film`, then run `audit.mjs` and a short `render.mjs --preset draft` on it.
 3. Keep scripts dependency-free beyond what `setup.sh` installs, give each one a `--help` header, and make failures exit non-zero with a clear message.
 4. If you change the flow, update `SKILL.md` and, where it matters, `evals/evals.json` (prompts, files and what a good run does, including prompts that should not trigger the skill).
-5. Keep `SKILL.md` short: details go in `references/`, flags stay in each script's `--help`. Use `$S/...` for script paths in every reference.
+5. Run each prompt in `evals/evals.json` with the skill installed and check its expectations, and run `node .github/scripts/validate.mjs` before a PR.
+6. Keep `SKILL.md` short (about 250 lines at most): details go in `references/`, flags stay in each script's `--help`. Use `$S/...` for script paths in every reference.
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org): `feat(render): …`, `fix(audio): …`, `docs: …`.
 

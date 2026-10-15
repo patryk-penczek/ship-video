@@ -1,6 +1,6 @@
 # ship-video
 
-**Turn your app into a music-synced launch film, as code, from one Claude Code prompt.**
+**Turn your app into a music-synced launch film, as code, from a Claude Code conversation.**
 
 <p align="center">
   <a href="#quick-start"><img src="docs/hero.webp" alt="Typing /ship-video: it asks how long and which music, hears the hits, then Plan, Build, Review, Render, one word a bar, and Shipped." width="900"></a>
@@ -38,11 +38,13 @@ bash ~/.claude/skills/ship-video/scripts/setup.sh   # optional: Claude runs it o
 ## What happens
 
 1. **Brief.** Claude reads your repo, then asks a few clickable questions: goal, length, music.
-2. **Music.** It analyses your track's tempo, hits and drop, and writes a music map.
-3. **Scenario.** It writes a table of seconds, music, picture and exact copy. **Nothing is built until you approve it.**
-4. **Build.** It recreates your screens from your real components and animates them on the beat.
-5. **Review.** It shows contact sheets and stills. **No full render until you approve them.**
-6. **Render.** You pick crisp (60 fps, about 3.5 s of render per second of film), motion blur (smoother, 3–4× slower) or both. You also get a check that every cut lands on its hit, and an animated WebP for READMEs.
+2. **Discovery.** It opens every view of your app and finds the moments worth filming, then shows you a product map.
+3. **Music.** It analyses your track's tempo, hits and drop, and writes a music map.
+4. **Scenario.** It writes a table of seconds, music, picture and exact copy. **Nothing is built until you approve it.**
+5. **Replicas.** It captures your running app's real DOM and CSS (or rebuilds from source) and compares each screen with the real thing.
+6. **Build.** It animates those screens on the beat.
+7. **Review.** It shows contact sheets and stills. **No full render until you approve them.**
+8. **Render.** You pick crisp (60 fps, about 3.5 s of render per second of film), motion blur (smoother, 3–4× slower) or both. You also get a check that every cut lands on its hit, and an animated WebP for READMEs.
 
 Already partway through? Claude picks up from the files in the film folder, and you can tell it to skip steps. Changes after a render mean a full re-render, after you re-approve whatever changed.
 
@@ -50,7 +52,7 @@ Already partway through? Claude picks up from the files in the film folder, and 
 
 - 16:9, 1920×1080 only. No vertical (Reels, Shorts) output.
 - Web UI. For a native or mobile app, replicas are built from screenshots and match less exactly.
-- 15–45 s films. Very long tracks get cut to a section.
+- 15–45 s films. Very long tracks are cut to a section (or you confirm a long film and its render time).
 - Output is MP4 and animated WebP, not GIF.
 - macOS or Linux (Windows: WSL).
 
@@ -106,7 +108,7 @@ macOS or Linux with **Node 20+**, **ffmpeg** and **Python 3** ([uv](https://docs
 ```
 skills/ship-video/
 ├─ SKILL.md            the guided flow: steps, approval gates, scripts, gotchas
-├─ references/         read on demand: lessons, replicas, film API, music map, Suno prompt, scenario template, QA checklist
+├─ references/         read on demand: lessons, replicas, direction, shots, motion vocabulary, film API, music map, Suno prompt, scenario template, QA checklist, render, sharing
 ├─ scripts/            render, stills, replica compare, audit, hit check, music analysis (all take --help)
 └─ assets/starter/     the film template
 demo-app/              Breeze, the demo weather app
@@ -154,4 +156,4 @@ Run `node <skill folder>/scripts/hits.mjs film.mp4 hits.png <times>` (the skill 
 
 ## License
 
-[MIT](LICENSE). Films you make with it are yours. Music, fonts and assets you add keep their own licenses.
+[MIT](LICENSE). Films you make with it are yours. Music, fonts and assets you add keep their own licenses. The hero film's Inter and JetBrains Mono fonts are SIL OFL; GSAP is under its own license ([gsap.com/standard-license](https://gsap.com/standard-license)).
