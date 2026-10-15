@@ -36,13 +36,14 @@ Film({
       <div class="center s1c" style="opacity:0"><div class="display" style="font-size:220px;white-space:nowrap"><span class="word">on the</span> <span class="word gtext">beat.</span></div></div>`, 2, 4);
     tl.fromTo($(s1, ".s1a"), { scale: 1.35 }, { scale: 1, duration: 0.5 }, 2);
     tl.set([$(s1, ".s1f"), $(s1, ".s1a")], { opacity: 0 }, 2.5);
-    tl.fromTo($(s1, ".s1b"), { opacity: 0 }, { opacity: 1, duration: 0.01, ...NI }, 2.5);
+    tl.set($(s1, ".s1b"), { opacity: 1 }, 2.5);
     tl.fromTo($(s1, ".s1b"), { y: 90, filter: "blur(14px)" }, { y: 0, filter: "blur(0px)", duration: 0.35, ...NI }, 2.5);
     tl.set($(s1, ".s1b"), { opacity: 0 }, 3);
-    tl.fromTo($(s1, ".s1c"), { opacity: 0 }, { opacity: 1, duration: 0.01, ...NI }, 3);
+    tl.set($(s1, ".s1c"), { opacity: 1 }, 3);
     const w = $$(s1, ".s1c .word");
-    tl.fromTo(w[0], { y: 120, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ...NI }, 3);
-    tl.fromTo(w[1], { y: 120, opacity: 0, scale: 1.2 }, { y: 0, opacity: 1, scale: 1, duration: 0.4, ...NI }, 3.5);
+    // no NI here: each word must stay hidden until its own beat (with NI, "beat." would show from 3.0 and pop at 3.5)
+    tl.fromTo(w[0], { y: 60, opacity: 0.35 }, { y: 0, opacity: 1, duration: 0.35 }, 3);
+    tl.fromTo(w[1], { y: 60, opacity: 0, scale: 1.2 }, { y: 0, opacity: 1, scale: 1, duration: 0.3 }, 3.5);
     // push through into the next bar (splitting a .gtext word into chars would break its gradient)
     tl.to($(s1, ".s1c .display"), { scale: 1.25, filter: "blur(12px)", opacity: 0, duration: 0.25, ease: "power2.in" }, 3.75);
 
