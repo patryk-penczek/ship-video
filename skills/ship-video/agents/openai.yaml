@@ -1,0 +1,6 @@
+interface:
+  display_name: "Ship Video"
+  short_description: "Launch films of your web app, as code: music-synced, frame-exact MP4"
+  default_prompt: "Use $ship-video to make a 20 s launch film of this app."
+policy:
+  allow_implicit_invocation: true

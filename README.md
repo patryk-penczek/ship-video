@@ -1,6 +1,6 @@
 # ship-video
 
-**Turn your app into a music-synced launch film, as code, from a Claude Code conversation.**
+**Turn your app into a music-synced launch film, as code, from a Claude Code or Codex conversation.**
 
 <p align="center">
   <a href="#quick-start"><img src="docs/hero.webp" alt="Typing /ship-video: it asks how long and which music, hears the hits, then Plan, Build, Review, Render, one word a bar, and Shipped." width="900"></a>
@@ -8,7 +8,7 @@
 
 <p align="center"><sub>Made with ship-video itself: one HTML page on a 120 BPM grid. <a href="docs/hero">View source</a>.</sub></p>
 
-ship-video is a [Claude Code skill](https://code.claude.com/docs/en/skills) that directs and builds a 15–45 s product video for your app. Claude reads your UI code, finds the hits in your music, agrees a shot-by-shot scenario with you, rebuilds your screens in HTML and animates them with GSAP. A small engine then renders the page frame by frame to MP4. No video editor, no After Effects.
+ship-video is an [agent skill](https://code.claude.com/docs/en/skills) for Claude Code and Codex that directs and builds a 15–45 s product video for your app. The agent reads your UI code, finds the hits in your music, agrees a shot-by-shot scenario with you, rebuilds your screens in HTML and animates them with GSAP. A small engine then renders the page frame by frame to MP4. No video editor, no After Effects.
 
 ## Quick start
 
@@ -26,7 +26,16 @@ Then, in your app's repo:
 On first use Claude installs the engine's dependencies into `~/.ship-video` (about 2 minutes, once). You'll get a scenario to approve, stills to review, and then an MP4 in the film folder's `out/` (for example `film-crisp.mp4`). Or give it a track: *Make a 30-second launch video for this app, cut to ~/Downloads/track.mp3.*
 
 <details>
-<summary>Install without the plugin system</summary>
+<summary>Codex</summary>
+
+```bash
+npx skills add patryk-penczek/ship-video -a codex -g
+```
+or copy `skills/ship-video` into `~/.agents/skills/`. Then ask for a video, or type `$ship-video`. Setup downloads Chromium and Python packages into `~/.ship-video`, so the first run needs network access and write access to that folder: approve it when Codex asks, or run `bash ~/.agents/skills/ship-video/scripts/setup.sh` yourself once.
+</details>
+
+<details>
+<summary>Claude Code without the plugin system</summary>
 
 ```bash
 git clone https://github.com/patryk-penczek/ship-video.git
