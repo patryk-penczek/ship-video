@@ -29,6 +29,20 @@ fi
 
 echo "ship-video setup → $HOME_DIR"
 mkdir -p "$HOME_DIR"
+
+# one setup at a time: several sessions may run it at once and share ~/.ship-video
+LOCK="$HOME_DIR/.setup.lock"
+for i in $(seq 1 300); do
+  if mkdir "$LOCK" 2>/dev/null; then break; fi
+  # a lock older than 15 minutes is left over from a killed run
+  if [[ -n "$(find "$LOCK" -maxdepth 0 -mmin +15 2>/dev/null)" ]]; then rmdir "$LOCK" 2>/dev/null; continue; fi
+  (( i == 1 )) && echo "  another setup is running; waiting…"
+  sleep 1
+done
+[[ -d "$LOCK" ]] || fail "could not get the setup lock ($LOCK)"
+trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+# it may have finished while we waited
+if (( ! FORCE && ! DEMUCS )) && node "$HERE/lib/check.mjs" >/dev/null 2>&1; then echo "ship-video: already set up"; exit 0; fi
 (( FORCE )) && rm -f "$HOME_DIR/.ready"
 
 # --- system tools ---

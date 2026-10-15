@@ -40,14 +40,15 @@
     const NI = { immediateRender: false };
     const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 
-    // A scene is a full-frame layer that is visible from start to end.
+    // A scene is a full-frame layer shown from start to end. Hidden scenes get visibility:hidden AND opacity:0
+    // (base.css), so a child with visibility:visible can't leak through; they still have layout, so center() works.
     function scene(html, start, end) {
       const el = document.createElement("div");
       el.className = "scene";
       el.innerHTML = html;
       scenesEl.appendChild(el);
-      tl.set(el, { visibility: "visible" }, start);
-      if (end != null) tl.set(el, { visibility: "hidden" }, end);
+      tl.set(el, { attr: { "data-on": "1" } }, start);
+      if (end != null) tl.set(el, { attr: { "data-on": "0" } }, end);
       return el;
     }
     // Moves a scene's children into a camera layer; tween its x/y/scale (see focus()).
@@ -67,9 +68,15 @@
       const p = { n: 0 };
       tl.fromTo(p, { n: 0 }, { n: full.length, duration: t1 - t0, ease: "none", onUpdate: () => { const k = Math.round(p.n); el.textContent = full.slice(0, k); onUpd && onUpd(k); } }, t0);
     }
+    // Number tween. Before t0 the element shows its own HTML text: write the start value there (or tl.set it at 0).
     function count(el, from, to, t0, dur, fmt = (v) => Math.round(v).toLocaleString("en-US")) {
       const p = { v: from };
-      tl.fromTo(p, { v: from }, { v: to, duration: dur, ease: "power2.out", onUpdate: () => { el.textContent = fmt(p.v); } }, t0);
+      tl.fromTo(p, { v: from }, { v: to, duration: dur, ease: "power2.out", onUpdate: () => { el.textContent = fmt(p.v); }, ...NI }, t0);
+    }
+    // Stage-space rect of an element ({l, t, r, b}), e.g. as focus()'s box. Measure before tweens.
+    function rect(el) {
+      const s = stage.getBoundingClientRect(), k = s.width / 1920, r = el.getBoundingClientRect();
+      return { l: (r.left - s.left) / k, t: (r.top - s.top) / k, r: (r.right - s.left) / k, b: (r.bottom - s.top) / k };
     }
     // Stage-space centre of an element. Measure BEFORE adding tweens that move it.
     function center(el) {
@@ -79,7 +86,17 @@
       return { x: (r.left + r.width / 2 - s.left) / k, y: (r.top + r.height / 2 - s.top) / k };
     }
     // Camera transform that puts stage point p at screen centre at zoom s. App UI is small: 1.4–2.3× on what matters.
-    const focus = (p, s) => ({ x: -(p.x - 960) * s, y: -(p.y - 540) * s, scale: s });
+    // By default the point is clamped so the frame never shows past the edges of `box` (the 1920×1080 stage);
+    // pass the replica's own rect as box when it doesn't fill the stage, or clamp: false to aim anywhere.
+    const focus = (p, s, { clamp = true, box = { l: 0, t: 0, r: 1920, b: 1080 } } = {}) => {
+      let { x, y } = p;
+      if (clamp && s >= 1) {
+        // when the box is smaller than the view on an axis, centre on it; otherwise keep the view inside it
+        x = (box.r - box.l) * s <= 1920 ? (box.l + box.r) / 2 : Math.min(Math.max(x, box.l + 960 / s), box.r - 960 / s);
+        y = (box.b - box.t) * s <= 1080 ? (box.t + box.b) / 2 : Math.min(Math.max(y, box.t + 540 / s), box.b - 540 / s);
+      }
+      return { x: -(x - 960) * s, y: -(y - 540) * s, scale: s };
+    };
     function flash(t, peak = 0.9, dur = 0.35, color = "#fff") {
       tl.set(flashEl, { backgroundColor: color }, t);
       tl.fromTo(flashEl, { opacity: peak }, { opacity: 0, duration: dur, ease: "power2.out", ...NI }, t);
@@ -110,7 +127,7 @@
       $$(w, "i").forEach((r, i) => tl.fromTo(r, { scale: 0.2 + i * 0.05, opacity: 1 }, { scale: 2.6, opacity: 0, duration: 1 + i * 0.1, ...NI }, t));
     }
 
-    const ctx = { tl, $, $$, rnd, NI, scene, wrap, splitChars, type, count, center, focus, flash, press, burst, rings, stage, cam, hash, css };
+    const ctx = { tl, $, $$, rnd, NI, scene, wrap, splitChars, type, count, center, rect, focus, flash, press, burst, rings, stage, cam, hash, css };
     cfg.build(ctx);
     tl.set({}, {}, DURATION);
 

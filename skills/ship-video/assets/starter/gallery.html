@@ -1,0 +1,35 @@
+<!doctype html>
+<!-- Replica gallery: one 1920×1080 .frame per app state, built with the same ui.js and film.css as the film.
+     Use it to compare against the real app (scripts/compare.mjs, state names must match states.json)
+     or to show the replicas before animating (scripts/snap.mjs). Add a state per screen in the scenario. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Replica gallery</title>
+<link rel="stylesheet" href="base.css" />
+<link rel="stylesheet" href="film.css" />
+<style>
+  html, body { height: auto; overflow: auto; background: #000; }
+  .frame { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); margin-bottom: 40px; }
+  .frame::before { content: attr(data-state); position: absolute; z-index: 99; right: 0; top: 0; padding: 4px 10px; background: #e11; color: #fff; font: 700 14px monospace; }
+</style>
+</head>
+<body>
+<div id="gallery"></div>
+<script src="ui.js"></script>
+<script>
+  // name → HTML of that state. Mirror the real app: same data, same open dialogs, same selected items.
+  const STATES = {
+    "tasks": () => UI.app(),
+  };
+  const g = document.getElementById("gallery");
+  for (const [name, html] of Object.entries(STATES)) {
+    const f = document.createElement("div");
+    f.className = "frame";
+    f.dataset.state = name;
+    f.innerHTML = html();
+    g.appendChild(f);
+  }
+</script>
+</body>
+</html>

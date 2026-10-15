@@ -1,6 +1,4 @@
 /* ship-video base: stage, camera, fx layers, preview HUD, helper classes. Film-specific styles go in film.css. */
-@font-face { font-family: "Inter Variable"; src: url(fonts/inter.woff2) format("woff2"); font-weight: 100 900; }
-@font-face { font-family: "JetBrains Mono Variable"; src: url(fonts/mono.woff2) format("woff2"); font-weight: 100 800; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 /* deterministic renders: nothing may animate on its own */
@@ -12,7 +10,9 @@ body { font-family: var(--font-body); color: var(--fg); -webkit-font-smoothing: 
 #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); transform-origin: center; flex: none; }
 #cam { position: absolute; inset: 0; transform-origin: 50% 50%; }
 #bg, #scenes, .scene { position: absolute; inset: 0; }
-.scene { visibility: hidden; overflow: hidden; }
+.scene { overflow: hidden; }
+/* hidden scenes: opacity too, so a child with visibility:visible can't leak through; layout stays measurable */
+.scene:not([data-on="1"]) { visibility: hidden; opacity: 0; }
 .camlayer { position: absolute; inset: 0; transform-origin: 50% 50%; }
 
 .bg-grid {

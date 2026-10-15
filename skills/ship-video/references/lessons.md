@@ -10,11 +10,16 @@ Each one cost real time on a shipped film. Read before step 5 (replicas) and aga
 ## UI replicas
 4. **Build replicas from the real components, not from a description.** Copy tokens, fonts, SVG icons and copy verbatim. Then audit component by component (structure, copy, sizes, tokens, icons, states) against the source and fix. The first pass misses a lot.
 5. **App UI is small at 1080p.** A 14 px label is unreadable in a film. Plan camera zooms of 1.4–2.3× on the element that matters, and cut to it fast.
+5a. **The app's CSS resets outrank its components once scoped.** `.app-shot button { … }` beats `.btn-primary`. Port resets through `:where()` (zero specificity); see replicas.md.
+5b. **A theme on `<html>` doesn't move cleanly to a wrapper.** Tokens computed from other tokens on `:root` keep the dark values inside a light wrapper. Re-declare them on the wrapper's `[data-theme]`.
 
 ## GSAP pitfalls
 6. **`fromTo` renders its from-values immediately, at build time.** With several elements in one scene, every `fromTo` paints at once and the frame shows them all overlapping. Use `immediateRender: false` (`NI` in the starter) and give elements that appear later `opacity:0` in their HTML.
 7. **Measure positions (`center()`) before adding tweens that move those elements** (or their camera). Otherwise you measure the from-state and every focus point is off.
 8. **Never let two camera tweens overlap on the same properties.** They fight, and the shot jitters. End one before the next starts, or tween different properties.
+8a. **`center()` of a full-width or `flex: 1` element is the middle of its strip, not of its content.** A focus on an alert banner lands in empty space. Measure the icon or title inside it and offset from there.
+8b. **An element that starts collapsed** (an alert that slides in and pushes content down) must be measured in its natural layout; the elements below it are measured with it present, so their positions before it appears are off by its height plus the gap. Measure both states.
+8c. **Never set `visibility: visible` on an element inside a scene.** It overrides the hidden scene around it. Switch states with `display` or `opacity`.
 
 ## Layout pitfalls
 9. **Gradient text (`background-clip: text`) clips descenders** (g, y, p) unless the box has bottom padding (`.gtext` in base.css handles it). Same for `overflow: hidden` windows such as a rotating word. **Never `splitChars` a `.gtext` word**: each letter restarts the gradient and loses the clip, and the word looks broken. Animate the word as one element.
@@ -26,7 +31,8 @@ Each one cost real time on a shipped film. Read before step 5 (replicas) and aga
 ## Music and timing
 14. **Cuts land on detected hits and kicks.** Verify on the final MP4 with `hits.mjs`: frames at ±0.02 s around every hit.
 15. **A Suno track is as long as Suno makes it.** Shape the film to the track: move scenes to the real hits, stretch or shorten them. If it really must be shorter, cut whole bars on bar lines and keep the drop and the final hit; never trim mid-phrase to hit an exact number.
-16. **A cut on a hit must show something on the hit frame.** A scene that fades in from opacity 0 reads as a late cut. Start at ≥ 0.35 opacity, or enter with scale/blur.
+16. **A cut on a hit must show something on the hit frame.** A scene that fades in from opacity 0 reads as a late cut. Start at ≥ 0.35 opacity, or enter with scale/blur. The same goes for an alert or dialog that enters on a hit.
+16a. **Flashes over app UI stay at ≤ 0.5.** A 0.85–0.9 white flash turns a frame of dark UI flat grey. Strong flashes belong on type-only frames.
 
 ## Tooling
 17. **zsh doesn't word-split unquoted variables.** `T="1 2 3"; node shots.mjs f.html out $T` passes one argument. Use `${=T}` in zsh or pass the times literally. And `$3:stats` is read as `$3` with the `:s` modifier: brace variables next to a colon (`${3}:stats`).

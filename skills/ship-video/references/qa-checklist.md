@@ -5,7 +5,7 @@ Script paths are relative to the skill directory. Copy this list into your reply
 ## Automated
 - [ ] `node scripts/audit.mjs <film>/index.html` prints "no clipped text", or every remaining line is a deliberate transition. Mark intentional masks with `data-clip-ok`. Fix → re-run → repeat until clean.
 - [ ] No `[page]` / `[pageerror]` lines in any script output.
-- [ ] After the crisp render: `node scripts/hits.mjs <crisp.mp4> <film>/review/hits.png <every hit from MUSIC.md>`, then Read the PNG. In each row the cut happens between frame 1 (t−0.02) and frame 2 (t). A cut on frame 3 is late: move the scene start.
+- [ ] After the crisp render: `node scripts/hits.mjs <crisp.mp4> <film>/review/hits.png <cut times>` (cuts only, not hits that move something inside a shot), then Read the PNG. In each row the cut happens between frame 1 (t−0.02) and frame 2 (t). A cut on frame 3 is late: move the scene start.
 
 ## Stills (full resolution; Read every one)
 - [ ] Each hit, each resting frame, the end card.
@@ -17,8 +17,11 @@ Script paths are relative to the skill directory. Copy this list into your reply
 - [ ] Copy matches SCENARIO.md word for word.
 
 ## Replicas
-- [ ] Every screen was compared with its source component (structure, copy, sizes, tokens, icons, states).
+- [ ] Every state was compared with the running app (`compare.mjs`) or, if it can't run, with its source components.
 - [ ] Mismatches you couldn't fix are listed for the final report.
+
+## Scenario
+- [ ] Every departure from SCENARIO.md (time, effect, framing) was listed for the user before the stills were approved.
 
 ## Determinism
 - [ ] No `setTimeout`, CSS animations, `Date`, `Math.random` in film code.

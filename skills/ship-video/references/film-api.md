@@ -6,7 +6,7 @@ Read this before writing or editing `film.js`. Paths to scripts are relative to 
 - File layout
 - Config
 - Helpers (ctx)
-- Patterns: scene with camera, typing, press + burst, word per beat, cut on a hit, rolling word, sprites, audio-reactive
+- Patterns: scene with camera, typing, press + burst, word per beat, cut on a hit, rolling word, several app states + theme reveal, SVG chart steps, slide-in element, sprites, audio-reactive
 - Determinism rules
 
 ## File layout
@@ -44,9 +44,10 @@ Film({
 | `scene(html, start, end)` | full-frame layer visible from `start` to `end` (`null` = to the end); returns the element |
 | `wrap(sceneEl)` | moves children into a camera layer; tween it with `focus()` |
 | `center(el)` | stage-space centre `{x, y}`; call before tweens that move `el` or its camera |
-| `focus(point, scale)` | `{x, y, scale}` that puts `point` at screen centre at `scale` |
-| `type(el, text, t0, t1, onUpdate?)` | types `text` between t0 and t1; seek-safe |
-| `count(el, from, to, t0, dur, fmt?)` | number tween into `el.textContent` |
+| `focus(point, scale, {clamp, box}?)` | `{x, y, scale}` that puts `point` at screen centre at `scale`; clamped so the frame never shows past `box` (default the 1920×1080 stage; pass `rect(el)` for a smaller replica, or `clamp: false`) |
+| `rect(el)` | stage-space `{l, t, r, b}` of an element, e.g. as focus()'s `box` |
+| `type(el, text, t0, t1, onUpdate?)` | types `text` between t0 and t1; seek-safe. Empties `el` at build time (an empty field before typing is what you want); set any other "before" text with `tl.set(el, {textContent}, 0)` |
+| `count(el, from, to, t0, dur, fmt?)` | number tween into `el.textContent`; before `t0` the element shows its own HTML text, so write the start value there |
 | `press(el, t)` | button press (scale 0.92 → 1) landing at `t` |
 | `burst(host, point, t, n?, spread?, colors?)` | particle burst at `point` in `host` |
 | `rings(host, t)` | shockwave rings from the centre of `host` |
@@ -91,6 +92,22 @@ tl.fromTo($(s, ".new"), { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3
 **Cut on a hit**: the new scene's `start` equals the hit time, and its first frame already shows content (start opacity ≥ 0.35 or a scale/blur entrance), so the cut reads on the frame of the hit.
 
 **Rolling word** (`.roll > .stack > span`): tween `.stack` `yPercent` by `-100 / spans.length` per step.
+
+**Several app states in one scene**: stack copies of the screen (`UI.app("before")`, `UI.app("after")`) absolutely on top of each other and switch with `tl.set(el, { display: "none" | "" }, t)`. Measure every copy before any tween. For a theme change, reveal the second copy with a circle from the toggle:
+```js
+const T = center($(s, ".theme-toggle"));
+const circ = (r) => `circle(${r}px at ${T.x}px ${T.y}px)`;
+tl.fromTo($(s, ".light"), { clipPath: circ(0) }, { clipPath: circ(2300), duration: 0.7, ease: "power2.inOut" }, 14);
+```
+
+**Steps in an SVG chart**: `tl.set(dot, { attr: { r: 6, fill: "var(--sun)" } }, t)`; move an HTML tooltip with `left`/`top` in % of the chart box.
+
+**An element that slides in and pushes content down** (alert, toast): measure its natural height first, then
+```js
+const h = $(s, ".alert").offsetHeight;                                  // measured with it present
+tl.set($(s, ".alert"), { height: 0, opacity: 0, marginBottom: -gap }, 0);
+tl.fromTo($(s, ".alert"), { height: 0, opacity: 0.35, marginBottom: -gap }, { height: h, opacity: 1, marginBottom: 0, duration: 0.35, ...NI }, 9.98);
+```
 
 **Sprites** for GIFs/animated emoji: convert to a horizontal strip (`ffmpeg -i in.gif -vf tile=Nx1 strip.png`), then
 ```html

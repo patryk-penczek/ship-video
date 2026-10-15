@@ -1,4 +1,4 @@
-// Creates a film folder from the starter: index.html, engine.js, base.css, film.css, ui.js, film.js, env.js, gsap.min.js, fonts/.
+// Creates a film folder from the starter: index.html, engine.js, base.css, film.css, ui.js, film.js, gallery.html, env.js, gsap.min.js, fonts/, img/, out/, review/.
 // usage: node new-film.mjs <dir>
 import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -14,7 +14,7 @@ if (!existsSync(nm)) { console.error(`deps missing in ${HOME_DIR}. Run scripts/s
 
 const starter = path.join(path.dirname(fileURLToPath(import.meta.url)), "../assets/starter");
 mkdirSync(path.join(dir, "fonts"), { recursive: true });
-mkdirSync(path.join(dir, "img"), { recursive: true });
+for (const sub of ["img", "out", "review"]) mkdirSync(path.join(dir, sub), { recursive: true });
 cpSync(starter, dir, { recursive: true });
 cpSync(path.join(nm, "gsap/dist/gsap.min.js"), path.join(dir, "gsap.min.js"));
 cpSync(path.join(nm, "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"), path.join(dir, "fonts/inter.woff2"));

@@ -60,13 +60,13 @@ Pick one of three paths when Claude asks:
 
 ## Try it on the demo app
 
-[`demo-app/`](demo-app) is **Breeze**, a small weather app (Bun + React) with enough going on to film: a ⌘K city search, weather alerts, an hourly chart, a 7-day forecast and a light/dark theme.
+[`demo-app/`](demo-app) is **Breeze**, a weather app (Bun + React, static data) with enough going on to film a 30-second trailer: a ⌘K command palette, weather alerts, minute-by-minute rain, an hourly chart you can scrub, a 7-day forecast, air quality, wind, sun and moon, "best time to…" activity picks, an animated rain radar with a timeline, a compare view that ranks your places, °C/°F, and a light/dark theme that switches with a circular reveal.
 
 ```bash
 cd demo-app && bun install && bun run dev   # http://localhost:4783
 ```
 
-Then ask Claude: *"Make a 20-second launch video for the weather app in demo-app/."*
+Then ask Claude: *"Make a 35-second trailer for the weather app in demo-app/."*
 
 ## Requirements
 
@@ -97,7 +97,7 @@ macOS or Linux with **Node 20+**, **ffmpeg** and **Python 3** ([uv](https://docs
 skills/ship-video/
 ├─ SKILL.md            the guided flow: steps, approval gates, scripts, gotchas
 ├─ references/         read on demand: lessons, film API, music map, templates, QA checklist
-├─ scripts/            render, stills, audit, hit check, music analysis (all take --help)
+├─ scripts/            render, stills, replica compare, audit, hit check, music analysis (all take --help)
 └─ assets/starter/     the film template
 demo-app/              Breeze, the demo weather app
 evals/                 test prompts for the skill

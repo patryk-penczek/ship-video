@@ -39,6 +39,14 @@ Every decision goes through the **AskUserQuestion** tool, never a list of questi
 - Questions about facts you can look up (tokens, copy, routes, track length) are not questions. Look them up.
 - Without AskUserQuestion (other hosts), fall back to one short numbered list of options.
 
+## Sharing the machine
+
+The user may run several sessions at once, each making a film, and they share `~/.ship-video`, the CPU and dev-server ports.
+- **Stop only what you started, by PID.** Renders: `node $S/render.mjs --stop <out.mp4>`. Never `pkill -f render.mjs`, `pkill chrome…` or `killall node`: they kill other sessions' renders.
+- **One film folder per session.** A live `<film>/out/*.pid` means another session is rendering there: leave that folder alone.
+- **Dev servers:** if the app already answers on its port, use that server; start one only if nothing answers, note its PID, and stop it when you're done. Never stop a server you didn't start.
+- Renders running side by side are slower but identical: every frame is computed from its time.
+
 ## Progress checklist
 
 Show this at the first reply, at each gate and at the end, not after every step:
@@ -65,7 +73,7 @@ Run `node $S/lib/check.mjs`. It answers instantly once setup has succeeded. Only
 Find what you can yourself first (README, package.json, routes, components, existing assets). Then ask what's left in one AskUserQuestion call, typically:
 - goal: launch / one feature / how-to;
 - length: *Match the music* / 15–20 s / 20–30 s / 30–45 s. "Match the music" is first and recommended whenever a track exists or will come from Suno; the film's `duration` is then the track's length;
-- music: own file / Suno / none (step 2);
+- music: own file / Suno / none (step 2). If they pick their own file and you can already see a candidate (the newest audio file in `~/Downloads`), ask step 2's "Where will this film be shown?" in the same call;
 - real assets to use, if you found candidates (screenshots, GIFs, avatars, logo). Real beats invented every time.
 
 Create the folder: `node $S/new-film.mjs <film>` (outside the product repo unless the user wants it inside). Put assets in `<film>/img`; keep downloads in their own folder.
@@ -121,31 +129,37 @@ When they approve, write the chosen variants into SCENARIO.md and add `Approved:
 
 ## 5. Replicas
 
-Read `references/lessons.md` first. For each screen in the scenario:
-1. Read the real component: structure, copy, sizes, tokens, fonts, icons. Copy tokens and SVG icons verbatim into `film.css` / `ui.js`.
-2. Write a builder in `ui.js` that returns the screen's HTML.
-3. Compare against the source, component by component, and fix every mismatch. The first pass always misses things.
+Read `references/lessons.md` and `references/replicas.md` first. Delete the starter's `.demo-*` sample from `film.css` and `ui.js`. For each screen in the scenario:
+1. Read the real component: structure, copy, sizes, tokens, fonts, icons. Copy tokens and SVG icons verbatim; port the app's CSS as `replicas.md` describes.
+2. Write a builder in `ui.js` that returns the screen's HTML, and add each state the scenario needs to `STATES` in `<film>/gallery.html`.
+3. Compare against the real app and fix every mismatch. The first pass always misses things.
+   - **The app runs locally** (the usual case): reuse its dev server or start one (see *Sharing the machine*), write `<film>/states.json` with the actions that reach each state, then `node $S/compare.mjs <url> <film>/gallery.html <film>/review/compare --states <film>/states.json` and Read every PNG (real on top, replica below). Repeat until they match. Stop the server if you started it.
+   - **It doesn't run:** compare against the source, component by component, and against any screenshots the user has.
 
 Copy the product's font files to `<film>/fonts`, declare them in `film.css`, and list every face in `fonts:` and every image in `images:` in `film.js`. Layout is measured at build time, so anything still loading is measured wrong.
 
-Optional: a static gallery page with one `.frame` (1920×1080) per screen, captured with `node $S/snap.mjs gallery.html <film>/review/replica.png`, to show the user before animating.
+To show the user replicas before animating: `node $S/snap.mjs <film>/gallery.html <film>/review/replica.png`.
 
-**Exit:** every scenario screen exists and the audit found nothing left to fix. **Then:** step 6.
+**Exit:** every scenario state exists in the gallery and matches the real app. **Then:** step 6.
 
 ## 6. Build
 
 Read `references/film-api.md`, then write the scenes in `film.js` in scenario order, at the scenario's times. The starter film shows each pattern. Preview by opening `<film>/index.html` (Space play, ←/→ 1 s, Alt+←/→ one beat, Shift+←/→ one frame, `?t=12.5`).
 
-**Exit:** every act exists and plays without console errors. **Then:** step 7.
+Then a one-second test render, which catches a broken page, a missing track or a bad output path in seconds instead of after a long render: `node $S/render.mjs <film>/index.html <film>/out/test.mp4 --preset draft --from 0 --to 1`.
+
+**Exit:** every act exists, plays without console errors, and the test render succeeds. **Then:** step 7.
 
 ## 7. Review
 
 Look first, then show:
 ```
-node $S/sheet.mjs <film>/index.html <from> <to> 0.25 <film>/review/sheet-<act>.png
+node $S/sheet.mjs <film>/index.html <from> <to> <step> <film>/review/sheet-<act>.png
 node $S/shots.mjs <film>/index.html <film>/review/stills <t1> <t2> … --label
 ```
-Read every PNG yourself and fix what's obviously wrong. Then give the user the paths to the contact sheets and to full-resolution stills of each hit, each resting frame and the end card, and ask with AskUserQuestion: *Approve, render it* / *Fix something* (they describe it in Other) / *Show me more frames*.
+Use a 0.25 s step for kinetic type and 0.5 s (or `--cols 4`) for acts with app UI, whose text is unreadable in small tiles.
+
+Read every PNG yourself and fix what's obviously wrong. Then, before asking, **list every place the film departs from SCENARIO.md** (a time moved, an effect changed, a different framing), one line each: the user approved the scenario, so a silent change is a broken promise. Give the paths to the contact sheets and to full-resolution stills of each hit, each resting frame and the end card, and ask with AskUserQuestion: *Approve, render it* / *Fix something* (they describe it in Other) / *Show me more frames*.
 
 <HARD-GATE>
 No full render until the user approves the stills. After each round of fixes, show the changed frames again.
@@ -164,11 +178,17 @@ Ask which render they want with AskUserQuestion:
 - *Crisp*: 60 fps, sharp frames; about 4 s of render per second of film.
 - *Both, I'll compare*.
 
-If the film will become a GIF, recommend *Crisp* instead: blended frames add colours that a 256-colour GIF bands and bloats. Render crisp first either way (the hit check runs on it); run motion blur in the background:
+If the film will become a GIF, recommend *Crisp* instead: blended frames add colours that a 256-colour GIF bands and bloats. Crisp takes about 4–6 s per second of film, motion blur about 6× that.
+
+Run every full render **in the background** (`run_in_background`): a long one outlives the tool's 10-minute limit. Crisp first (the hit check runs on it):
 ```
 node $S/render.mjs <film>/index.html <film>/out/film-crisp.mp4
 node $S/render.mjs <film>/index.html <film>/out/film-motionblur.mp4 --preset motionblur
 ```
+- Within a minute of starting, read `<out>.progress` (`frame n/total, ETA`) before telling the user it's running. `failed: …` there means the render stopped; the reason follows.
+- The render writes `<out>.part` and renames it only on success, so a file at `<out>` is always complete.
+- Stop a render: `node $S/render.mjs --stop <out.mp4>`.
+- A render dies with the session that started it. Before a long motion-blur render, tell the user to keep the session open (or run it with `nohup … &` and give them the `--stop` command).
 A GIF for a README or a post (keep it under ~10 MB; lessons.md #20 for what to turn off first):
 ```
 ffmpeg -i film-crisp.mp4 -vf "fps=15,scale=900:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle" film.gif
@@ -178,9 +198,11 @@ Use `--preset draft` or `--from/--to` for quick checks while iterating.
 
 Before saying it's done, verify on the crisp MP4:
 ```
-node $S/hits.mjs <film>/out/film-crisp.mp4 <film>/review/hits.png <hit times from MUSIC.md>
+node $S/hits.mjs <film>/out/film-crisp.mp4 <film>/review/hits.png <cut times>
 ```
-Read hits.png: in every row the cut falls between the first and second frame. Then report: paths, duration, file sizes, how to preview, and **what couldn't match the real app** (missing assets, approximated components, placeholder copy).
+Pass only the times where the picture **cuts**. A hit that only moves something inside a shot (an alert sliding in) has no cut to land and reads as a late one. Read hits.png: in every row the cut falls between the first and second frame.
+
+Clean up: stop dev servers and processes you started, delete `out/test.mp4` and any leftover `*.part`. Then report: paths, duration, file sizes, how to preview, and **what couldn't match the real app** (missing assets, approximated components, placeholder copy).
 
 ## Scripts
 
@@ -193,8 +215,9 @@ Read hits.png: in every row the cut falls between the first and second frame. Th
 | `sheet.mjs <html> <from> <to> <step> <out.png>` | time-stamped contact sheet |
 | `shots.mjs <html> <dir> t… [--label]` | full-resolution stills |
 | `snap.mjs <page.html> <out.png>` | screenshots of `.frame` elements (replica gallery) |
-| `audit.mjs <html>` | clipped-text scan every 1/8 s |
-| `render.mjs <html> <out.mp4> [--preset crisp\|motionblur\|draft]` | frame-exact MP4 with the track |
+| `compare.mjs <url> <gallery.html> <dir> --states s.json` | real app above replica, per state |
+| `audit.mjs <html> [--no-crop] [--summary]` | clipped-text scan every 1/8 s |
+| `render.mjs <html> <out.mp4> [--preset crisp\|motionblur\|draft]` | frame-exact MP4 with the track; `--stop <out.mp4>` |
 | `hits.mjs <mp4> <out.png> t…` | frames at t−0.02 / t / t+0.02 per hit |
 
 ## Gotchas
@@ -206,6 +229,7 @@ The ones that cost the most; the full list is in `references/lessons.md`.
 - **App UI is tiny at 1080p.** Zoom 1.4–2.3× on what matters.
 - **Anything time-based outside the timeline** (`setTimeout`, CSS animation, `Math.random`, `Date`) makes the render differ from the preview.
 - **Gradient text clips descenders** unless the box has bottom padding (`.gtext` handles it).
+- **The frame on a hit must show the new thing.** Entrances on a hit start at opacity ≥ 0.35 (or scale/blur), never 0.
 
 ## Red flags
 
@@ -224,6 +248,7 @@ The ones that cost the most; the full list is in `references/lessons.md`.
 | file | read when |
 |---|---|
 | `references/lessons.md` | before step 5, and before step 6 |
+| `references/replicas.md` | step 5 |
 | `references/suno-prompt.md` | step 2, path B |
 | `references/music-map.md` | step 3 |
 | `references/scenario-template.md` | step 4 |

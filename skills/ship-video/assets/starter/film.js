@@ -9,7 +9,7 @@ Film({
   fonts: ["800 40px 'Inter Variable'", "500 20px 'Inter Variable'", "500 20px 'JetBrains Mono Variable'"],
   images: [],
 
-  build({ tl, $, $$, NI, scene, wrap, splitChars, type, count, center, focus, flash, press, burst, rings }) {
+  build({ tl, $, $$, NI, scene, wrap, splitChars, type, count, center, rect, focus, flash, press, burst, rings }) {
     // ------------------------------------------------------------------
     // 0–2 · intro: a line types itself, the caret stretches into the hit
     // ------------------------------------------------------------------
@@ -53,41 +53,43 @@ Film({
     const s2 = scene(UI.app(), 4, 8);
     const c2 = wrap(s2);
     // measure first, then tween
-    const rows = $$(s2, ".row");
-    const P = { input: center($(s2, ".app-in")), add: center($(s2, ".app-btn")), app: center($(s2, ".app")), boxes: rows.map((r) => center($(r, ".box"))) };
+    const rows = $$(s2, ".demo-row");
+    const P = { input: center($(s2, ".demo-app-in")), add: center($(s2, ".demo-app-btn")), app: center($(s2, ".demo-app")), boxes: rows.map((r) => center($(r, ".demo-box"))) };
     const newRow = rows[0];
     const fx = document.createElement("div");
     fx.style.cssText = "position:absolute;inset:0;pointer-events:none";
     c2.appendChild(fx);
 
-    tl.fromTo($(s2, ".app"), { y: 60, opacity: 0.35, filter: "blur(10px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: 0.35 }, 4);
-    tl.fromTo(c2, focus({ x: P.input.x + 120, y: P.input.y }, 1.6), { ...focus({ x: P.input.x + 160, y: P.input.y }, 1.8), duration: 1.4, ease: "power1.inOut" }, 4);
-    tl.set($(s2, ".app-in"), { className: "app-in" }, 0);
-    tl.set($(s2, ".app-in"), { className: "app-in on" }, 4.25);
+    tl.fromTo($(s2, ".demo-app"), { y: 60, opacity: 0.35, filter: "blur(10px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: 0.35 }, 4);
+    // keep every shot inside the app window: no empty stage at the edges
+    const box = rect($(s2, ".demo-app"));
+    tl.fromTo(c2, focus({ x: P.input.x + 120, y: P.input.y }, 1.6, { box }), { ...focus({ x: P.input.x + 160, y: P.input.y }, 1.8, { box }), duration: 1.4, ease: "power1.inOut" }, 4);
+    tl.set($(s2, ".demo-app-in"), { className: "demo-app-in" }, 0);
+    tl.set($(s2, ".demo-app-in"), { className: "demo-app-in on" }, 4.25);
     type($(s2, ".q"), "Render the launch film", 4.3, 5.2);
     tl.set($(s2, ".q"), { textContent: "Add a task…" }, 0);
-    tl.to(c2, { ...focus(P.add, 2.0), duration: 0.35, ease: "power3.inOut" }, 5.15);
-    press($(s2, ".app-btn"), 5.5);
+    tl.to(c2, { ...focus(P.add, 2.0, { box }), duration: 0.35, ease: "power3.inOut" }, 5.15);
+    press($(s2, ".demo-app-btn"), 5.5);
     tl.set($(s2, ".q"), { textContent: "Add a task…" }, 5.5);
-    tl.set($(s2, ".app-in"), { className: "app-in" }, 5.5);
+    tl.set($(s2, ".demo-app-in"), { className: "demo-app-in" }, 5.5);
     // the new row: hidden until Add, then pops in
     tl.set(newRow, { display: "none" }, 0);
     tl.set(newRow, { display: "" }, 5.5);
-    tl.set($(newRow, ".txt"), { textContent: "Render the launch film" }, 5.5);
+    tl.set($(newRow, ".demo-txt"), { textContent: "Render the launch film" }, 5.5);
     tl.fromTo(newRow, { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(2)", ...NI }, 5.5);
     // 6.0 bar: pull back to see the list, then tick a box on every beat
-    tl.to(c2, { ...focus({ x: P.app.x, y: P.app.y + 20 }, 1.15), duration: 0.6, ease: "power3.out" }, 6.0);
+    tl.to(c2, { ...focus({ x: P.app.x, y: P.app.y + 20 }, 1.15, { box }), duration: 0.6, ease: "power3.out" }, 6.0);
     [1, 2, 0].forEach((ri, i) => {
       const r = rows[ri];
       const t = 6.5 + i * 0.5;
-      tl.set(r, { className: "row" }, 0);
-      tl.set(r, { className: "row done" }, t);
+      tl.set(r, { className: "demo-row" }, 0);
+      tl.set(r, { className: "demo-row done" }, t);
       tl.fromTo($(r, "svg"), { opacity: 0, scale: 0 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(3)", ...NI }, t);
-      press($(r, ".box"), t);
+      press($(r, ".demo-box"), t);
       burst(fx, P.boxes[ri], t, 10, 50);
-      tl.set($(s2, ".done-n"), { textContent: String(i + 1) }, t);
+      tl.set($(s2, ".demo-done-n"), { textContent: String(i + 1) }, t);
     });
-    tl.set($(s2, ".done-n"), { textContent: "0" }, 0);
+    tl.set($(s2, ".demo-done-n"), { textContent: "0" }, 0);
 
     // ------------------------------------------------------------------
     // 8.0 · the big hit: flash, rings, a number counts up
@@ -95,13 +97,13 @@ Film({
     const s3 = scene(`<div class="center"><div style="display:flex;flex-direction:column;align-items:center;gap:20px">
         <div class="display" style="font-size:300px"><span class="num">0</span><span class="gtext" style="font-size:.5em;padding-left:.1em">fps</span></div>
         <div class="eyebrow s3e">every frame rendered on purpose</div></div></div>
-      <div class="cap"><i></i><span><div class="n">01 · RENDER</div><div class="t">Frame-exact.</div></span></div>`, 8, 10);
-    flash(8, 1, 0.5);
+      <div class="demo-cap"><i></i><span><div class="n">01 · RENDER</div><div class="t">Frame-exact.</div></span></div>`, 8, 10);
+    flash(8, 0.7, 0.4); // type-only frame: a strong flash is fine here; keep ≤ 0.5 over app UI
     rings(s3, 8);
     tl.to(".bg-grid, .bg-glow", { opacity: 1, duration: 0.6, ease: "power2.out" }, 8);
     count($(s3, ".num"), 0, 60, 8, 1.2);
     tl.fromTo($(s3, ".s3e"), { opacity: 0, letterSpacing: "0.6em" }, { opacity: 1, letterSpacing: "0.3em", duration: 0.6 }, 8.3);
-    tl.fromTo($(s3, ".cap"), { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4 }, 9.0);
+    tl.fromTo($(s3, ".demo-cap"), { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4 }, 9.0);
 
     // ------------------------------------------------------------------
     // 10–12 · end card, fade out
@@ -109,8 +111,8 @@ Film({
     const s4 = scene(`<div class="center"><div style="display:flex;flex-direction:column;align-items:center;gap:36px">
         <div class="display s4t" style="font-size:180px;white-space:nowrap">Your film here.</div>
         <div class="eyebrow s4e">ship-video · claude code</div></div></div>`, 10, null);
-    flash(10, 0.8, 0.5, getComputedStyle(document.documentElement).getPropertyValue("--accent"));
-    tl.fromTo(splitChars($(s4, ".s4t")), { y: 80, opacity: 0, filter: "blur(10px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: 0.6, stagger: 0.02 }, 10);
+    flash(10, 0.55, 0.45, getComputedStyle(document.documentElement).getPropertyValue("--accent"));
+    tl.fromTo(splitChars($(s4, ".s4t")), { y: 60, opacity: 0.35, filter: "blur(8px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: 0.6, stagger: 0.02 }, 10);
     tl.fromTo($(s4, ".s4e"), { opacity: 0 }, { opacity: 1, duration: 0.6 }, 10.5);
     tl.to([$(s4, ".center"), ".bg-grid", ".bg-glow"], { opacity: 0, duration: 0.7, ease: "power2.in" }, 11.2);
   },
