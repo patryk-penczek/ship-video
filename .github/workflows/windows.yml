@@ -1,0 +1,47 @@
+# Native Windows check: full setup and a one-second render on windows-latest. Runs only when the engine's
+# scripts or starter change (free for public repositories), so the docs-only pushes stay on the cheap Linux check.
+name: windows
+
+on:
+  pull_request:
+    paths: ["skills/ship-video/scripts/**", "skills/ship-video/assets/**", ".github/workflows/windows.yml"]
+  push:
+    branches: [main]
+    paths: ["skills/ship-video/scripts/**", "skills/ship-video/assets/**", ".github/workflows/windows.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup-and-render:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: ffmpeg and uv
+        run: choco install ffmpeg -y --no-progress; pip install uv
+
+      - name: Setup
+        run: node skills/ship-video/scripts/setup.mjs
+
+      - name: Check
+        run: node skills/ship-video/scripts/lib/check.mjs --full
+
+      - name: One-second draft render
+        run: |
+          node skills/ship-video/scripts/new-film.mjs "$env:RUNNER_TEMP\film" --silent
+          node skills/ship-video/scripts/render.mjs "$env:RUNNER_TEMP\film\index.html" "$env:RUNNER_TEMP\film\out\test.mp4" --preset draft --from 0 --to 1
+          node skills/ship-video/scripts/audit.mjs "$env:RUNNER_TEMP\film\index.html" --summary
+
+      - name: Music grid
+        run: node skills/ship-video/scripts/music.mjs grid --bpm 120 --duration 8
