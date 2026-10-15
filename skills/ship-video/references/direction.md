@@ -15,6 +15,10 @@ Read at step 1b (coverage, story), before writing the scenario (step 4) and in t
 
 ## Film structure by length
 
+**Identity first, in every film type.** Whatever the film is about (a launch, one feature, a pricing change, a how-to), by about 3 s a stranger must know **what the product is, who it's for and what it does**, and must have seen the product itself working: name + the one-sentence promise + a real glimpse of the product doing its main job. Only then the specific topic. A teaser of one feature with no identity ("here is a price, here is how to buy it") tells the viewer nothing and fails, however polished. For a one-feature, pricing or how-to film that means: 0–3 s identity (product name, promise, the product's core view moving), then the topic, and the end card repeats name + promise. The table below assumes this.
+
+**Stranger test** (run it on the scenario and on the stills): could someone who has never heard of the product, watching muted, answer (1) what is it, (2) who is it for, (3) why would I want it, (4) what should I do next? A "no" on any of them is a rewrite, not a polish.
+
 | length | hook | promise | tour | payoff | end card |
 |---|---|---|---|---|---|
 | 15 s | 0–1.5 | 1.5–3 | 3–11, 4 shots of ~2 s | 11–13 | 13–15 |

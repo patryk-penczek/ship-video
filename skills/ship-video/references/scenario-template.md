@@ -86,6 +86,7 @@ Run it on the scenario before the gate (answer from the table) and on the stills
 
 | # | question | scenario | stills |
 |---|---|---|---|
+| 0 | Stranger test: watching muted, can someone who never heard of the product say what it is, who it's for, why they'd want it and what to do next? Is the product itself seen working by ~3 s, whatever the film's topic? | | |
 | 1 | Hook in the first second: is the strongest image sharp and moving on frame 1? | | |
 | 2 | Is the story readable without sound: problem → hero → action → payoff, in three sentences? | | |
 | 3 | Coverage: does every major view/wow moment from PRODUCT.md appear? | | |

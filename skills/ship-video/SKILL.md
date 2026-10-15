@@ -90,6 +90,8 @@ If they give copy, a storyboard or brand rules, use them as the scenario's start
 
 Create the folder: `node $S/new-film.mjs <film>` (outside the product repo unless the user wants it inside). Put assets in `<film>/img`; keep downloads in their own folder.
 
+Every film, whatever its topic, first tells a stranger what the product is and shows it working (`direction.md`, *Identity first*). If the topic is narrow (a pricing change, one feature, a how-to), ask what a stranger should take away and what's new, if the repo doesn't say.
+
 **Exit:** you can describe the film in two sentences and the user agrees. **Then:** 1b Discovery.
 
 ## 1b. Discovery
