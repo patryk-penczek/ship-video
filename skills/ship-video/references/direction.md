@@ -6,7 +6,7 @@ The numbers in this file (28 px, 40–70%, 2–2.5 s, 1.2–2.2 s) are defaults 
 
 ## Contents
 - Film structure by length (hook, promise, tour, payoff, end card, causality, landing)
-- Pacing rules
+- Pacing rules (incl. motion vs novelty, cursor or no cursor)
 - Framing rules
 - Silent films
 - Red flags
@@ -39,13 +39,22 @@ The table assumes the stranger default (`film-types.md`, *Identity first*): 0-3 
 
 1. **Something moves in every frame, and something changes every beat.** Camera drift, a counter, a cursor, a chart (a 1.0 → 1.07 drift counts as moving; a held camera needs something else moving). This is the one stillness rule, and the number is about 1 s because that is where a viewer starts to read a picture as frozen: no span longer than about 1 s without a visible change, except the end card's landing rest. `motion.mjs` measures it on the MP4. A how-to result hold (1.5–2 s) keeps a ring, counter or cursor moving, so it passes.
 2. *(launch, teaser, hype)* **A new visual idea every 1–2 s in a 20 s film** (every 2–3 s at 45 s). Cut, new view, new zoom target, new interaction.
-3. **Interactions, not swaps.** Whole screens appearing instantly is the weakest thing a film can do. Show the cursor moving and clicking, the route transitioning, the list filling, the number counting.
+3. **Interactions, not swaps.** Whole screens appearing instantly is the weakest thing a film can do. Show the interaction (see *Cursor or no cursor* below for who performs it), the route transitioning, the list filling, the number counting.
 4. *(launch, teaser, hype; how-to steps run 2–5 s)* **One idea per shot**, shot length 1.2–2.2 s. Longer than 2.5 s needs two moving things in sequence.
 5. **The cut frame is crisp.** On a cut the new thing is already sharp and fully opaque, entering by offset, scale or a small blur, never a fade from 0 or 0.35 (it reads as dim or late). The rule and the code: `film-api.md`, *Cut on a hit*.
 6. *(dark-UI products, hype films)* **Don't leave the frame dark.** At least two thirds of the frames of a dark-UI film should have a bright, large element (a number, a light panel, a headline). Continuous dark UI past about 4 s feels heavy: alternate with a light or kinetic card (a flood-colour word, a white caption card, a light-theme screen, the theme reveal). A dark-only app has no light theme to fall back on, so the kinetic cards are the tool. A dialog or palette shot is dark by default: zoom onto it.
 7. **Easing carries energy.** Fast in, soft out (`expo.out`, `power3.out`) for arrivals; `power2.inOut` for camera moves; `none` only for slow continuous drifts and scrubs.
 8. **A silence gap before the drop needs a tense image.** The gap is where anticipation builds, so don't fill it with the flattest shot: use an anticipation shot (a slow push on the thing about to change, a cursor hovering, a counter about to tick, type held mid-word) so the drop releases something.
 9. **One scene per hard cut.** A montage or screen wall made of camera cuts inside a single scene reads as a pile of jumps to the audit (dozens of lines); build each cut as its own scene (`shots.md`, 8).
+
+10. **Motion is not novelty.** A visualizer looping, a camera drifting or a counter ticking keeps pixels changing (so `motion.mjs` passes) while nothing new happens. If the viewer could look away for 3 s and miss nothing, the shot is too long: cut it shorter or put the next idea in. Running out of ideas before the music ends means the film is too long (cut a section of the track, `SKILL.md` step 1).
+
+### Cursor or no cursor
+
+Decide per film (and say which in SCENARIO.md); the starter's cursor is a tool, not a default.
+- **Use a cursor** (or a finger on touch UIs) when *the viewer must learn the action*: how-tos, onboarding, "it's one click" claims, drag-and-drop, any shot whose point is cause → effect. Then make every click readable (*Framing rules*).
+- **Leave it out** when *the result is the point*: launch and hype films, data changing, skins or themes switching, a feed teaser. The UI changes by itself on the beat (state swaps with a crisp entrance, a highlight, a camera move to the thing that changed), which is cleaner and faster, and nobody wonders who is clicking. A cursor that wanders in for one click in an otherwise cursorless film looks like a mistake.
+- **Mixed** is fine when the film has a clear "now watch me do it" act: cursorless intro and payoff, cursor only inside the action act.
 
 ## Framing rules
 
