@@ -60,6 +60,10 @@ Copy the cut times into `hits` in `film.js` as `[t, shakePx]` (strong hit 10–1
   A total shift under one bar needs no re-approval.
 - When the track arrives, run the analysis, replace `GRID DRAFT` with the track name, and move each cut to the nearest real hit.
 
+## Generated beat
+
+A beat made with `music.mjs synth` (`synth.md`) is analyzed like any track, but you know what is in it: the drop, riser, gap and hits it prints are its plan, and `analyze` should show the same times within a frame or two (its times are quantized to about 12 ms; a weak planned hit may show unstarred). If the `drop:` line disagrees with the plan, trust the plan, then fix `beat.json` (a hit with `strength` under 0.8 inside a loud groove is the usual miss) and rerun. Write `MUSIC.md` from the analysis, header `# Track: track.wav`. No rights check; a later swap to Suno means *Re-timing* below.
+
 ## Re-timing to a new take
 
 Suno takes and edits change timings. Re-run `analyze`, compare old and new MUSIC.md row by row, and shift each scene's `start`/`end` and its tweens by the difference. A helper constant per act (`const A2 = 9.98;` and tweens at `A2 + 0.36`) makes this a one-line change. If any act moves by more than one bar, show the user the new act table and ask for approval again.
