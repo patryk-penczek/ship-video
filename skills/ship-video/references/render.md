@@ -17,7 +17,7 @@ Ask with AskUserQuestion:
 - *Motion blur*: 240 fps blended 4:1, smoother motion. About 3–4× slower than crisp: a 35 s film takes about 6–8 minutes idle and up to 25 when other renders run.
 - *Both, I'll compare*.
 
-Timings are 2–3× longer when other renders run (one 34 s film measured 9 s per film second on a busy machine, and a motion-blur render quoted at 6–8 minutes took about 20) and the ETA in `.progress` is unstable. Tell the user the range, not a promise. **Recommend *Crisp* for UI and instruction films** (how-tos, pricing teasers, anything where the viewer reads app text: motion blur smears text) and for a silent clip or a WebP. Recommend *Motion blur* for kinetic, music-driven launch films. The skill doesn't produce GIFs (`lessons.md` 29 has a manual recipe if they insist; crisp renders convert better).
+Timings are 2–3× longer when other renders run (one 34 s film measured 9 s per film second on a busy machine, and a motion-blur render quoted at 6–8 minutes took about 20) and the ETA in `.progress` is unstable. Tell the user the range, not a promise. **Recommend *Crisp* for UI and instruction films** (how-tos, pricing teasers, anything where the viewer reads app text: motion blur smears text) and for a silent clip or a WebP. Recommend *Motion blur* for kinetic, music-driven launch films. *Selective* (`--preset selective`) blends sub-frames only where something moves fast (`--threshold`, default 2 px per frame) and renders text at rest sharp: the safe middle for UI films that still have fast camera moves, and cheaper than full motion blur. The skill doesn't produce GIFs (`lessons.md` 29 has a manual recipe if they insist; crisp renders convert better).
 
 ## Run it
 
@@ -25,6 +25,7 @@ Timings are 2–3× longer when other renders run (one 34 s film measured 9 s pe
 ```
 node $S/render.mjs <film>/index.html <film>/out/film-crisp.mp4
 node $S/render.mjs <film>/index.html <film>/out/film-motionblur.mp4 --preset motionblur
+node $S/render.mjs <film>/index.html <film>/out/film-selective.mp4 --preset selective
 ```
 - Within a minute, read `<out>.progress` (`frame n/total, ETA`) before telling the user it's running. `failed: …` means it stopped; the reason follows. Poll with short checks; don't `sleep` for minutes in the foreground.
 - The render writes `<out>.part` and renames it only on success, so a file at `<out>` is complete. The done line shows film length and wall time separately.

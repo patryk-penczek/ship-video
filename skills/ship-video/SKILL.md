@@ -187,6 +187,8 @@ To see replicas before animating: `node $S/snap.mjs <film>/gallery.html <film>/r
 Read `film-api.md`, `shots.md` (the shot library) and `motion-vocabulary.md`; the starter film shows each pattern.
 In `film.js` set `track` and `duration` from the `MUSIC.md` header, replace the starter's sample `hits` with the cut times from `MUSIC.md` as `[t, shake]`, then write the scenes in scenario order at the scenario's times. Silent film: `hits: []`, and delete the starter's `flash`, `rings` and shake too.
 
+Camera and pointer defaults: `autoCam` plans close-ups from the clicks, cursor steps target selectors, `spot`/`loupe` pick out a detail in dense UI, a framed stage suits a landing or README hero (not feeds) — all in `film-api.md`.
+
 Re-read `direction.md`, *Pacing* and *Framing*, while you build: they hold the reasons behind the numbers. Judge by the intended viewer; when you break a default, say why in *Changes vs scenario*. The costly tooling pitfalls (entrances, measuring before tweening, camera overlap) are `lessons.md` 7–9 and `film-api.md`.
 
 Preview: tell the user to open `<film>/index.html` (Space play, ←/→ 1 s, Alt+←/→ one beat, Shift+←/→ one frame, `?t=12.5`).
