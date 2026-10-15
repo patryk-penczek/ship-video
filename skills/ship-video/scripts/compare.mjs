@@ -14,6 +14,7 @@
 //   --no-text     skip the text/media presence check (pages with random demo data: compare is layout-only then)
 //   --viewport WxH · --touch · --dpr N · --scheme light|dark · --storage "k=v;k2=v2" · --motion: same meaning as in capture.mjs (use the flags you captured with;
 //   a non-1920x1080 viewport compares the real viewport with the replica's .app-shot wrapper). states.json may carry "init" (login) and per-state "scheme".
+//   state "mask": ["#timing", ".clock"]: elements with live values (response time, clock, random numbers): ignored by the pixel diff and the text check
 //   state "clip": "#pricing" compares that element only (the real page scrolls it into view, the replica element of the same selector is cut out);
 //   a state with its own "root" is compared the same way, by its root. Use it for sections of tall pages and scrolled states.
 // The app runs with reduced motion and CSS animations/transitions frozen, so screenshots are stable.
@@ -67,7 +68,7 @@ async function diff(page, real, replica, cell, mask = []) {
 
 // Runs in a page: the visible text nodes and the count of images/svg/canvas inside `root` that lie in the viewport (w x h, or any height when full),
 // relative to `origin` (the replica's .app-shot, or the page itself). Real page and replica are measured with the same function.
-function census([sel, originSel, w, h, full]) {
+function census([sel, originSel, w, h, full, masks = []]) {
   const root = sel ? document.querySelector(sel) : document.body, o = originSel ? document.querySelector(originSel) : null;
   if (!root) return null;
   const org = o ? o.getBoundingClientRect() : { left: 0, top: 0 }, texts = [];
@@ -82,12 +83,16 @@ function census([sel, originSel, w, h, full]) {
   while (wk.nextNode()) {
     const n = wk.currentNode, e = n.parentElement;
     if (!n.textContent.trim() || /^(SCRIPT|STYLE|NOSCRIPT)$/.test(e?.tagName) || !visible(e)) continue;
-    rg.selectNodeContents(n); if (!inView(rg.getBoundingClientRect())) continue;
-    byParent.set(e, (byParent.get(e) ?? "") + n.textContent);
+    if (masks.some((m) => { try { return e.closest(m); } catch { return false; } })) continue;
+    rg.selectNodeContents(n); const rr = rg.getBoundingClientRect(); if (!inView(rr)) continue;
+    const cur = byParent.get(e); byParent.set(e, { t: (cur?.t ?? "") + n.textContent, r: cur?.r ?? [rr.left - org.left, rr.top - org.top, rr.width, rr.height] });
   }
-  for (const t of byParent.values()) { const v = t.replace(/\s+/g, " ").trim(); if (v) texts.push(v); }
+  // relative times ("5 min ago", "just now") and timings ("34 ms") change between runs: compared as a placeholder
+  const norm = (t) => t.replace(/\s+/g, " ").trim().replace(/\b(\d+|an?)\s*(s|sec\w*|m|min\w*|h|hrs?|hours?|d|days?|w|weeks?|months?|y|years?)\s+ago\b/gi, "~ ago").replace(/\bjust now\b/gi, "~ ago").replace(/\b\d+(\.\d+)?\s?ms\b/g, "~ ms");
+  const boxes = [];
+  for (const { t, r } of byParent.values()) { const v = norm(t); if (v) { texts.push(v); boxes.push([v, ...r]); } }
   const media = [...root.querySelectorAll("img, svg, canvas")].filter((e) => !e.closest("svg:not(:scope)") && visible(e) && inView(e.getBoundingClientRect())).length;
-  return { texts, media };
+  return { texts, boxes, media };
 }
 
 mkdirSync(outDir, { recursive: true });
@@ -112,7 +117,7 @@ try {
     if (!clipSel) await app.evaluate(() => { window.scrollTo(0, 0); for (const e of document.querySelectorAll("*")) if (e.scrollTop || e.scrollLeft) { e.scrollTop = 0; e.scrollLeft = 0; } });
     await app.waitForTimeout(100);
     const pageH = await app.evaluate(() => document.documentElement.scrollHeight);
-    if (!fullPage && pageH > H + 20) console.error(`note [${st.name}] the page is ${pageH} px tall: only the top ${H} px are compared (add --full, or "full": true on the state, to verify the rest)`);
+    if (!fullPage && !(st.clip ?? st.root) && pageH > H + 20) console.error(`note [${st.name}] the page is ${pageH} px tall: only the top ${H} px are compared (add --full, or "full": true on the state, to verify the rest)`);
     const frame = await gal.$(`.frame[data-state="${st.name}"]`);
     if (!frame) { errors.push(`gallery has no .frame[data-state="${st.name}"]`); return; }
     // replica part to compare: the clipped element, or the .app-shot wrapper when the viewport is not 1920x1080, or the whole frame
@@ -129,19 +134,25 @@ try {
     const real = realBuf.toString("base64");
     const full = fullPage ? await app.evaluate(() => document.documentElement.scrollHeight) : H;
     if (fullPage && !clipSel) await frame.evaluate((f, h) => { f.style.height = `${h}px`; f.querySelectorAll(".app-shot").forEach((s) => { s.style.height = `${h}px`; }); }, full);
+    if (clipSel) await frame.evaluate((f) => { for (const e of [f, ...f.querySelectorAll(".app-shot")]) { e.dataset.svS = e.getAttribute("style") ?? ""; e.style.height = "auto"; e.style.overflow = "visible"; } }); // an element taller than the viewport: do not cut it at the frame
     const replica = (await repEl.screenshot()).toString("base64");
+    if (clipSel) await frame.evaluate((f) => { for (const e of [f, ...f.querySelectorAll(".app-shot")]) { e.setAttribute("style", e.dataset.svS); delete e.dataset.svS; } });
     if (fullPage && !clipSel) await frame.evaluate((f) => { f.style.height = ""; f.querySelectorAll(".app-shot").forEach((s) => { s.style.height = ""; }); });
     // canvas pixels (a map, a chart drawn by JS) never match a captured frame: masked out of the diff when the state has canvases of its own
-    const mask = (st.canvas || st.record) ? await app.evaluate(([sel, k]) => {
+    // "mask": [selector, ...] on a state does the same for live numbers (a response time, a clock, a random value): those elements are ignored by the diff and the text check
+    const masks = [].concat(st.mask ?? []);
+    const mask = (st.canvas || st.record || masks.length) ? await app.evaluate(([sel, k, masks, canv]) => {
       const o = sel ? document.querySelector(sel).getBoundingClientRect() : { left: 0, top: 0 };
-      return [...document.querySelectorAll("canvas")].map((c) => { const r = c.getBoundingClientRect(); return [(r.left - o.left) * k, (r.top - o.top) * k, r.width * k, r.height * k]; });
-    }, [clipSel, DPR]) : [];
-    if (mask.length) console.error(`note [${st.name}] ${mask.length} canvas region(s) masked out of the pixel diff`);
+      const els = [...(canv ? document.querySelectorAll("canvas") : []), ...masks.flatMap((m) => [...document.querySelectorAll(m)])];
+      return els.map((c) => { const r = c.getBoundingClientRect(); return [(r.left - o.left) * k, (r.top - o.top) * k, r.width * k, r.height * k]; }).filter((r) => r[2] > 0 && r[3] > 0);
+    }, [clipSel, DPR, masks, !!(st.canvas || st.record)]) : [];
+    if (mask.length) console.error(`note [${st.name}] ${mask.length} region(s) (canvas / "mask") masked out of the pixel diff`);
     const d = await diff(tool, real, replica, Math.round(64 * DPR), mask);
     // presence check: text and media the real page shows but the replica does not (a dropped toast scores 0.5 % in pixels)
     const fs = `.frame[data-state="${st.name}"]`, repRoot = clipSel ? (st.clip ? `${fs} .app-shot ${st.clip}` : `${fs} .app-shot > :first-child`) : fs;
-    const rc = a["no-text"] ? null : await app.evaluate(census, [clipSel, clipSel, W, H, fullPage || !!clipSel]);
-    const rp = a["no-text"] ? null : await gal.evaluate(census, [repRoot, clipSel ? repRoot : `${fs} .app-shot`, W, H, fullPage || !!clipSel]);
+    const noText = a["no-text"] || st.image; // an image state has no text to find
+    const rc = noText ? null : await app.evaluate(census, [clipSel, clipSel, W, H, fullPage || !!clipSel, masks]);
+    const rp = noText ? null : await gal.evaluate(census, [repRoot, clipSel ? repRoot : `${fs} .app-shot`, W, H, fullPage || !!clipSel, masks.map((m) => `${repRoot === fs ? fs : repRoot} ${m}`)]);
     const miss = [], extra = [];
     if (process.env.DEBUG) console.error(`[${st.name}] census real ${rc?.texts.length} texts, replica ${rp?.texts.length} (root ${repRoot})`);
     if (rc && rp) {
@@ -150,11 +161,25 @@ try {
       for (const [t, n] of B) if ((A.get(t) ?? 0) < n) extra.push(t);
     }
     const mediaDiff = rc && rp ? rp.media - rc.media : 0;
-    const bad = d.pct > max || d.block.pct > maxBlock || miss.length > 0;
+    // structure: the same text must sit in the same place. Pixel diff stays low on a mostly empty page even when the layout collapsed into one column.
+    let moved = 0, matched = 0;
+    if (rc && rp) {
+      const pool = new Map(); for (const [t, ...r] of rp.boxes) (pool.get(t) ?? pool.set(t, []).get(t)).push(r);
+      for (const [t, x, y, w, h] of rc.boxes) {
+        const list = pool.get(t); if (!list?.length) continue;
+        let bi = 0, bd = Infinity; list.forEach((r, i) => { const dd = Math.hypot(r[0] - x, r[1] - y); if (dd < bd) { bd = dd; bi = i; } });
+        const [rx, ry, rw, rh] = list.splice(bi, 1)[0]; matched++;
+        if (Math.hypot(rx - x, ry - y) > 40 || Math.abs(rw - w) > Math.max(24, w * 0.3) || Math.abs(rh - h) > Math.max(16, h * 0.5)) moved++;
+      }
+    }
+    const layoutBroken = matched >= 8 && moved / matched > 0.25;
+    const allIconsLost = rc && rp && rc.media >= 3 && rp.media === 0; // text intact but every icon / image / chart gone
+    const bad = d.pct > max || d.block.pct > maxBlock || miss.length > 0 || allIconsLost || layoutBroken;
     const notes = [`worst 64px cell ${d.block.pct.toFixed(0)} % at (${Math.round(d.block.x / DPR)}, ${Math.round(d.block.y / DPR)})`,
       ...(miss.length ? [`MISSING in replica: ${miss.slice(0, 6).map((t) => JSON.stringify(t.slice(0, 40))).join(" ")}${miss.length > 6 ? ` +${miss.length - 6}` : ""}`] : []),
       ...(extra.length ? [`only in replica: ${extra.slice(0, 4).map((t) => JSON.stringify(t.slice(0, 40))).join(" ")}${extra.length > 4 ? ` +${extra.length - 4}` : ""}`] : []),
-      ...(mediaDiff ? [`images/svg/canvas: real ${rc.media}, replica ${rp.media}`] : [])];
+      ...(layoutBroken ? [`LAYOUT: ${moved} of ${matched} text boxes sit >40 px (or a different size) from where the real page has them: the replica is structurally different (missing CSS? a collapsed or stacked layout?)`] : []),
+      ...(mediaDiff ? [`images/svg/canvas: real ${rc.media}, replica ${rp.media}${allIconsLost ? "  (ALL of them are missing: icons, images or charts were lost in the capture)" : ""}`] : [])];
     writeFileSync(path.join(outDir, `${st.name}-diff.png`), Buffer.from(d.png, "base64"));
 
     const sheet = await browser.newPage({ viewport: { width: Math.round(W * scale), height: 100 } });
@@ -166,7 +191,7 @@ try {
       ${bar("#0a6", `REAL · ${st.name}`)}${img(real)}${bar("#a40", `REPLICA · ${st.name}`)}${img(replica)}${bar(bad ? "#c22" : "#446", `DIFF · ${st.name} · ${d.pct.toFixed(2)} % · ${notes.join(" · ")}${hh ? ` · window from y ${Math.round(y0 / DPR)}` : ""}`)}${img(d.png)}</body>`);
     await sheet.screenshot({ path: path.join(outDir, `${st.name}.png`), fullPage: true });
     await sheet.close();
-    rows.push({ name: st.name, pct: +d.pct.toFixed(2), block: +d.block.pct.toFixed(1), missing: miss, onlyInReplica: extra, real: d.size.slice(0, 2), replica: d.size.slice(2) });
+    rows.push({ name: st.name, pct: +d.pct.toFixed(2), block: +d.block.pct.toFixed(1), missing: miss, onlyInReplica: extra, moved, matched, real: d.size.slice(0, 2), replica: d.size.slice(2) });
     console.log(`${st.name.padEnd(18)} diff ${d.pct.toFixed(2).padStart(6)} %  block ${d.block.pct.toFixed(0).padStart(3)} %${bad ? "  OVER" : ""}${d.size[1] !== d.size[3] ? `  (size ${d.size[0]}x${d.size[1]} vs ${d.size[2]}x${d.size[3]})` : ""}  → ${path.join(outDir, `${st.name}.png`)}`);
     for (const n of notes.slice(1)) console.log(`${" ".repeat(19)}${n}`);
   });
