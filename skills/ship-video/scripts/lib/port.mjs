@@ -47,7 +47,10 @@ export const outsideRoot = (page, sel) => page.evaluate((sel) => {
 // What the CSS rewrite needs to know about the live page.
 export const pageInfo = (page, rootSel) => page.evaluate((sel) => {
   const root = document.querySelector(sel), de = document.documentElement, b = document.body;
-  const cs = getComputedStyle(b), bg = [b, de].map((e) => getComputedStyle(e).backgroundColor).find((c) => c && c !== "rgba(0, 0, 0, 0)") ?? "";
+  const cs = getComputedStyle(b);
+  // the page background: the first painted background walking from the app root up through its containers (#root often paints it), then body, then html
+  const chain = []; for (let e = root; e; e = e.parentElement) chain.push(e); chain.push(de);
+  const bg = chain.map((e) => getComputedStyle(e).backgroundColor).find((c) => c && c !== "rgba(0, 0, 0, 0)" && !/rgba\(.*, 0\)$/.test(c)) ?? "";
   const attrs = (e) => Object.fromEntries([...e.attributes].filter((a) => !["lang", "id", "dir"].includes(a.name)).map((a) => [a.name, a.value]));
   const merged = { ...attrs(de), ...attrs(b) };
   merged.class = [de.className, b.className].filter(Boolean).join(" ") || undefined;
@@ -62,11 +65,12 @@ export const pageInfo = (page, rootSel) => page.evaluate((sel) => {
     scheme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
     // a fingerprint of the theme: every custom property on :root plus the theme attributes. Apps inject ONE theme block at a time, so a run that
     // switches themes would otherwise keep only the last theme's variables. Colour variables only: sizes and Tailwind's per-element --tw-* change from state to state
-    sig: (() => { const c = getComputedStyle(de), v = []; for (const n of c) { const x = c.getPropertyValue(n).trim(); if (n.startsWith("--") && !/^--(tw|radix|rdp|framer|sv)-/.test(n) && /^(#[0-9a-f]{3,8}|rgba?\(|hsla?\(|oklch\(|oklab\(|lab\(|lch\(|color\()/i.test(x)) v.push(`${n}:${x}`); } return `${v.join(";")}|${de.getAttribute("data-theme") ?? ""}|${de.className}|${b.className}`; })(),
+    sig: (() => { const c = getComputedStyle(de), v = []; for (const n of c) { const x = c.getPropertyValue(n).trim(); if (n.startsWith("--") && !/^--(tw|radix|rdp|framer|sv)-/.test(n) && /^(#[0-9a-f]{3,8}|rgba?\(|hsla?\(|oklch\(|oklab\(|lab\(|lch\(|color\()/i.test(x)) v.push(`${n}:${x}`); } return `${v.sort().join(";")}|${de.getAttribute("data-theme") ?? ""}|${de.className}|${b.className}`; })(),
     lum: (() => { // luminance 0..1 of the page background, whatever colour syntax it uses (oklch, rgb, hex)
       try { const c = document.createElement("canvas"); c.width = c.height = 1; const x = c.getContext("2d", { willReadFrequently: true }); x.fillStyle = "#fff"; x.fillStyle = bg || "#fff"; x.fillRect(0, 0, 1, 1); const [r, g, b] = x.getImageData(0, 0, 1, 1).data; return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; } catch { return 1; }
     })(),
     rootFont: parseFloat(getComputedStyle(de).fontSize),
+    bodyMargin: ["Top", "Right", "Bottom", "Left"].map((k) => parseFloat(cs["margin" + k]) || 0), // body { margin: 8px } is lost on the wrapper (margin 0): carried as padding
     base: { color: cs.color, fontFamily: cs.fontFamily, fontSize: cs.fontSize, lineHeight: cs.lineHeight, fontWeight: cs.fontWeight, background: bg },
   };
 }, rootSel);
@@ -124,14 +128,14 @@ function transform({ sheets, info, W, H, SC, tail: withTail }) {
   // tiny CSS tokenizer: [{ prelude, body }] at one nesting level (comments stripped; strings and (…) respected)
   function parse(src) {
     const nodes = []; let i = 0;
-    const end = (from, stops) => { let d = 0, q = null; for (let k = from; k < src.length; k++) { const c = src[k]; if (q) { if (c === "\\") k++; else if (c === q) q = null; continue; } if (c === '"' || c === "'") q = c; else if (c === "(") d++; else if (c === ")") d--; else if (!d && stops.includes(c)) return k; } return src.length; };
+    const end = (from, stops) => { let d = 0, q = null; for (let k = from; k < src.length; k++) { const c = src[k]; if (q) { if (c === "\\") k++; else if (c === q) q = null; continue; } if (c === "\\") { k++; continue; } if (c === '"' || c === "'") q = c; else if (c === "(") d++; else if (c === ")") d--; else if (!d && stops.includes(c)) return k; } return src.length; };
     while (i < src.length) {
       while (/\s/.test(src[i] ?? "")) i++;
       if (i >= src.length) break;
       const k = end(i, "{;"), prelude = src.slice(i, k).trim().replace(/\s+/g, " ");
       if (src[k] !== "{") { if (prelude) nodes.push({ prelude }); i = k + 1; continue; }
       let d = 1, j = k + 1, q = null;
-      for (; j < src.length && d; j++) { const c = src[j]; if (q) { if (c === "\\") j++; else if (c === q) q = null; } else if (c === '"' || c === "'") q = c; else if (c === "{") d++; else if (c === "}") d--; }
+      for (; j < src.length && d; j++) { const c = src[j]; if (q) { if (c === "\\") j++; else if (c === q) q = null; } else if (c === "\\") j++; else if (c === '"' || c === "'") q = c; else if (c === "{") d++; else if (c === "}") d--; }
       nodes.push({ prelude, body: src.slice(k, j) }); i = j;
     }
     return nodes;
@@ -155,9 +159,16 @@ function transform({ sheets, info, W, H, SC, tail: withTail }) {
       else if (["layer", "container", "scope"].includes(name)) walk(parse(body.slice(1, -1)), base); // contents kept; layer order is lost
     }
   }
-  for (const s of sheets) walk(parse(s.text.replace(/\/\*[\s\S]*?\*\//g, "")), s.base);
-  const b = info.base;
-  const head = `:where(${SC}) { color: ${b.color}; font: ${b.fontWeight} ${b.fontSize}/${b.lineHeight} ${b.fontFamily}; ${b.background ? `background: ${b.background}; ` : ""}-webkit-font-smoothing: antialiased; }
+  // Sanity: an independent count of top-level style blocks (quotes ignored, so a tokenizer that mis-reads a string cannot fool it) against what parse() found
+  const naiveTop = (src) => { let d = 0, n = 0, at = false, start = true; for (let i = 0; i < src.length; i++) { const c = src[i]; if (c === "\\") { i++; start = false; continue; } if (c === "{") { if (!d && !at) n++; d++; } else if (c === "}") { d = Math.max(0, d - 1); if (!d) { start = true; at = false; } } else if (c === ";" && !d) { start = true; at = false; } else if (!d && start && !/\s/.test(c)) { start = false; at = c === "@"; } } return n; };
+  const check = { parsed: 0, naive: 0 };
+  for (const s of sheets) {
+    const text = s.text.replace(/\/\*[\s\S]*?\*\//g, ""), nodes = parse(text);
+    check.parsed += nodes.filter((n) => n.body != null && !n.prelude.startsWith("@")).length; check.naive += naiveTop(text);
+    walk(nodes, s.base);
+  }
+  const b = info.base, bm = info.bodyMargin ?? [0, 0, 0, 0];
+  const head = `:where(${SC}) { color: ${b.color}; font: ${b.fontWeight} ${b.fontSize}/${b.lineHeight} ${b.fontFamily}; ${b.background ? `background: ${b.background}; ` : ""}${bm.some((v) => v) ? "display: flow-root; " : ""}-webkit-font-smoothing: antialiased; }
 :where(${SC} *:not(button, input, select, textarea, progress, meter)), :where(${SC} *:not(button, input, select, textarea, progress, meter))::before, :where(${SC} *:not(button, input, select, textarea, progress, meter))::after { box-sizing: content-box; }
 :where(${SC}) :where(h1) { margin: .67em 0; font-size: 2em; font-weight: 700; } :where(${SC}) :where(h2) { margin: .83em 0; font-size: 1.5em; font-weight: 700; } :where(${SC}) :where(h3) { margin: 1em 0; font-size: 1.17em; font-weight: 700; }
 :where(${SC}) :where(h4) { margin: 1.33em 0; font-weight: 700; } :where(${SC}) :where(h5) { margin: 1.67em 0; font-size: .83em; font-weight: 700; } :where(${SC}) :where(h6) { margin: 2.33em 0; font-size: .67em; font-weight: 700; }
@@ -167,9 +178,10 @@ function transform({ sheets, info, W, H, SC, tail: withTail }) {
   // becomes static so fixed overlays (turned absolute) anchor to the wrapper; a narrower root (a centred column) keeps its position:
   // making it static would stretch its tab bar / FAB / toast to the wrapper width.
   const full = info.rootW >= info.viewW - 1;
+  const pad = bm.some((v) => v) ? ` padding: ${bm.map((v) => v + "px").join(" ")};` : ""; // body margin → wrapper padding (flow-root in the head keeps children's margins inside)
   const tail = withTail ? `/* film adaptations */
-.app-shot { isolation: isolate; position: absolute; left: ${(1920 - W) / 2}px; top: ${(1080 - H) / 2}px; width: ${W}px; height: ${H}px; margin: 0; overflow: hidden; box-sizing: border-box; }${info.rootPos === "relative" && full ? `\n.app-shot > :first-child { position: static; } /* fixed overlays anchor to the ${W}x${H} wrapper */` : ""}` : "";
-  return { css: `${head}\n${out.join("\n")}\n${tail}\n`, rules: out, fonts, stats, keyframes: keyframes ?? [], animations: uses.flatMap(([sel, toks]) => toks.filter((t) => (keyframes ?? []).includes(t)).map((t) => `${t} on ${sel}`)) };
+.app-shot { isolation: isolate; position: absolute; left: ${(1920 - W) / 2}px; top: ${(1080 - H) / 2}px; width: ${W}px; height: ${H}px; margin: 0; overflow: hidden; box-sizing: border-box;${pad} }${info.rootPos === "relative" && full ? `\n.app-shot > :first-child { position: static; } /* fixed overlays anchor to the ${W}x${H} wrapper */` : ""}` : "";
+  return { css: `${head}\n${out.join("\n")}\n${tail}\n`, check, rules: out, fonts, stats, keyframes: keyframes ?? [], animations: uses.flatMap(([sel, toks]) => toks.filter((t) => (keyframes ?? []).includes(t)).map((t) => `${t} on ${sel}`)) };
 }
 
 // Copies every url("http…"/"file:…") in `css` into <film>/fonts or <film>/img and points the css at the copy.
@@ -211,8 +223,8 @@ export async function portCss(browser, sheets, info, film, out = path.join(film,
     finally { await page.close(); }
   };
   const r = await run(sheets, info, ".app-shot", true);
-  const baseRules = new Set(r.rules);
-  for (const x of extra) { const e = await run(x.sheets, x.info, ".app-shot", false), keep = e.rules.filter((q) => !baseRules.has(q)).map((q) => q.replace(/\.app-shot(?![\w-])/g, `.app-shot[data-tk="${x.key}"]`)); r.css += `\n/* theme ${x.key} (${keep.length} rules differ) */\n${keep.join("\n")}\n`; r.fonts.push(...e.fonts); r.stats.keyframes += e.stats.keyframes; r.keyframes.push(...e.keyframes); r.animations.push(...e.animations); }
+  const selOf = (q) => q.slice(0, q.indexOf("{")).trim(), lastBase = new Map(r.rules.map((q) => [selOf(q), q])); // the last rule per selector wins in the cascade: an extra theme keeps what differs from THAT, not from any earlier rule
+  for (const x of extra) { const e = await run(x.sheets, x.info, ".app-shot", false), keep = e.rules.filter((q) => lastBase.get(selOf(q)) !== q).map((q) => q.replace(/\.app-shot(?![\w-])/g, `.app-shot[data-tk="${x.key}"]`)); r.css += `\n/* theme ${x.key} (${keep.length} rules differ) */\n${keep.join("\n")}\n`; r.fonts.push(...e.fonts); r.stats.keyframes += e.stats.keyframes; r.keyframes.push(...e.keyframes); r.animations.push(...e.animations); }
   // @font-face rules for fonts the page registered through the FontFace API (capture.mjs collects them); skipped when the CSS already has the file
   for (const f of jsFaces) { const u = f.match(/url\("([^"]+)"\)/)?.[1]; if (!u || !r.css.includes(u) && !r.fonts.some((x) => x.includes(u))) r.fonts.push(f); }
   const faces = [...new Set(r.fonts.map((f) => f.replace(/\s+/g, " ")))];
@@ -223,10 +235,11 @@ export async function portCss(browser, sheets, info, film, out = path.join(film,
   const ranges = [];
   const fontList = [...loc.css.matchAll(/@font-face\s*\{[^}]*\}/g)].map((m) => {
     if (/url\("(?:https?|file):/.test(m[0])) return null; // its file was not copied: don't list a face that cannot load offline
-    const fam = m[0].match(/font-family:\s*"?([^";]+?)"?\s*;/)?.[1], ws = (m[0].match(/font-weight:\s*([^;]+);/)?.[1] ?? "400").trim().split(/\s+/);
+    const fam = m[0].match(/font-family:\s*([^;]+);/)?.[1].trim().replace(/^["']+|["']+$/g, "").replace(/"/g, ""), ws = (m[0].match(/font-weight:\s*([^;]+);/)?.[1] ?? "400").trim().split(/\s+/);
     if (fam && ws.length > 1 && ws[0] !== ws.at(-1)) ranges.push(`${fam} ${ws[0]}-${ws.at(-1)}`);
-    return fam && `${ws.at(-1)} 40px '${fam}'`;
+    return fam && `${ws.at(-1)} 40px '${fam.replace(/'/g, "")}'`;
   }).filter(Boolean);
   if (loc.failed.length) console.error(`port-css: ${loc.failed.length} file(s) could not be copied; app.css still points at them (absolute URLs): fix the paths, the film would not render offline`);
-  return { out, rules: r.css.split("\n").length, fontFaces: faces.length, copied: loc.copied, stats: r.stats, keyframes: [...new Set(r.keyframes)], animations: [...new Set(r.animations)], fonts: [...new Set(fontList)], variable: [...new Set(ranges)], failed: loc.failed };
+  if (r.check.naive >= 20 && r.check.parsed < r.check.naive * 0.8) console.error(`WARNING port-css: only ${r.check.parsed} of ${r.check.naive} top-level CSS rules were parsed: the tokenizer lost most of the stylesheet (an exotic selector or string). The replica will be badly broken: report the stylesheet, or write the missing rules by hand.`);
+  return { out, check: r.check, rules: r.css.split("\n").length, fontFaces: faces.length, copied: loc.copied, stats: r.stats, keyframes: [...new Set(r.keyframes)], animations: [...new Set(r.animations)], fonts: [...new Set(fontList)], variable: [...new Set(ranges)], failed: loc.failed };
 }
