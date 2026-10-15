@@ -13,15 +13,15 @@ Read at step 9. `$S` = `${CLAUDE_SKILL_DIR}/scripts`, `<film>` = the film folder
 ## Choose the render
 
 Ask with AskUserQuestion:
-- *Crisp*: 60 fps, sharp frames. About 3.5 s of render per film second on an idle machine.
+- *Crisp*: 60 fps, sharp frames. About 2–3.5 s of render per film second on an idle machine (a 30 s film took about a minute).
 - *Motion blur*: 240 fps blended 4:1, smoother motion. About 3–4× slower than crisp: a 35 s film takes about 6–8 minutes idle and up to 25 when other renders run.
 - *Both, I'll compare*.
 
-Timings are 2–3× longer when other renders run and the ETA in `.progress` is unstable. Tell the user the range, not a promise. Recommend *Motion blur* unless they want a GIF. The skill doesn't produce GIFs (`lessons.md` 20 has a manual recipe if they insist; crisp renders convert better).
+Timings are 2–3× longer when other renders run and the ETA in `.progress` is unstable. Tell the user the range, not a promise. **Recommend *Crisp* for UI and instruction films** (how-tos, pricing teasers, anything where the viewer reads app text: motion blur smears text) and for a silent clip or a WebP. Recommend *Motion blur* for kinetic, music-driven launch films. The skill doesn't produce GIFs (`lessons.md` 20 has a manual recipe if they insist; crisp renders convert better).
 
 ## Run it
 
-**Always render crisp first**, even if they only want motion blur: it is several times cheaper and the hit check runs on it. Keep only what they chose. Run every full render **in the background** (`run_in_background`), since a long one outlives the tool's 10-minute limit:
+**Always render crisp first**, even if they only want motion blur: it is several times cheaper and the hit check runs on it. Keep the crisp MP4 unless they chose motion blur only; then delete it after the hit check. Run every full render **in the background** (`run_in_background`), since a long one outlives the tool's 10-minute limit:
 ```
 node $S/render.mjs <film>/index.html <film>/out/film-crisp.mp4
 node $S/render.mjs <film>/index.html <film>/out/film-motionblur.mp4 --preset motionblur
@@ -38,7 +38,7 @@ For a README or a post: an animated WebP autoplays and loops in full colour. Git
 ```
 node $S/webp.mjs <film>/out/film-crisp.mp4 <film>/out/film.webp
 ```
-Defaults: `--fps 30 --width 960 --quality 70 --max-mb 8`; if the result is over `--max-mb` it lowers quality, then width, until it fits. Check the printed size. A silent film for a README: *Silent films* in `direction.md`.
+A WebP is for READMEs and websites; **X and LinkedIn don't accept it: post the MP4** (note it in the report when they said where it's shown). Defaults: `--fps 30 --width 960 --quality 70 --max-mb 8`; if the result is over `--max-mb` it lowers quality, then width, until it fits. Check the printed size. A silent film for a README: *Silent films* in `direction.md`.
 
 ## Verify
 
@@ -50,7 +50,7 @@ Pass only the times where the picture **cuts** (a reveal that starts on the hit 
 
 ## Clean up and report
 
-Stop dev servers and processes you started; delete `out/test.mp4`, leftover `*.part`, `*.progress` and `*.pid` files, and the crisp MP4 if they didn't ask for it. Then report: paths, film length, file sizes, how to preview, and **what couldn't match the real app** (missing assets, approximated components, placeholder copy).
+Stop dev servers and processes you started; delete `out/test.mp4`, leftover `*.part`, `*.progress` and `*.pid` files, and the crisp MP4 only if they chose motion blur only (keep the chosen version(s) and nothing else). Then report: paths, film length, file sizes, how to preview, and **what couldn't match the real app** (missing assets, approximated components, placeholder copy).
 
 ## Changes after the render
 

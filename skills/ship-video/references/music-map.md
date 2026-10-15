@@ -16,7 +16,7 @@ Read this in step 3, after `node $S/music.mjs analyze`. `$S` = `${CLAUDE_SKILL_D
 | `sections:`, `drop:` | the analysis's guess at intro / groove / build / drop / outro and which hit is the drop (when your version prints them) | a guess: confirm on the plot |
 | energy table, section lifts | sections: where the groove starts, the drop, the outro | high; `rms` and `sub` columns rise at the drop |
 
-**The loudest hit is not always the drop.** A track with a quiet intro often has its loudest stab right at the start (the intro hit); the drop is the first full-band wall after the riser or break, usually later and not always the loudest. Don't put the climax on the intro stab. The drop is where the story's payoff goes. If `sections:`/`drop:` and the plot disagree, trust the plot and say which hit you picked.
+**Always confirm the drop on the plot.** The `drop:` guess can pick an early riser (a 6 s riser instead of the real drop at 14 s after a gap). **The loudest hit is not always the drop either.** A track with a quiet intro often has its loudest stab right at the start (the intro hit); the drop is the first full-band wall after the riser or break, usually later and not always the loudest. Don't put the climax on the intro stab. The drop is where the story's payoff goes. If `sections:`/`drop:` and the plot disagree, trust the plot and say which hit you picked.
 
 To see what plays when (kick, bass, hi-hat, riser, melody), read the spectrogram plot: the low band shows kicks and bass, the high band hats and risers, and a dark gap before a bright wall is a break into a drop. With stems (`music.mjs stems`, needs `--demucs`) you can see each instrument's onsets alone; without them the plot and the `kicks:` list are enough. Use kick onsets for typing and counters (`motion-vocabulary.md`), hits for cuts.
 
@@ -48,8 +48,16 @@ Copy the cut times into `hits` in `film.js` as `[t, shakePx]` (strong hit 10–1
 ## No music (grid)
 
 `node $S/music.mjs grid --bpm <bpm> --duration <seconds>` prints bar and beat times. It writes nothing unless you pass `--out` (`--out <film>/env.js` writes `window.ENV = null;`, add `--pulse` for a synthetic beat pulse). Write MUSIC.md from the times: bar starts for cuts, beats for moves.
+- **Silent BPM:** pick one whose beat is a whole number of frames at 60 fps and whose whole bars fill the length: 120 (0.5 s beat), 144 (25 frames), 90, 72 BPM; 15 s: 144 BPM = 9 bars; 20 s: 120 BPM = 10 bars; 30 s: 120 = 15 bars. In code compute `t = n * 60 / bpm`, not the printed rounded times. `grid` prints 2 decimals, which is up to 0.005 s off.
 - **Silent film:** first line `SILENT, <bpm> BPM, duration <s> s`, then the bar grid and a role per bar (the resume table treats any MUSIC.md as the music step done). Leave `env.js` as `window.ENV = null;`; no pulses, no shakes (`direction.md`, *Silent films*). Fill the same **role in the story** column on the bar grid: problem on bars 1, action across the middle bars, payoff on the strongest bar (about 60–75% in), end card on the last.
 - **Suno pending:** first line `GRID DRAFT`; the grid is a stand-in. Pass `--out <film>/env.js --pulse` only if you want a beat-reactive preview, and expect to regenerate `env.js` from the real track.
+- **The take is longer than asked** (a 21.0 s take, audible end 20.09 s, 20 s requested): end the film at the audible end plus a short fade, or crop the take on a bar line with a fade and re-analyse. Don't end on a track that is still at −30 dB at the cut. Keep the planned and real times side by side:
+
+  | event | planned (grid) | real (take) | shift |
+  |---|---|---|---|
+  | drop | 14.00 | 14.26 | +0.26 |
+
+  A total shift under one bar needs no re-approval.
 - When the track arrives, run the analysis, replace `GRID DRAFT` with the track name, and move each cut to the nearest real hit.
 
 ## Re-timing to a new take
@@ -60,5 +68,6 @@ Suno takes and edits change timings. Re-run `analyze`, compare old and new MUSIC
 
 Ask where the film will be shown, not which license the track has:
 - *Just me / internal draft*: no rights check; the track stays local.
-- *Public or for a client*: ask "Where does the track come from?" → *I made it / bought a license* · *Suno, paid plan* · *Free library (CC0 / CC BY)* · *Somewhere else*. For Suno ask **before they generate**: the plan active at generation time decides, and upgrading later does not cover songs made on the free plan. Free plan or "somewhere else" isn't publishable: offer to generate after upgrading, or a silent film. CC BY needs a credit line in the film's description.
+- *Website, loop or autoplay*: ask whether it plays muted and loops. A muted hero must read without sound, and a loop wants a last frame matching the first.
+- *Public or for a client*: ask "Where does the track come from?" → *I made it / bought a license* · *Suno, paid plan* · *Free library (CC0 / CC BY)* · *Somewhere else*. For Suno ask **before they generate**: the plan active at generation time decides, and upgrading later does not cover songs made on the free plan. Also ask **which account generated the track** (a company website needs the company's paid account: the terms attach to the account that generated it) and keep the download date or receipt and the clip ID with the film. If the user already said "Suno, paid plan" don't ask the source question again. Embeds on YouTube or Meta can raise automated claims on AI music; a self-hosted video is low risk. Free plan or "somewhere else" isn't publishable: offer to generate after upgrading, or a silent film. CC BY needs a credit line in the film's description.
 - *Not decided yet*: treat it as a draft and ask again before the render.

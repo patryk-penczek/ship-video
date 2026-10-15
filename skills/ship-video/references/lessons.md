@@ -25,6 +25,7 @@ Each one cost real time on a shipped film. Read once before step 5 (replicas); i
 
 ## Direction pitfalls
 Each of these came from a film that was technically clean and still judged weak. Details and code: `direction.md`, `motion-vocabulary.md`.
+- **A film must say what the product is** to a viewer who doesn't know it: a polished teaser of a price or a feature with no identity is the weakest outcome (`direction.md`, *Identity first*).
 - **Silent is not calm.** Without music the film still needs a new idea every 1–2 s and motion in every frame; screens swapped or held for a bar read as slides (`direction.md`, *Silent films*).
 - **Film the whole product.** A launch film that skips whole views (a map, a compare view, the error page) misses what the product is. Discovery (`PRODUCT.md`) lists them; the scenario's coverage table shows each.
 - **One concrete case, not a feature list.** Features are the consequences of a story (problem → hero → action → payoff).
@@ -33,7 +34,7 @@ Each of these came from a film that was technically clean and still judged weak.
 - **A zoom with nothing in it** (empty toolbar, the top of a card without its number) is the most common framing failure. Aim at the content.
 
 ## Layout pitfalls
-8f. **`backdrop-filter` ghosts in scaled or stacked layers.** Use a solid or near-opaque background in the replica instead of a blurred sample of what's behind.
+8f. **`backdrop-filter` ghosts in scaled or stacked layers, and blotches a zoomed modal scrim even as a single copy.** Use a solid or near-opaque background in the replica instead (`[role=dialog]{backdrop-filter:none!important}` in `film.css`).
 9. **Gradient text (`background-clip: text`) clips descenders** (g, y, p) unless the box has bottom padding, and **clips the last letter on the right** when negative letter-spacing pushes it past the box (`.gtext` in base.css pads both). The audit can't see either: nothing overflows the layout, the paint is just cut. Check gradient words in full-resolution stills. Same for `overflow: hidden` windows such as a rotating word. **Never `splitChars` a `.gtext` word**: each letter restarts the gradient and loses the clip, and the word looks broken. Animate the word as one element.
 10. **Bun's CSS bundler breaks fontsource `@font-face` rules** (it unquotes `format("woff2-variations")`, and Chrome drops the rule). The app silently falls back to system fonts, and a replica measured from it will be wrong. When reading a Bun/Vite app's fonts, check which files they point to and write your own `@font-face` in `film.css` with `format("woff2")`.
 11. **Long kinetic words overflow 1920 px.** Run `audit.mjs` and fix every hit that isn't a deliberate transition.

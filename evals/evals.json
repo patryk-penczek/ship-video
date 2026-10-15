@@ -230,6 +230,58 @@
         "Does not invoke ship-video or start its flow",
         "Answers as an ordinary Suno prompt request without bar-grid or film-length maths"
       ]
+    },
+    {
+      "id": 18,
+      "prompt": "Make a 15 s silent teaser of our new pricing page for X and LinkedIn. The product is the app in site/ (a static landing page). Pricing: events not seats, yearly -20%.",
+      "files": [
+        "site/"
+      ],
+      "expected_output": "A scenario for a pricing teaser where the product is identified in the first 3 s, then the pricing feature, then an identity + CTA end card; social text size; silent BPM; skipped sections named.",
+      "expectations": [
+        "Asks where it will be posted (or takes X and LinkedIn from the prompt) and sets minimum on-screen text to about 56 px, not 28 px",
+        "SCENARIO.md says in its header who watches and what they know, and the first 3 s show the product name, its one-sentence promise and the product's core view, before any price",
+        "The scenario's Coverage names every other landing-page section as skipped with the reason 'not this feature'",
+        "Applies the one-feature teaser structure: identity 0-3 s, feature and payoff, then an end card repeating name and promise; the payoff is not a held price table",
+        "Silent film: MUSIC.md first line is SILENT with a BPM whose beat is a whole number of frames and whose bars fill 15 s (e.g. 144 BPM, 9 bars); no 'drop' or music-map language in the scenario",
+        "Uses capture with --root body for the static page and captures scroll-reveal sections after scrolling to them",
+        "Does not run three parallel Discovery agents for a tiny single-page site, or justifies it",
+        "Final report says to post the MP4 because WebP is not accepted by X or LinkedIn"
+      ]
+    },
+    {
+      "id": 19,
+      "prompt": "Make a 30 s how-to video for the help center: how to move a task to another column and open its details in Taskflow (app in app/, light theme, behind a login). No music.",
+      "files": [
+        "app/"
+      ],
+      "expected_output": "A Steps-variant scenario with numbered steps in a caption band, a held final state, a login-aware capture plan, crisp render.",
+      "expectations": [
+        "Asks or states who watches (existing users) and uses a 1 s anchor (product name and where in the app) before the task, not a full launch pitch",
+        "Scenario uses the Steps variant: numbered steps of 2-5 s, each with a visible result held 1.5 s or more, and a persistent caption band instead of a pill over content",
+        "The payoff is the visible changed state of the task (the card in its new column), not a drop or a bigger zoom; no hype-only rubric rows are failed against it",
+        "Discovery or states.json handles the login by seeding auth state (storage or a login state with continue) instead of screenshotting the login page for every route",
+        "Plans a drag-and-drop shot with stacked drag states and a ghost tween",
+        "No music: MUSIC.md is SILENT and nothing in the scenario refers to a drop or hits",
+        "Recommends a crisp render (motion blur smears text) and does not delete crisp after rendering it",
+        "Critic is told the intended viewer and gets full-resolution stills for text-size judgments"
+      ]
+    },
+    {
+      "id": 20,
+      "prompt": "Make a 20 s film of our marketing site in site/ for the website hero. It is a single long page with scroll-reveal sections and a chart that draws itself.",
+      "files": [
+        "site/"
+      ],
+      "expected_output": "A landing-page scenario that picks the sections that serve the message, names skipped ones, and handles scroll-reveal and tall-page capture.",
+      "expectations": [
+        "Treats sections as the units, not views: Discovery inventories each section and its scroll-reveal animations, and finds the self-drawing chart as a wow moment",
+        "Captures with --root body and makes hidden scroll-reveal sections visible (scroll to them and wait) instead of trusting blank --discover bands",
+        "Coverage picks the 2-4 sections that carry the promise and names every skipped section with a reason",
+        "Opens with full identity for strangers within about 3 s (name, promise, the page's core view moving)",
+        "Asks whether the hero plays muted and loops, and makes the story readable without sound with a last frame matching the first if it loops",
+        "Plans the tall page as a document-scroll shot (shots.md 7), not a view-by-view tour"
+      ]
     }
   ]
 }

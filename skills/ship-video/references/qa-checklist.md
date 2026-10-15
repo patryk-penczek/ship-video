@@ -15,6 +15,8 @@ Step 8 runs the first three sections before the full render. "After the crisp re
 - [ ] Images loaded: no broken boxes; avatars present (`images:`).
 - [ ] Descenders (g, y, p) intact in gradient text and rolling words.
 - [ ] Nothing important outside 1920×1080 or under the caption bar.
+- [ ] Text size matches where it's shown: 28 px or more (README, website), 56 px or more (social feed).
+- [ ] Stills are overwritten by name: no cleanup needed. Stills for a cut: use the cut time + 0.01 s (at the exact cut float rounding shows the previous scene).
 - [ ] App text readable at film size: zoomed in, or not relied on.
 - [ ] Copy matches SCENARIO.md word for word.
 - [ ] If a QA fix changed anything visible, the user sees those frames again (step 7 gate).

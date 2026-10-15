@@ -19,7 +19,8 @@ Scripts live in `${CLAUDE_SKILL_DIR}/scripts`. Run them; don't read their source
 
 Say it in the first reply if the request hits one, before any work:
 - **16:9, 1920×1080 only.** Vertical (Reels, Shorts, 9:16) is not supported. Offer a 16:9 film; a centred `ffmpeg` crop loses most of the frame.
-- **Web UI.** A native or mobile app has no DOM to capture: replicas come from screenshots or design files (`references/replicas.md`), take longer and match less exactly. A phone shows as a phone-width column in the frame.
+- **Web UI.** A mobile web app or PWA has a DOM and captures fine (phone-width column: `direction.md`, *Phone and narrow apps*). A native app has none: replicas come from screenshots or design files (`references/replicas.md`), take longer and match less exactly.
+- **Feeds.** 16:9 plays on X, LinkedIn and Instagram but is small on a phone: type is sized up (56 px). Post the MP4; WebP is for READMEs and sites.
 - **15–45 s.** For a track over ~60 s don't match its length: cut it on bar lines (Analysis step) or confirm a long film and warn about render time.
 - **macOS or Linux** (Windows: WSL). **Output** is MP4 and an animated WebP; GIF is not made.
 
@@ -62,7 +63,7 @@ Show this at the first reply, at each gate and at the end, not after every step:
 ```
 - [ ] 0 Setup: deps ready
 - [ ] 1 Brief: product, audience, goal, length, repo, real assets, optional reference film
-- [ ] 1b Discovery: PRODUCT.md (every view, wow moments, promise) shown to the user
+- [ ] 1b Discovery: PRODUCT.md (views or sections, wow moments, promise) shown to the user
 - [ ] 2 Music: file / Suno / none chosen, track in <film>
 - [ ] 3 Analysis: MUSIC.md (env.js only if the film has music)
 - [ ] 4 Scenario: SCENARIO.md approved by the user
@@ -80,7 +81,8 @@ Run `node $S/lib/check.mjs`. It answers instantly once setup has succeeded. Only
 ## 1. Brief
 
 Find what you can yourself first (README, package.json, routes, components, existing assets). Then ask what's left in one AskUserQuestion call, typically:
-- goal: launch / one feature / how-to;
+- goal and **film type**: launch / one feature or pricing teaser / how-to / landing page (`direction.md`, *Film types*);
+- **who watches and what they already know** (strangers, or existing users), and **where it is shown**: a feed (text 56 px, post the MP4), website hero (muted, loop?), README, help center;
 - length: 15–20 s / 20–30 s / 30–45 s, and *Match the music* (first, recommended) **only if the user stated no length**, a track exists or will come from Suno, and it is under ~60 s; the film's `duration` is then the track's length;
 - music: own file / Suno / none (step 2). If they pick their own file and you can already see a candidate (the newest audio file in `~/Downloads`), ask step 2's "Where will this film be shown?" in the same call;
 - real assets to use, if you found candidates (screenshots, GIFs, avatars, logo). Real beats invented every time;
@@ -90,20 +92,20 @@ If they give copy, a storyboard or brand rules, use them as the scenario's start
 
 Create the folder: `node $S/new-film.mjs <film>` (outside the product repo unless the user wants it inside). Put assets in `<film>/img`; keep downloads in their own folder.
 
-Every film, whatever its topic, first tells a stranger what the product is and shows it working (`direction.md`, *Identity first*). If the topic is narrow (a pricing change, one feature, a how-to), ask what a stranger should take away and what's new, if the repo doesn't say.
+Every film, launch included, must let its intended viewer say what this is, why it matters and what to do next (`direction.md`, *Identity first*): strangers get name, promise and the product working by ~3 s (the name sits on the live UI, not a logo card), existing users a 1 s anchor. The promise and audience come from the product's own words (README, site, store listing: the research subagent). If the topic is narrow (a pricing change, one feature) and the repo doesn't say what's new, or no call to action is known, ask that one question.
 
 **Exit:** you can describe the film in two sentences and the user agrees. **Then:** 1b Discovery.
 
 ## 1b. Discovery
 
-Know the whole product before writing about it. A film made from the README shows features; one made from the whole product shows a payoff. Read `references/direction.md` (coverage, story) first. If you can run subagents, split this step into three parallel ones (code map, product research, capture) as `references/subagents.md` describes, and merge their reports into PRODUCT.md.
+Know the whole product before writing about it. A film made from the README shows features; one made from the whole product shows a payoff. Read `references/direction.md` (coverage, story) first. If you can run subagents and the product is not tiny, split this step into three parallel ones (code map, product research, capture) as `references/subagents.md` describes and merge their reports into PRODUCT.md; for a single page or a repo under ~30 source files do it inline.
 1. **Inventory** from the router and components: every route (including the 404), every view, empty/error/loading states, modals and palettes, theme and unit toggles, and everything animated or live (charts, maps, canvas, transitions).
-2. **See each one.** If the app runs (reuse its server, see *Sharing the machine*): `node $S/capture.mjs <url> <film> --discover [--routes /,/radar] [--depth 2]` writes a full-page screenshot per route to `<film>/review/discovery/*.png` plus `inventory.json` (heights, scroll containers, canvases, buttons, links) and probes an unknown route so the 404 counts as a view. It can't reach interaction-only states (dialogs, palettes, toasts, hover): list those from the code and capture them with a `states.json` (`capture.mjs <url> <states.json> <film>`; step 5 reuses the result). Read the PNGs. Not running: use the app's own screenshots or docs and say so. **Capturing here is research, not building:** the gate below doesn't apply to it.
+2. **See each one.** If the app runs (reuse its server, see *Sharing the machine*): `node $S/capture.mjs <url> <film> --discover [--routes /,/radar] [--depth 2]` writes a full-page screenshot per route to `<film>/review/discovery/*.png` plus `inventory.json` (heights, scroll containers, canvases, buttons, links) and probes an unknown route so the 404 counts as a view. **Behind a login** it screenshots the login page: seed auth first (storage key or a login state, then `continue:true` states; `replicas.md`). **Landing pages:** sections are the views (`--root body`); scroll-reveal sections look blank until scrolled to: scroll, wait, then capture. Hash routes need `--routes /#/x`. It can't reach interaction-only states (dialogs, palettes, toasts, hover): list those from the code and capture them with a `states.json` (`capture.mjs <url> <states.json> <film>`; step 5 reuses the result). Read the PNGs. Not running: use the app's own screenshots or docs and say so. **Capturing here is research, not building:** the gate below doesn't apply to it.
 3. **Find the 3–5 wow moments:** what moves, what's unique to this product, what a user would show a friend. Not the longest feature list.
 4. **Write `<film>/PRODUCT.md`:** the one-sentence promise; the audience; a table of views (view · route · states · screenshot · wow?); the wow moments; the one concrete case (a hero in a real situation) that could carry the film from problem to payoff; what can't be shown.
 5. **Show the product map** to the user (a few lines and the path) before the scenario. They correct what you misread.
 
-**Exit:** PRODUCT.md exists, every view has a screenshot or a noted reason, the user has seen it. **Then:** step 2.
+**Exit:** PRODUCT.md exists, every view (or section) has a screenshot or a noted reason, the user has seen it. **Then:** step 2.
 
 ## 2. Music
 
@@ -111,7 +113,7 @@ If the brief didn't settle it, ask with AskUserQuestion: own file / Suno / no mu
 - **A. Own file.** If they just downloaded it, take the newest audio file in `~/Downloads` and confirm the name. Copy it to `<film>/track.<ext>`.
 - **B. Suno.** Read `references/suno-prompt.md`. First ask the rights question below, before anything is generated. Then pick a BPM so whole bars fill the length the user chose (25 s: 96 BPM, 2.5 s bars; 20–24 s: 120 BPM) and give them the Styles line, the Lyrics structure and the Suno settings (Advanced mode, Duration slider, model v6 or v6-mini). They make 4–6 takes and download the best. Suno rarely hits an exact length and treats bar counts as hints: expect to crop the take or cut it (Analysis step).
   **Don't wait idle.** Write `MUSIC.md` from the grid with `GRID DRAFT` on its first line, draft `SCENARIO.md` against it and ask the copy questions. Only the approval waits for the real take; then re-time (`references/music-map.md`).
-- **C. None.** Pick a BPM (default 120). Cuts snap to the grid, the preview plays a metronome, and music can be added later by re-timing. If the film stays silent (a muted autoplay, a WebP), follow *Silent films* in `references/direction.md`: no fake beat, `hits: []`, `env.js` stays `window.ENV = null;`.
+- **C. None.** Pick a BPM (default 120). Cuts snap to the grid, the preview plays a metronome, and music can be added later by re-timing. If the film stays silent (a muted autoplay, a WebP, a feed), follow *Silent films* in `references/direction.md`: no fake beat or "drop", `hits: []`, `env.js` stays `window.ENV = null;`. Pick a BPM whose beat is whole frames and whose bars fill the length (15 s: 144 BPM, 9 bars; 20 s: 120 BPM; `music-map.md`).
 
 **Rights (paths A and B).** Ask where the film will be shown, not which license the track has, and ask it **before Suno generates**; the rules (and what blocks publishing) are in `references/music-map.md`, *Rights*. Free plan or "somewhere else" isn't publishable. *Not decided yet* = draft: ask again before step 9.
 
@@ -132,7 +134,8 @@ Without a track: `node $S/music.mjs grid --bpm <bpm> --duration <seconds>` only 
 Length was decided in the brief; this step only checks it.
 - Track more than ~3 s longer than the chosen length: ask with AskUserQuestion *Use the full track* / *Cut a section* (preview: which bars, e.g. "build → drop → final hit, 9.98–32.02 s"). A cut starts and ends on bar lines, keeps the drop and the final hit, and fades over the last bar (`ffmpeg` asks for permission once): `ffmpeg -ss <start> -to <end> -i <track> -af "afade=t=out:st=<end-start-bar>:d=<bar>" track-cut.mp3`. Re-run the analysis on the cut.
 - No length chosen and a track over ~60 s: don't match it. Propose a 30–45 s cut, or confirm a long film and warn about render time.
-- The track fades to silence before its end (`audible end` in the analysis): end the film at the audible end plus a short fade, not on dead air.
+- The track fades to silence before its end (`audible end` in the analysis), or the Suno take is longer than asked (21.0 s take, 20 s requested): end the film at the audible end plus a short fade, or crop on a bar line with a fade and re-analyse; not on dead air.
+- Confirm the `drop:` guess on the plot: it can pick an early riser.
 
 Read `references/music-map.md`, Read the plot PNG, and write `<film>/MUSIC.md`: one row per event (intro, each strong hit, groove, break, drop, final hit). Show it to the user in a few lines.
 
@@ -141,10 +144,10 @@ Read `references/music-map.md`, Read the plot PNG, and write `<film>/MUSIC.md`: 
 ## 4. Scenario
 
 Propose a bold film; don't ask the user to invent one. Read `references/direction.md` and `references/motion-vocabulary.md`, then write `<film>/SCENARIO.md` from `references/scenario-template.md` (silent film: its silent variant):
-- the **story**: problem → hero → action in the app → payoff that closes the problem, on the drop. One concrete case carries the film; features are its consequences;
+- the **story**: problem → hero → action in the app → payoff that closes the problem, on the drop (silent: the strongest bar). One concrete case carries the film; features are its consequences. A **how-to** uses the template's Steps variant instead: numbered steps in a caption band, payoff = the visible changed state. A **teaser** or **landing page** names every skipped feature or section;
 - acts with exact seconds, the music event and its role under each, **what moves in every shot**, the camera and framing target, the coverage of every view in PRODUCT.md, and the **final copy word for word**. Every cut sits on a hit or kick from MUSIC.md (silent: on the bar grid).
 
-Run the template's self-critique rubric on it and fix the "no"s before the user sees it. Write 2–3 variants only where the wording is theirs (headline, end card); mark placeholder assets.
+Run the template's self-critique rubric (hype rows are marked by film type) on it and fix the "no"s before the user sees it. Write 2–3 variants only where the wording is theirs (headline, end card); mark placeholder assets.
 
 Then one AskUserQuestion call with only the real decisions:
 - one question per copy slot with variants (options = the variants, `preview` = the line in context);
@@ -189,9 +192,9 @@ Look first, then show:
 node $S/sheet.mjs <film>/index.html <from> <to> <step> <film>/review/sheet-<act>.png
 node $S/shots.mjs <film>/index.html <film>/review/stills <t1> <t2> … --label
 ```
-Use a 0.25 s step for kinetic type and 0.5 s (or `--cols 4`) for acts with app UI, whose text is unreadable in small tiles; at most ~24 tiles per sheet, one sheet per act. `shots.mjs` names files like `008.00.png`.
+Use a 0.25 s step for kinetic type and 0.5 s (or `--cols 4`) for acts with app UI, whose text is unreadable in small tiles; at most ~24 tiles per sheet, one sheet per act. `shots.mjs` names files like `008.00.png`; for a cut shoot cut + 0.01 s (the exact cut time shows the previous scene).
 
-Read every PNG yourself, then **critique it as a director**, not only as a QA check: is something changing every beat? is the story readable without sound (problem → hero → action → payoff)? does the drop carry the climax, and is the payoff the tightest, biggest, longest shot? is the camera close to what matters (the target fills 40–70% of the frame, exceptions in `direction.md`; no empty chrome, text ≥ 28 px)? is every view in PRODUCT.md there? are cut frames sharp and opaque? is half the film not dark? Run the rubric at the end of `references/scenario-template.md` on the stills and fix every "no". Then get a second opinion from a fresh critic subagent that sees only the frames, PRODUCT.md and SCENARIO.md (`references/subagents.md`); fix what holds up.
+Read every PNG yourself, then **critique it as a director**, not only as a QA check: is something changing every beat? can the intended viewer say what this is and what to do, muted? is the story readable without sound (how-to: do the steps teach the task)? does the payoff carry the climax (how-to: the changed state, held)? is the camera close to what matters (target 40–70% of the frame, no empty chrome, text ≥ 28 px, 56 for a feed)? is everything that serves the film type there, skipped parts named? are cut frames sharp and opaque? (dark-UI hype films: is half the film not dark?) Run the rubric at the end of `references/scenario-template.md` on the stills and fix every "no". Then get a second opinion from a fresh critic subagent that is told the intended viewer and sees PRODUCT.md, SCENARIO.md and **full-resolution stills** for any text-size call, not only tiles (`references/subagents.md`); fix what holds up.
 
 Then, before asking, fill **Changes vs scenario** in SCENARIO.md: every place the film departs from it (a time moved, an effect changed, a different framing), one line each. The user approved the scenario, so a silent change is a broken promise. Give the paths to the contact sheets and to full-resolution stills of each hit, each resting frame and the end card, and ask with AskUserQuestion: *Approve, render it* / *Fix something* (they describe it in Other) / *Show me more frames*. When they approve, write `<film>/review/APPROVED`.
 
@@ -208,7 +211,7 @@ Follow `references/qa-checklist.md`. The loop: run `node $S/audit.mjs <film>/ind
 ## 9. Render and report
 
 Read `references/render.md`. In short:
-1. Ask which render they want (*Crisp*, ~3.5 s per film second; *Motion blur*, 3–4× slower, a 35 s film about 6–8 minutes idle and up to 25 under load; or both) and give the range, not a promise.
+1. Ask which render they want (*Crisp*, ~2–3.5 s per film second, recommended for UI and how-to films since blur smears text; *Motion blur*, 3–4× slower, for kinetic launch films; or both) and give the range, not a promise.
 2. **Always render crisp first**, in the background (`run_in_background`); read `<out>.progress` within a minute. Never `pkill`; stop with `render.mjs --stop`.
 3. For a README or post, make an animated WebP with `webp.mjs` (GitHub never autoplays an MP4).
 4. **Verify** the crisp MP4 with `hits.mjs <mp4> <film>/review/hits.png <cut times>` and read it (silent film: skip).

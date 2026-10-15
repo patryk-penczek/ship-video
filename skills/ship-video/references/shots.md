@@ -17,7 +17,7 @@ Read at step 6 (build), after `film-api.md`. 14 shots, each with code that was r
 12. Theme reveal
 13. 404 as a witty beat
 14. End card with a live input
-Also: dialog or palette shot, payoff shot (after 14)
+Also: dialog or palette shot, payoff shot (after 14), step-bar caption, drag and drop, frame a rect, move a captured overlay into frame (after the payoff shot)
 
 All snippets are from a proof film rendered on a placeholder app and checked in stills. `s` is the scene element, `cam = wrap(s)`, `box = rect($(s, ".app"))`. Times are absolute seconds; `t0` is the scene start. Selectors (`.o-in`, `.o-stat`, …) are placeholders: use the replica's classes.
 
@@ -45,6 +45,7 @@ tl.fromTo($(s, ".pop"), { y: 1080 }, { y: 300, duration: 1.0, ease: "expo.out" }
 Check the end frame in a still: the app's header must not touch the word.
 
 ### 2. Cursor, click ripple, live typing
+Touch apps: use a finger (round dot, ripple, press) instead of the arrow cursor; a swipe moves the dot with the row.
 ```js
 const IN = rect($(s, ".search")), P = { go: center($(s, ".go")) };         // measure first
 cursor(cam, { x: 1500, y: 640 }, [
@@ -213,3 +214,20 @@ A scrim darkens the whole captured frame, so a dialog at camera 1.0 is a dark fr
 
 ### Payoff shot
 The payoff is the peak of the film: the tightest framing (the result fills 60-70% of the frame), the biggest motion (the largest zoom or count of the film, a pull-back on the hit) and the longest hold (about 1 s with a slow push still running, never shorter than the shots before it). If an earlier shot is bigger or tighter, shrink that one.
+
+### Step-bar caption (how-to films)
+A how-to's instruction must stay on screen while the viewer watches the action, and full-bleed UI has no free margin. Reserve a **caption band** (a strip of about 160-180 px at the bottom or top, solid colour) and frame the app in the rest of the frame: clip the scene to the remaining area and offset every `focus()` target by half the band so the target is centred in what is left. Use the engine's step-band helper (names: `film-api.md`) rather than hand-clipping. Each step swaps its caption on the step's first frame ("1 Press and hold the card", number in a chip) with a thin progress line across the band; the caption text is 28 px or more (56 for feeds). The band is not content: don't count it toward the 40-70% rule.
+
+### Drag and drop
+The capture has no pointer drag, so stack states and tween the ghost.
+1. Capture `drag-start` (card lifted or source dimmed, column highlight off), `drag-over` (target column highlighted) and `dropped` (card in its new place, counts updated) as stacked states (`UI.stack`).
+2. A **ghost** (a clone of the card, slight tilt and shadow) tweens from the card to the target along the cursor path: the cursor hides under it or rides its corner.
+3. **Swap `drag-start` to `drag-over` when the ghost crosses the column boundary**, and `drag-over` to `dropped` on the release frame. Compute the crossing time from the ease (`ease(p)` solved for the boundary x), not by eye, so the highlight changes as the ghost crosses.
+4. Land with a small bounce and a ring on the card; the toast or counter updates on the same frame. Hold the result 1.5 s or more in a how-to.
+If the real page's own drag handler can be driven by the capture's drag action, use that for the states and keep the ghost tween for the motion.
+
+### Frame a rect
+`focus()` frames a point and a scale. To fit a column, a card or a form with padding, use the engine's rect-framing helper (it derives the scale from the rect, the padding and the frame). In a narrow or top-heavy app it keeps crop edges on column and card boundaries so no word is sliced at the frame edge.
+
+### Move a captured overlay into frame
+A fixed toast, snackbar or portal is anchored to a far corner of the 1080 wrapper and lands outside a zoomed frame. Move the overlay's parent next to its target inside the scene (`el.parentElement`, then re-append and position by the measured rect of the target) and animate it there; check each toast state's HTML contains the toast text (capture with the root that includes portals).

@@ -37,21 +37,22 @@ bash ~/.claude/skills/ship-video/scripts/setup.sh   # optional: Claude runs it o
 
 ## What happens
 
-1. **Brief.** Claude reads your repo, then asks a few clickable questions: goal, length, music.
+1. **Brief.** Claude reads your repo, then asks a few clickable questions: goal and film type (launch, how-to, one-feature teaser, landing page), who watches and what they already know, where it will be posted, length, music.
 2. **Discovery.** It opens every view of your app and finds the moments worth filming, then shows you a product map.
 3. **Music.** It analyses your track's tempo, hits and drop, and writes a music map.
 4. **Scenario.** It writes a table of seconds, music, picture and exact copy. **Nothing is built until you approve it.**
 5. **Replicas.** It captures your running app's real DOM and CSS (or rebuilds from source) and compares each screen with the real thing.
 6. **Build.** It animates those screens on the beat.
 7. **Review.** It shows contact sheets and stills. **No full render until you approve them.**
-8. **Render.** You pick crisp (60 fps, about 3.5 s of render per second of film), motion blur (smoother, 3–4× slower) or both. You also get a check that every cut lands on its hit, and an animated WebP for READMEs.
+8. **Render.** You pick crisp (60 fps, about 2–3.5 s of render per second of film; crisp is best for UI and how-to films), motion blur (smoother, 3–4× slower) or both. You also get a check that every cut lands on its hit, and an animated WebP for READMEs.
 
 Already partway through? Claude picks up from the files in the film folder, and you can tell it to skip steps. Changes after a render mean a full re-render, after you re-approve whatever changed.
 
 ## Limits
 
 - 16:9, 1920×1080 only. No vertical (Reels, Shorts) output.
-- Web UI. For a native or mobile app, replicas are built from screenshots and match less exactly.
+- Web UI. A mobile-first web app (PWA) captures fine; a native app has no DOM, so replicas are built from screenshots and match less exactly.
+- Social feeds: 16:9 plays but is small on a phone, so text is sized up (56 px or more). Post the MP4: X and LinkedIn don't take the WebP.
 - 15–45 s films. Very long tracks are cut to a section (or you confirm a long film and its render time).
 - Output is MP4 and animated WebP, not GIF.
 - macOS or Linux (Windows: WSL).

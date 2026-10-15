@@ -1,7 +1,7 @@
 # Scenario: <product> · <goal> · <length> s
 
 **Approved:** (date; Claude sets it when the user approves)
-**Audience:** who watches, where (launch post, landing page, onboarding).
+**Audience:** who watches, where it is shown (launch post, landing page, feed, help center), **and what they already know** (stranger or existing user: decides the opening, `direction.md` *Identity first*). **Film type:** launch / how-to / one-feature teaser / landing page. **Min text:** 28 px (README, website) or 56 px (social feed).
 **Music:** file / Suno take N / none at <BPM> BPM. Bar = <s> s. Duration <s> s. (Silent film: see *Silent variant* at the end.)
 **Look:** palette, fonts, background, theme (dark / light / reveal from one to the other; both themes need states in `states.json`), from the product's tokens.
 **Real assets:** list. **Placeholders:** list (replace before the final render).
@@ -10,6 +10,8 @@
 
 ## Story (mandatory)
 
+*How-to film:* use the **Steps variant** below instead of this table.
+
 One concrete case carries the film; features appear only as consequences of it. A list of features is not a story.
 
 | beat | what happens | where in the film |
@@ -17,7 +19,7 @@ One concrete case carries the film; features appear only as consequences of it. 
 | Problem | a real, specific situation the audience knows (one sentence, one image) | hook |
 | Hero | the person/thing in that situation (a user, a number, a city, a file) | hook → promise |
 | Action | the hero uses the product, 2–3 steps, every step a shot | tour |
-| Payoff | the result that closes the problem, the biggest frame of the film | climax (the drop) |
+| Payoff | the result that closes the problem, the biggest frame of the film | climax (the drop, or the strongest bar in a silent film) |
 
 Promise (one sentence, from PRODUCT.md): "…"
 Test: say the film aloud in three sentences, without naming a feature. If you can't, the story isn't there yet.
@@ -48,6 +50,7 @@ The climax lands on the drop (or on the strongest bar of the grid in a silent fi
 |---|---|---|---|---|---|---|---|---|---|
 
 ## End card
+Call to action: <real next step: URL or button text; ask the owner if none is known>
 | t (s) | music | on screen | copy (final) |
 |---|---|---|---|
 | … | final hit | logo + tagline + CTA | "…" |
@@ -58,7 +61,8 @@ Column rules:
 - **what moves in this shot:** never empty, never "static". Nothing may be fully still for more than a bar (`direction.md`, *Pacing rules* 1).
 - **on the hit frame:** what the viewer sees on the exact frame of the cut: the new scene, sharp and opaque. Never "fading in".
 - **camera + framing target:** which element fills 40–70% of the frame and the zoom (1.4–2.3× on UI). The target is content (a number, a chart, an input with its text), never empty chrome.
-- **min text px:** smallest text the viewer must read, after the camera zoom (≥ 28).
+- **min text px:** smallest text the viewer must read, after the camera zoom: ≥ 28 for README/website, **≥ 56 for a social feed** (16:9 on a phone is ~390 px wide).
+- **margin copy** (phone and narrow apps only): add this column; big words in the side margin outside the camera layer, one side per act, ≤ 112 px per word (`direction.md`, *Phone and narrow apps*).
 - **source:** the product feature and the component/route that implements it (from PRODUCT.md), so replicas know what to copy.
 
 ## Coverage
@@ -79,23 +83,32 @@ Filled during build and review (step 7): every place the film departs from this 
 - …
 
 ## Silent variant
-For a film with no music (`direction.md`, *Silent films*): drop the **music** and **on the hit frame** columns, add a **beat** column (bar.beat, e.g. 3.1) before **on screen**, keep every other column. The music map table becomes the bar grid with a role per bar. Cuts on bar lines, payoff on the strongest bar (60–75% in).
+For a film with no music (`direction.md`, *Silent films*): drop the **music** and **on the hit frame** columns, add a **beat** column (bar.beat, e.g. 3.1) before **on screen** and an **on the cut frame** column (what the viewer sees on the cut: sharp, opaque), keep every other column. Use "peak", not "drop". The music map table becomes the bar grid with a role per bar. Cuts on bar lines, payoff on the strongest bar (60–75% in).
+
+## Steps variant (how-to films)
+Replaces the Story table and the three Acts. Opening = identity anchor + task title; then one row per step; then the end card.
+
+| step | t (s) | action | cursor/finger target | result frame (the visible changed state) | caption (in the band) | hold (s, ≥ 1.5) | what moves | min text px |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 3.0–6.5 | press and hold the card | card "…" | card lifted, column highlights | "1 Press and hold the card" | 1.5 | ghost card follows cursor | 28 |
+
+Payoff = the final state of the task, held ≥ 1.5 s and called out. Skipped views named in Coverage.
 
 ## Self-critique rubric
-Run it on the scenario before the gate (answer from the table) and on the stills before the second gate (answer from the frames). Fix every "no" or say why it stays.
+Run it on the scenario before the gate (answer from the table) and on the stills before the second gate (answer from the frames). Fix every "no" or say why it stays. Rows marked *(launch/teaser)* are hype rules: for a how-to they read as given in the last column of the row, or are n/a.
 
 | # | question | scenario | stills |
 |---|---|---|---|
-| 0 | Stranger test: watching muted, can someone who never heard of the product say what it is, who it's for, why they'd want it and what to do next? Is the product itself seen working by ~3 s, whatever the film's topic? | | |
-| 1 | Hook in the first second: is the strongest image sharp and moving on frame 1? | | |
-| 2 | Is the story readable without sound: problem → hero → action → payoff, in three sentences? | | |
-| 3 | Coverage: does every major view/wow moment from PRODUCT.md appear? | | |
-| 4 | Motion: does something move in every shot and every beat (nothing fully still for more than a bar)? | | |
+| 0 | Intended-viewer test (audience in the header): watching muted, could that viewer say what this is, why it matters to them and what to do next? Strangers: product named and seen working by ~3 s. Existing users: a 1 s anchor, then the task. | | |
+| 1 | Hook in the first second: is the strongest image sharp and moving on frame 1? (how-to: the anchor and title) | | |
+| 2 | Is the story readable without sound: problem → hero → action → payoff, in three sentences? (how-to: do the numbered steps alone teach the task?) | | |
+| 3 | Coverage: does every view/wow moment that serves this film type appear, and is every skipped one named with a reason? | | |
+| 4 | Motion: does something move in every shot (launch/teaser: every beat, nothing still for more than a bar; how-to: something moves even during a 1.5–2 s result hold)? | | |
 | 5 | Framing: does the camera land on content that fills 40–70% of the frame, no empty chrome (exceptions: `direction.md` *Framing rules*: tilt, split screen, zoom-through, dialogs ≥ 50%)? | | |
-| 6 | Is all text ≥ 28 px on screen after zoom, and not covered by a caption? | | |
+| 6 | Is all text ≥ 28 px on screen after zoom (≥ 56 px for a social feed), and not covered by a caption? | | |
 | 7 | Do cut frames show the new thing sharp and opaque (no 0.35-opacity entrances)? | | |
-| 8 | Does the payoff land on the drop and is it the peak: tightest framing, biggest motion, longest hold? | | |
-| 9 | Is at least half the film bright/rich, not all dark UI? | | |
+| 8 | Launch/teaser: does the payoff land on the drop (silent: the strongest bar) and is it the peak: tightest framing, biggest motion, longest hold? How-to: is the final state of the task clear and held ≥ 1.5 s? | | |
+| 9 | Dark-UI launch/teaser: is at least half the film bright/rich? (n/a for a how-to or a light app) | | |
 | 10 | Does anything on screen show something the real app doesn't do? | | |
 | 11 | Causality: does every click/keypress hit a control in its *before* state and change the screen on that frame (no clicking an already-active tab, toggle or selected item)? | | |
 | 12 | Is everything that is live in the app (map/radar, chart, spinner, clock, typing) alive in the film, with distinct frames, not a still or a crossfade? | | |
