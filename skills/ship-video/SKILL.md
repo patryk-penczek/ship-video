@@ -63,7 +63,7 @@ Run `node $S/lib/check.mjs`. It answers instantly once setup has succeeded. Only
 
 Find what you can yourself first (README, package.json, routes, components, existing assets). Then ask what's left in one AskUserQuestion call, typically:
 - goal: launch / one feature / how-to;
-- length: 15–20 s / 20–30 s / 30–45 s;
+- length: *Match the music* / 15–20 s / 20–30 s / 30–45 s. "Match the music" is first and recommended whenever a track exists or will come from Suno; the film's `duration` is then the track's length;
 - music: own file / Suno / none (step 2);
 - real assets to use, if you found candidates (screenshots, GIFs, avatars, logo). Real beats invented every time.
 
@@ -88,6 +88,8 @@ node $S/music.mjs envelope <film>/track.mp3 <film>/env.js
 node $S/music.mjs plot <film>/track.mp3 <film>/review/music.png
 ```
 No track: `node $S/music.mjs grid --bpm 120 --duration 20 --out <film>/env.js`.
+
+If the user chose a fixed length and the track is more than ~3 s longer, ask with AskUserQuestion: *Use the full track (Recommended)* / *Cut a section* (preview: which bars, e.g. "build → drop → final hit, 9.98–32.02 s"). A cut starts and ends on bar lines from the analysis, keeps the drop and the final hit, and fades out over the last bar: `ffmpeg -ss <start> -to <end> -i track.mp3 -af "afade=t=out:st=<end-start-bar>:d=<bar>" track-cut.mp3`. Re-run the analysis on the cut.
 
 Read `references/music-map.md`, Read the plot PNG, and write `<film>/MUSIC.md`: one row per event (intro, each strong hit, groove, break, drop, final hit). Show it to the user in a few lines.
 
