@@ -64,7 +64,13 @@ Film({
 | `$`, `$$` | `querySelector`, `querySelectorAll` as array, scoped to a root |
 | `cursor(host, from, steps)` | see *Shot helpers* |
 | `caption(scene, text, t, from?, {pos, x, y}?)` | opaque pill that enters by offset; `pos` `"bl"` (default) `"br"` `"tl"` `"tr"` `"bc"` or `x`/`y` stage px, so it can avoid content |
-| `scrollTo(main, y, t, dur?)` | tweens a tall page up by `y`; returns `{ y, at(p) }`: `focus(sc.at(center(el)), 1.8, { over: 300 })` aims at the scrolled position |
+| `scrollTo(main, y, t, dur?, ease?, {pin}?)` | `y` = scroll position; chains from the previous scrollTo on the same element; `dur` 0 pre-scrolls; returns `{ y, from, at(p), box(b) }` (`at` maps a point measured before the scroll, `box` shifts a rect for `focus`'s `box`) |
+| `keycap(scene, key, t, {pos, x, y, end, size}?)` | key glyph(s) (`"ArrowUp"`, `"Ctrl+K"`) that appear and press at `t`: the cursor of keyboard-driven apps; give it the scene, not the camera layer |
+| `panels(scene, {width, bg}?)` | two margin panels (`.panel`) around a narrow app centred on the stage, for copy; returns `{ l, r, box }`, pass `box` to `focus` |
+| `edge(scene, name?)` | gives the scene the captured page's background so the empty edge of `focus(.., { over })` matches the app |
+| `dock(el, ref, {side, gap, align}?)` | puts a captured toast or popover next to a reference element; composes with its CSS transform; call before `enter` |
+| `finger(host, from, steps)` / `band(opts)` / `follow(el, pts, t0)` / `focusRect(rect, pad?)` | touch pointer, step-caption band, recorded pointer path, camera that frames a rect |
+| `UI.spin(tl, el, t0, t1, {turns}?)` | (ui.js, not ctx) rotates a captured CSS spinner whose keyframes were not ported |
 | `put(el, str)` | writes into captured markup: input value+attribute, only the first text node when the element has children (`21<sup>°</sup>`); `count`/`type`/`typeOn` use it |
 | `land(t0, dur?, color?)` | fades the frame to the background from t0; `land(D - 0.4, 0.4)` lands the film instead of a hard cut |
 | `typeOn(el, text, times, onUpdate?)` | typing on given times |
@@ -167,13 +173,13 @@ All pure functions of `t`; destructure them from the `build` argument like the o
 - **`dock(el, ref, { side, gap, align })`**: moves an element (a captured toast; use its `.parentElement` if the parent is the fixed wrapper) next to a reference element or rect, so it lands inside the zoomed frame. `side`: `below above right left inside-br inside-bl inside-tr inside-tl`. Call it at build time, before tweens.
 - **`finger(host, from, steps, { appear })`**: a touch pointer (round fingertip). Steps `{ to, t, dur, tap?, hold? }`: `tap` presses and rings on arrival, `hold` stays pressed during the move (swipe, drag). Use it instead of `cursor()` for phone UIs. `cursor()` takes `hold: true` on a step too, and both are hidden until their first step (`{ appear: 0 }` shows them from the start).
 - **`follow(el, pts, t0)`**: a pointer following a recorded path: `pts = [{ x, y, t }]` with `t` from `t0` (`UI.recording(name).path(k, ox, oy)` makes them).
-- **`land(t0, dur, color)`**: the default colour is the last scene's own background (the end card's flood), else the `--f-land` token, else black. A fade to `--f-bg` washes a coloured end card out.
+- **`land(t0, dur, color)`**: the default colour is the last scene's own background (the end card's flood), else the `f-land` CSS variable, else black. A fade to the `f-bg` variable washes a coloured end card out.
 - **`scrollTo(main, y, t, dur, ease, { pin })`**: for pages that scroll as a document, build the shot with `UI.shot(name, { tall: true })` and tween the wrapper or the scene's camlayer. `pin: [el]` keeps a sticky nav in place. `at(p)` maps a point measured before the scroll to where it is after it.
 - **`center(el, { text: true })`, `rect(el, { text: true })`**: measure the text's own box instead of a flex-wide element.
 - **`reveal(el, p, t0, dur, r0, r1, { below })`**: `below` is hidden right after the reveal, so the covered copy can't ghost through.
 - **`UI.shot(name, { tall, hidden })`**: `tall` keeps the full page height. Every call gets its own SVG ids (the same state in two scenes no longer shares gradients). **`UI.frames(tl, img, t0, t1, loop, { every, from, to })`**: `every` plays the frames in real time, `from`/`to` slice them. **`UI.frameSync(tl, el, list, t0, t1, loop, opts)`** moves live DOM bits (a clock's text, a timeline thumb) with the frames. **`UI.frameSeq(tl, img, [{ t, src }])`** and **`UI.recording(name)`** replay a `record` state.
 - **Layers.** `.app-shot` is its own stacking context (`isolation: isolate`); the cursor, finger, ripples, captions and the band sit above anything the app does. `audit.mjs` prints `cursor hidden under .modal` if a pointer is still covered.
-- **Theme.** `<html data-theme="auto">` follows the captured app (light app, light tokens, no vignette or grain); `new-film.mjs --theme light|dark` fixes it. Tokens for captions, vignette, grain, grid and the finger live in `film.css` (`--f-cap-bg`, `--f-vignette`, `--f-grain`, `--f-land`...).
+- **Theme.** `<html data-theme="auto">` follows the captured app (light app, light tokens, no vignette or grain); `new-film.mjs --theme light|dark` fixes it. The caption, vignette, grain, grid and finger colours are CSS variables in `film.css` (named `f-cap-bg`, `f-vignette`, `f-grain`, `f-land`, with two leading dashes).
 
 - **`keycap(scene, "ArrowUp" | "Ctrl+K", t, { pos, x, y, end, size })`**: a key glyph (one cap per key) that appears and presses at `t`; the keyboard version of the cursor for games and shortcut-driven apps. Not zoomed by the camera (give it the scene, not the camlayer).
 - **`panels(scene, { width, bg })`**: the margins of a narrow app centred on the stage as two `.panel` divs for copy; returns `{ l, r, box }` (pass `box` to `focus`).
