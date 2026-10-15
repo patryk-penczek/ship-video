@@ -1,4 +1,4 @@
-![/ship-video](docs/readme/logo.png)
+![/ship-video: launch films for your app, cut to the beat. A Claude Code + Codex skill.](docs/readme/banner.png)
 
 ### Turn your app into a music-synced launch film, as code.
 
