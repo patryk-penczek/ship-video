@@ -3,9 +3,9 @@
 **Turn your app into a music-synced launch film, as code, from one Claude Code prompt.**
 
 <p align="center">
-  <img src="docs/hero.gif" alt="ship-video in Claude Code: Claude asks clickable questions, maps the hits in the music, gets the shot list and the stills approved, renders frame-exact, and the result plays: a launch film for a weather app" width="900">
+  <img src="docs/hero.gif" alt="A 12-second sample film: typed headline, words on the beat, an app screen with camera moves, a counter on the big hit, end card" width="800">
 </p>
-<p align="center"><sub>This clip was made with ship-video itself: one HTML page on a 120 BPM grid. <a href="docs/hero">View source</a>.</sub></p>
+<p align="center"><sub>The starter film, rendered at 1080p60 with every cut on a beat. It's one HTML page: <a href="skills/ship-video/assets/starter/film.js">view source</a>.</sub></p>
 
 ship-video is a [Claude Code skill](https://code.claude.com/docs/en/skills) that directs and builds a 15–45 s product video for your app. Claude reads your UI code, finds the hits in your music, agrees a shot-by-shot scenario with you, rebuilds your screens in HTML and animates them with GSAP. A small engine then renders the page frame by frame to MP4. No video editor, no After Effects.
 
