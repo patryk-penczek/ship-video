@@ -7,7 +7,7 @@ Facts about Suno's UI and models were checked in October 2026 and can change. If
 ## 0. Ask about rights first
 Ask this BEFORE the user generates anything, because the plan at generation time decides what they may do with the song.
 - Where will the film be shown? *Just me / draft*, *Public or for a client*, *Not decided*.
-- If public or client: which Suno plan will they generate on? Per Suno's terms (check suno.com yourself, they change): songs made on the free plan stay non-commercial, and upgrading later does not cover them. Songs made while on a paid plan (Pro/Premier) are the user's to use commercially, also after they cancel. Remixes of other people's songs are non-commercial. So: upgrade first, then generate.
+- If public or client: which Suno plan will they generate on? Per Suno's terms (check suno.com yourself, they change): songs made on the free plan stay non-commercial, and upgrading later does not cover them. Songs made while on a paid plan are the user's to use commercially, also after they cancel. Remixes of other people's songs are non-commercial. So: upgrade first, then generate.
 - AI music can still get automated copyright claims on some platforms. Say so once.
 
 ## 1. Pick the tempo and the length

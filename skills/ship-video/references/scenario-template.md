@@ -1,8 +1,9 @@
 # Scenario: <product> · <goal> · <length> s
 
+**Approved:** (date; Claude sets it when the user approves)
 **Audience:** who watches, where (launch post, landing page, onboarding).
-**Music:** file / Suno take N / none at <BPM> BPM. Bar = <s> s. Duration <s> s.
-**Look:** palette, fonts, background (from the product's tokens).
+**Music:** file / Suno take N / none at <BPM> BPM. Bar = <s> s. Duration <s> s. (Silent film: see *Silent variant* at the end.)
+**Look:** palette, fonts, background, theme (dark / light / reveal from one to the other; both themes need states in `states.json`), from the product's tokens.
 **Real assets:** list. **Placeholders:** list (replace before the final render).
 **Sources:** `PRODUCT.md` (views, wow moments, promise), `MUSIC.md` (events, roles).
 **Character:** one line on the film's attitude (e.g. "fast, dry, big type") and the reference it borrows techniques from, if the user gave one.
@@ -54,7 +55,7 @@ The climax lands on the drop (or on the strongest bar of the grid in a silent fi
 
 Column rules:
 - **cut or in-shot:** *cut* = the picture changes (the hit check will verify it); *in-shot* = something moves inside a shot on a kick (an alert slides in, a button presses). In-shot events are not listed in `hits.mjs`.
-- **what moves in this shot:** never empty, never "static". A hold longer than ~0.7 s needs a second moving thing.
+- **what moves in this shot:** never empty, never "static". Nothing may be fully still for more than a bar (`direction.md`, *Pacing rules* 1).
 - **on the hit frame:** what the viewer sees on the exact frame of the cut: the new scene, sharp and opaque. Never "fading in".
 - **camera + framing target:** which element fills 40–70% of the frame and the zoom (1.4–2.3× on UI). The target is content (a number, a chart, an input with its text), never empty chrome.
 - **min text px:** smallest text the viewer must read, after the camera zoom (≥ 28).
@@ -77,6 +78,9 @@ Every view and wow moment in PRODUCT.md and the shot that shows it (or why it is
 Filled during build and review (step 7): every place the film departs from this scenario, one line each: what, why. Empty = no departures. The user approved the table above, so a silent change is a broken promise.
 - …
 
+## Silent variant
+For a film with no music (`direction.md`, *Silent films*): drop the **music** and **on the hit frame** columns, add a **beat** column (bar.beat, e.g. 3.1) before **on screen**, keep every other column. The music map table becomes the bar grid with a role per bar. Cuts on bar lines, payoff on the strongest bar (60–75% in).
+
 ## Self-critique rubric
 Run it on the scenario before the gate (answer from the table) and on the stills before the second gate (answer from the frames). Fix every "no" or say why it stays.
 
@@ -85,10 +89,10 @@ Run it on the scenario before the gate (answer from the table) and on the stills
 | 1 | Hook in the first second: is the strongest image sharp and moving on frame 1? | | |
 | 2 | Is the story readable without sound: problem → hero → action → payoff, in three sentences? | | |
 | 3 | Coverage: does every major view/wow moment from PRODUCT.md appear? | | |
-| 4 | Motion: does something move in every shot and every beat (no hold > 0.8 s)? | | |
-| 5 | Framing: does the camera land on content that fills 40–70% of the frame, no empty chrome? | | |
+| 4 | Motion: does something move in every shot and every beat (nothing fully still for more than a bar)? | | |
+| 5 | Framing: does the camera land on content that fills 40–70% of the frame, no empty chrome (exceptions: `direction.md` *Framing rules*: tilt, split screen, zoom-through, dialogs ≥ 50%)? | | |
 | 6 | Is all text ≥ 28 px on screen after zoom, and not covered by a caption? | | |
 | 7 | Do cut frames show the new thing sharp and opaque (no 0.35-opacity entrances)? | | |
-| 8 | Does the payoff land on the drop and is it the biggest, cleanest frame? | | |
+| 8 | Does the payoff land on the drop and is it the peak: tightest framing, biggest motion, longest hold? | | |
 | 9 | Is at least half the film bright/rich, not all dark UI? | | |
 | 10 | Does anything on screen show something the real app doesn't do? | | |

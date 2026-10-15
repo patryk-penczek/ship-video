@@ -39,9 +39,10 @@ node $S/compare.mjs <url> <film>/gallery.html <film>/review/compare --states <fi
 State keys: `name` (letters, digits, `-_.`; must match the gallery `.frame[data-state]`), `path`, `actions`, `continue: true` (keep the previous state's page instead of reloading: no repeated prefix), `capture: false` (drive only), `root`, `full`, `canvas`.
 Actions: `click` · `dblclick` · `fill [sel, text]` · `type text` · `press key` · `hover` · `select [sel, value]` · `check` · `set [sel, value]` (range inputs) · `scroll y | [sel, y]` · `waitFor sel` · `wait ms` · `goto path` · `eval js`.
 
+- Scope every selector (`.dialog input`, not `input`): an ambiguous one fills the first match (a sidebar filter instead of the dialog) and the state still looks fine. Check the captured state's PNG.
 - Use `fill`, not `Control+A` + `type`: on macOS Chromium `Control+A` is "line start", so the text is appended and the palette never closes.
 - Timers need `wait` (a 4.2 s toast: `wait: 4400` to see it gone).
-- `canvas`: `{ frames: N, every: ms }` grabs N frames over time for an animated canvas (radar); `{ steps: [[actions], …] }` runs actions before each frame (scrub a slider). Frames land in `img/<state>-c<k>-<n>.png`; the `<img>` carries `data-frames`. A WebGL canvas without `preserveDrawingBuffer` comes out blank (reported).
+- `canvas`: `{ frames: N, every: ms }` grabs N frames over time for an animated canvas (radar); `{ steps: [[actions], …] }` runs actions before each frame (scrub a slider; for a timeline radar `set` the range input from its minimum to its maximum so frames come out in order: `frames` alone samples a looping animation by time, not by timeline). Frames land in `img/<state>-c<k>-<n>.png`; the `<img>` carries `data-frames`. A WebGL canvas without `preserveDrawingBuffer` comes out blank (reported).
 
 ## Using captured states in film.js
 
@@ -52,7 +53,7 @@ const s = scene(UI.stack(["home", "palette", "added"]), 4, 12);   // stacked cop
 const cam = wrap(s);
 const P = UI.measure(s, "home", (h) => ({ card: center($(h, ".current")) }));   // measure a state: shows it, runs fn, restores
 UI.swap(tl, s, "palette", 6);                                      // from t=6 only "palette" is visible
-tl.fromTo($(UI.pick(s, "home"), ".current"), { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: .6, ...NI }, 4);   // real elements tween
+tl.fromTo($(UI.pick(s, "home"), ".current"), { y: 40 }, { y: 0, duration: .6, ...NI }, 4);   // real elements tween; offset only: opaque on the cut frame
 UI.frames(tl, $(UI.pick(s, "radar"), "img"), 8, 12);               // step a captured canvas through its frames
 ```
 
@@ -63,9 +64,13 @@ UI.frames(tl, $(UI.pick(s, "radar"), "img"), 8, 12);               // step a cap
 - **Stacked copies are `display:none` when measuring.** With all copies visible the page is several screens tall and every `center()`/`rect()` is wrong. Always `UI.measure`.
 - **After a theme reveal, hide the covered copy** (`UI.swap` does). `backdrop-filter` cards blur whatever is stacked beneath, so a dark copy under a light one ghosts.
 - **Duplicate SVG ids** make a copy paint with another copy's gradient; capture suffixes them, and for hand-made markup do the same.
-- **Tall pages.** The wrapper is a 1920×1080 window. Scroll by tweening `y` on `.main` (the sidebar stays put) and subtract the scroll from `focus()` coordinates. `page height` in the capture log and `SCREENS_META[name].height` give the length.
+- **Tall pages.** The wrapper is a 1920×1080 window. Scroll by tweening `y` on `.main` (the sidebar stays put) and subtract the scroll from `focus()` coordinates. `page height` in the capture log and `SCREENS_META[name].height` give the length. A target at the very bottom needs the extra-scroll recipe in `shots.md` 7.
 - **Fixed overlays** (toasts, dialogs, scrims) are handled by the port; if one is missing in the replica, check that the app root is `position: static` in `app.css`.
-- **Input values** are baked into `value=`; typing in the film is a `type()` tween on a text node, not on the input.
+- **Input values** are baked into `value=`. To type in a captured input, run `typeOn()` (or `type()`) on it and set `input.value` in the `onUpdate(k)` callback (`shots.md` 2); never fake it by swapping an "empty" and a "typed" state.
+- **Hover on a captured chart:** capture hover states with `hover` actions and `UI.swap` between them with a moving cursor, or add a `.tip/.dot` overlay for `scrubChart` (`shots.md` 4).
+- **Dialogs and palettes:** the scrim darkens the frame, so zoom onto the dialog (≥ 50% of the frame) instead of filming it at 1.0× (`shots.md`, *Dialog or palette shot*).
+- **A paused or reduced-motion canvas** captures identical `frames`: use `canvas.steps` (scrub the range input with `set`) and check that the frames differ.
+- **`compare.mjs` shows a big diff after a click that scrolled the real page:** the real page kept its scroll, the replica didn't. Add a `scroll 0` action, or ignore that state's offset.
 - **CSS animations and transitions don't run** (base.css disables them); rebuild entrances on the timeline.
 - **Fonts**: the capture copies them; check the faces are in `fonts:` or the first frames render in a fallback.
 - **Theme**: tokens computed from other tokens work because the wrapper carries `data-theme`; both themes can be on screen at once.
@@ -74,7 +79,7 @@ UI.frames(tl, $(UI.pick(s, "radar"), "img"), 8, 12);               // step a cap
 
 ## Compare against the real app
 
-`compare.mjs` drives the real app through the same states.json and screenshots each `.frame[data-state]` of `gallery.html` (which lists every captured state automatically). It prints a pixel diff per state and writes `<state>.png` (real / replica / diff stacked) and `<state>-diff.png`. Flags: `--scale 1` (full-size stacked images, default 0.5), `--full` (whole page height; sticky/fixed sidebar and sky differ by construction there), `--max-diff N` (default 2 %). Read the PNGs: target under ~2 %, text anti-aliasing alone is ~0.3 %. A red block in the diff is a real difference (missing element, wrong colour, scrolled content).
+`compare.mjs` drives the real app through the same states.json and screenshots each `.frame[data-state]` of `gallery.html` (which lists every captured state automatically). It prints a pixel diff per state and writes `<state>.png` (real / replica / diff stacked) and `<state>-diff.png`. Flags: `--scale 1` (full-size stacked images, default 0.5), `--full` (whole page height; sticky/fixed sidebar and sky differ by construction there), `--max-diff N` (default 2 %). Captured DOM often scores 0.00 %: that is expected and not informative; the stills are the real check, and `--full` for tall pages (the default compares only the 1080 viewport). Read the PNGs: target under ~2 %, text anti-aliasing alone is ~0.3 %. A red block in the diff is a real difference (missing element, wrong colour, scrolled content).
 
 ## Without a running app
 

@@ -8,7 +8,8 @@ Read this before writing or editing `film.js`.
 - Helpers (ctx)
 - Shot helpers (cursor, caption, typeOn, push, show, reveal, scrubChart)
 - Patterns: scene with camera, typing, press + burst, entrances (NI vs plain fromTo), cut on a hit, word per beat, rolling word, stacked app states + theme reveal, scrolling a tall page, SVG chart steps, slide-in element, captions, backdrop-filter, sprites, audio-reactive
-- More: `direction.md` (shots with code: cursor, scrub, route transition, whip pan, tilt, montage), `motion-vocabulary.md` (type and camera techniques)
+- More: `shots.md` (14 shots with code: cursor, scrub, route transition, whip pan, tilt, montage), `motion-vocabulary.md` (type and camera techniques)
+- Captured DOM recipes
 - Determinism rules
 
 ## File layout
@@ -19,7 +20,7 @@ Read this before writing or editing `film.js`.
 | `engine.js` | no | helpers, react layer, preview clock, `window.__seek` |
 | `base.css` | no | stage, HUD, helper classes (`.center`, `.display`, `.gtext`, `.roll`, `.sprite`) |
 | `film.css` | yes | tokens (`--bg`, `--accent`, `--grad`, fonts) + replica styles |
-| `ui.js` | yes | `window.UI` screen builders returning HTML strings |
+| `ui.js` | yes | `window.UI` screen builders returning HTML strings; captured-state helpers `UI.shot/stack/pick/swap/measure/frames/images`: see `replicas.md` |
 | `film.js` | yes | `Film({...})` config + `build()` with every scene |
 | `env.js` | generated | `window.ENV` from `music.mjs envelope`; `null` for a silent film |
 | `app.css`, `screens.js` | generated | the app's scoped CSS and captured states (`capture.mjs`, `port-css.mjs`); empty until then |
@@ -67,12 +68,15 @@ Film({
 | `reveal(el, point, t0, dur?, r0?)` | circle reveal of a stacked copy |
 | `scrubChart(scene, chart, t0, t1, v0, v1, ease?)` | marker, guide, path and tooltip from one value |
 | `env(k, t)` | `ENV` value (`sub`, `mid`, `high`, `rms`) at time t (in `react`) |
+| `css(var)` | computed value of a CSS variable, e.g. `css('--accent')` |
+| `hash(n)` | deterministic number 0..1 from `n` |
+| `stage`, `cam` | the stage and camera DOM roots |
 
 ## Shot helpers
 
-Engine helpers, all pure functions of `t`; CSS for `.cursor`, `.ripple`, `.cap` is in `base.css` (override in `film.css`). Snippets using them: `direction.md`, `motion-vocabulary.md`.
+Engine helpers, all pure functions of `t`; CSS for `.cursor`, `.ripple`, `.cap` is in `base.css` (override in `film.css`). Snippets using them: `shots.md`, `motion-vocabulary.md`.
 - `cursor(host, from, steps)`: `host` = the camera layer, so the cursor zooms with the UI. `steps: [{ to: {x, y}, t, dur, click? }]` in stage space (`center()`); a click adds a ripple and `press`. Returns the cursor element.
-- `caption(scene, text, t, from = { x: -70 })`: append **after** `wrap()` so it doesn't zoom; opaque, offset-only entrance, text ≥ 28 px. Returns the element.
+- `caption(scene, text, t, from = { x: -70 })`: append **after** `wrap()` so it doesn't zoom; opaque, offset-only entrance, text ≥ 28 px. Returns the element. The default spot is the bottom-left corner (`.cap` in `base.css`): see *Captions* below if that covers content.
 - `typeOn(el, text, times, onUpdate?)`: `times` = one absolute second per character (onsets from `music.json`, or `t0 + i·0.1 + (rnd() - 0.5)·0.06` for human timing). Like `type`, show a placeholder through `onUpdate(0)`.
 - `push(el, t0, t1, from = 1, to = 1.06)`: linear drift on a camera layer so no shot is still. Not at the same time as a `focus()` tween on that layer.
 - `show(el, t0, t1?)`: opacity 0 at build time, 1 at `t0`, 0 again at `t1`. Word-per-beat layers, tiles, stamps.
@@ -129,7 +133,7 @@ At a high camera zoom the disc is a flat blob: reveal at ≤ 1.2× (or wipe with
 const dist = main.offsetHeight - vp.offsetHeight, V = center(vp);          // measure first
 tl.fromTo(main, { y: 0 }, { y: -dist, duration: 1.3, ease: "power2.inOut", ...NI }, 9.7);
 ```
-Never scroll a real `overflow: auto` element: its scroll position isn't a function of `t`.
+Never scroll a real `overflow: auto` element: its scroll position isn't a function of `t`. A target at the very bottom of the page: extra-scroll recipe in `shots.md` 7.
 
 **Steps in an SVG chart**: `tl.set(dot, { attr: { r: 6, fill: "var(--sun)" } }, t)`; move an HTML tooltip with `left`/`top` in % of the chart box.
 
@@ -141,6 +145,8 @@ tl.fromTo($(s, ".alert"), { height: 0, marginBottom: -gap }, { height: h, margin
 ```
 
 **Captions**: `caption(s, "Live numbers", t0)` after `wrap()`, so it stays out of the camera layer. Opaque, placed in a margin or an empty corner, never over the thing being shown, offset-only entrance (fully visible on the hit frame), text ≥ 28 px.
+- **Placement.** The default `.cap` is bottom-left, 96 px from the edges. If the shot has content there, move it to a free corner: set `c.style.left = "auto"; c.style.right = "96px"` (and `top`/`bottom`) on the returned element, and pass `from = { x: 70 }` so it enters from its own side. If your `engine.js` accepts a position option on `caption` (check its signature), that is the same thing, optional.
+- **Timing.** `caption` assumes `t` is the scene's start. For a caption that appears later in the scene, hide it first (`tl.set(c, { opacity: 0 }, 0)` and `tl.set(c, { opacity: 1 }, t)`), otherwise it sits visible at its natural spot until `t`, then jumps.
 
 **`backdrop-filter` ghosting**: a blurred glass panel samples what is behind it in the browser, and in a stacked-copy scene or a scaled camera layer that can ghost or smear. Replace it in replicas with a solid or semi-opaque colour close to the blurred result (`background: rgb(20 22 28 / .92)`); verify in a still at the zoom the shot uses.
 
@@ -150,6 +156,16 @@ tl.fromTo($(s, ".alert"), { height: 0, marginBottom: -gap }, { height: h, margin
 ```
 
 **Audio-reactive extras** in `react(t, ctx)`: read `ctx.env("sub", t)`; set styles directly. No tweens, no state between frames.
+
+## Captured DOM recipes
+
+For screens captured with `capture.mjs` (`replicas.md`). The captured markup differs from hand-made placeholders, so a few helpers need a different form. Helper names below are generic: use the ones your `engine.js` exports (check its `ctx` list); if one is missing, the plain-GSAP fallback is given.
+
+- **Scrub a captured chart.** `scrubChart` expects `.tip/.dot/.guide/.hl`, which a capture lacks. Either capture 3–5 hover states (`hover` actions) and `UI.swap` between them under a moving `cursor()`, or add those four elements over the captured svg (positioned from the chart's real `xy`) and run `scrubChart` (`shots.md` 4).
+- **Type into a captured input.** The input's text is its `value`, not a text node. Run the typing helper (`type`/`typeOn`, or an input-aware variant such as a `typeInput`-like helper if your engine has one) with `(k) => { inp.value = word.slice(0, k); }` in `onUpdate`. Never replace the input with a span.
+- **Drive a range thumb** (a radar or timeline slider). A native range can't be tweened by CSS; tween a proxy `{ v }` and in `onUpdate` set `input.value = v` and, if the thumb is drawn by CSS variable or `left`, the same value there. Seek-safe because the value is a function of the proxy. If the thumb is custom markup, tween its `x`.
+- **Count a number inside markup** such as `<span class="num">21<sup>°</sup></span>`: `count()` overwrites `textContent` and loses the `<sup>`. Use a text-aware counter (a `countText`-like helper that updates only the first text node), or write the value into a dedicated inner span: `onUpdate: () => { numNode.nodeValue = Math.round(p.v); }` with `numNode = el.firstChild`.
+- **`focus()` without the 1080 clamp.** The clamp pins targets near the top or bottom edge; for those, use `focus(point, scale, { clamp: false })` (the stage margin may show: check the end frame) or scroll the page first (`shots.md` 7). An unclamped, scroll-aware variant may exist in your engine: prefer it when it does.
 
 ## Determinism rules
 

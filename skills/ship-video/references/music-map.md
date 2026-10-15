@@ -13,17 +13,18 @@ Read this in step 3, after `node $S/music.mjs analyze`. `$S` = `${CLAUDE_SKILL_D
 | `cuts:` | suggested cut times: strong hits on bar lines plus the last hit | a good first draft; confirm with the energy table |
 | `kicks:` | small moves inside a scene: presses, pops, captions | medium; dense in busy sections |
 | `gaps:` | breaks before a drop; silence or near-silence | high when present. A break can also be a riser with no gap |
+| `sections:`, `drop:` | the analysis's guess at intro / groove / build / drop / outro and which hit is the drop (when your version prints them) | a guess: confirm on the plot |
 | energy table, section lifts | sections: where the groove starts, the drop, the outro | high; `rms` and `sub` columns rise at the drop |
+
+**The loudest hit is not always the drop.** A track with a quiet intro often has its loudest stab right at the start (the intro hit); the drop is the first full-band wall after the riser or break, usually later and not always the loudest. Don't put the climax on the intro stab. The drop is where the story's payoff goes. If `sections:`/`drop:` and the plot disagree, trust the plot and say which hit you picked.
 
 To see what plays when (kick, bass, hi-hat, riser, melody), read the spectrogram plot: the low band shows kicks and bass, the high band hats and risers, and a dark gap before a bright wall is a break into a drop. With stems (`music.mjs stems`, needs `--demucs`) you can see each instrument's onsets alone; without them the plot and the `kicks:` list are enough. Use kick onsets for typing and counters (`motion-vocabulary.md`), hits for cuts.
 
 Detection is a starting point. Open the plot (`music.mjs plot`, then Read the PNG): bright vertical stripes in the low band are hits; a bright wall after a dark gap or a rising riser is a break, then a drop.
 
-Terms: a **hit** is a strong musical event where a cut lands. A **kick** is a smaller beat for moves inside a scene. A **cut** is a scene change. `hits` in `film.js` is the list of camera shakes.
-
 ## Writing MUSIC.md
 
-One row per musical event, in seconds, 2 decimals. This table is an example from one track; your numbers will differ.
+One row per musical event, in seconds, 2 decimals (terms *hit*, *kick*, *cut*: SKILL.md). The first line is the header: `# Track: <file> · Duration: <s> s`, or `GRID DRAFT` (a Suno track is pending), or `SILENT, <bpm> BPM, duration <s> s` (no music: see *No music* below). This table is an example from one track; your numbers will differ.
 
 ```
 # Track: track.mp3 · Duration: 34.0 s
@@ -40,15 +41,15 @@ One row per musical event, in seconds, 2 decimals. This table is an example from
 ```
 The **role in the story** column is mandatory: it ties each musical section to a beat of the story in `scenario-template.md` (problem → hero → action → payoff). **The climax lands on the drop.** If the drop is early, move the payoff there and put the tour before it; if the track has no drop, use the strongest hit after the build. Fill the roles provisionally here, by position (problem first, payoff on the drop); the scenario may adjust them. A section with no role is a section the film has no use for: cut it or give it a role.
 
-Then sanity-check: the strong hits usually sit on bar starts; if one is 0.05–0.1 s off a bar line, prefer the detected hit time (that's where the sound is).
+Then sanity-check: the strong hits usually sit on bar starts; if one is 0.05–0.1 s off a bar line, prefer the detected hit time (that's where the sound is). Cuts between two hits (a word every 0.5 s) are then the hit time plus n × the beat, not the printed grid time, which can be 0.04 s early.
 
 Copy the cut times into `hits` in `film.js` as `[t, shakePx]` (strong hit 10–14 px, kick 3–6). The starter's sample `hits` are placeholders: replace them.
 
 ## No music (grid)
 
-`node $S/music.mjs grid --bpm <bpm> --duration <seconds>` prints bar and beat times. It writes nothing unless you pass `--out` (`--out <film>/env.js` writes `window.ENV = null;`, add `--pulse` for a synthetic beat pulse). Write MUSIC.md from the times: bar starts for cuts, beats for moves, and put `GRID DRAFT` on its first line.
-- Silent film: leave `env.js` as `window.ENV = null;`. No pulses, no shakes. Fill the same **role in the story** column on the bar grid: problem on bars 1, action across the middle bars, payoff on the strongest bar (about 60–75% in), end card on the last.
-- Music will come later (Suno pending): the grid is a stand-in. Pass `--out <film>/env.js --pulse` only if you want a beat-reactive preview, and expect to regenerate `env.js` from the real track.
+`node $S/music.mjs grid --bpm <bpm> --duration <seconds>` prints bar and beat times. It writes nothing unless you pass `--out` (`--out <film>/env.js` writes `window.ENV = null;`, add `--pulse` for a synthetic beat pulse). Write MUSIC.md from the times: bar starts for cuts, beats for moves.
+- **Silent film:** first line `SILENT, <bpm> BPM, duration <s> s`, then the bar grid and a role per bar (the resume table treats any MUSIC.md as the music step done). Leave `env.js` as `window.ENV = null;`; no pulses, no shakes (`direction.md`, *Silent films*). Fill the same **role in the story** column on the bar grid: problem on bars 1, action across the middle bars, payoff on the strongest bar (about 60–75% in), end card on the last.
+- **Suno pending:** first line `GRID DRAFT`; the grid is a stand-in. Pass `--out <film>/env.js --pulse` only if you want a beat-reactive preview, and expect to regenerate `env.js` from the real track.
 - When the track arrives, run the analysis, replace `GRID DRAFT` with the track name, and move each cut to the nearest real hit.
 
 ## Re-timing to a new take
