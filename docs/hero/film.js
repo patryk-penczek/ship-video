@@ -1,11 +1,12 @@
 /* README hero: what ship-video does, in 16 s. No music: it becomes an animated WebP.
    One card every 1.5 s (three beats at 120 BPM), so the rhythm never speeds up or slows down:
    PROMPT · HOW LONG? · MUSIC? · HEAR · PLAN · BUILD · REVIEW · RENDER, then ITERATE gets one longer card
-   (12–14.5: a change typed into the same input as the opening) and the END card (14.5–17).
+   (three changes typed into the same input as the opening, one per version) and the END card.
    Type and shapes only, one idea per card so nobody has to pause to read. */
 const CARD = 1.5;
 const at = (k) => k * CARD; // start of card k
-const ITER = 2.5, TWEAK = "show the dark mode too"; // the iterate card is the one that explains, so it gets longer
+const TWEAKS = ["show the dark mode too", "hold the end card longer", "make the intro snappier"], STEP = 1.25;
+const ITER = 0.3 + TWEAKS.length * STEP + 0.3; // the iterate card is the one that explains, so it gets longer
 const END = at(8) + ITER;
 
 Film({
@@ -37,7 +38,7 @@ Film({
     tl.set($(s0, ".ph"), { display: "" }, 0);
     tl.set($(s0, ".ph"), { display: "none" }, 0.15);
     type($(s0, ".s0t"), "/ship-video", 0.15, 0.7);
-    tl.fromTo(bar, { scale: 0.96, opacity: 0.6 }, { scale: 1, opacity: 1, duration: 0.5, ease: "power2.out" }, 0);
+    tl.fromTo(bar, { scale: 0.96, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "power2.out" }, 0);
     tl.set($(s0, ".send"), { className: "send" }, 0);
     tl.set($(s0, ".send"), { className: "send on" }, 0.7);
     tl.to(bar, { scale: 1.05, duration: 0.3, ease: "power1.inOut" }, 0.72);
@@ -109,21 +110,31 @@ Film({
     count($(s7, ".cn"), 0, 1440, at(7) + 0.05, 1.1, (v) => String(Math.round(v)).padStart(4, "0"));
     leave($(s7, ".rwrap"), 7);
 
-    // ================= 8 ITERATE: the first cut is a draft. The opening's input comes back with a change, the version climbs =================
+    // ================= 8 ITERATE: the first cut is a draft. The opening's input comes back; each change typed in is the next version =================
     const { s: s8 } = card(8, `<div class="center"><div class="iwrap">
         <div class="word dark">Iterate.<i class="tick loop">↻</i></div>
-        <div class="inbar"><span class="t8"></span><span class="caret c8"></span><i class="send">↑</i></div>
-        <div class="frames dark"><span class="vn">v1</span></div></div></div>`, ACCENT, END);
-    const t8 = at(8), send8 = $(s8, ".send");
+        <div class="inbar">${TWEAKS.map((_, i) => `<span class="t8 t8-${i}"></span>`).join("")}<span class="caret c8"></span><i class="send">↑</i></div>
+        <div class="frames dark">${[0, 1, 2, 3].map((v) => `<span class="vn v-${v}">${v ? "round " + v : "first cut"}</span>`).join("")}</div></div></div>`, ACCENT, END);
+    const t8 = at(8), send8 = $(s8, ".send"), loop = $(s8, ".loop");
     slam($(s8, ".word"), t8, 1.4);
     tl.fromTo($(s8, ".inbar"), { y: 120 }, { y: 0, duration: 0.45, ease: "expo.out" }, t8);
-    type($(s8, ".t8"), TWEAK, t8 + 0.3, t8 + 1.1);
+    $$(s8, ".vn").forEach((v, i) => tl.set(v, { display: i ? "none" : "" }, 0));
+    $$(s8, ".t8").forEach((el, i) => tl.set(el, { display: i ? "none" : "" }, 0));
     tl.set(send8, { className: "send" }, 0);
-    tl.set(send8, { className: "send on" }, t8 + 1.1);
-    press(send8, t8 + 1.5);
-    tl.set($(s8, ".c8"), { opacity: 0 }, t8 + 1.5);
-    tl.fromTo($(s8, ".loop"), { rotation: 0 }, { rotation: 360, duration: 0.7, ease: "expo.out" }, t8 + 1.5);   // Enter turns the loop
-    count($(s8, ".vn"), 1, 3, t8 + 1.55, 0.6, (v) => "v" + Math.round(v));
+    tl.set(loop, { rotation: 0 }, 0);
+    TWEAKS.forEach((text, i) => {
+      const p = t8 + 0.3 + i * STEP, line = $(s8, `.t8-${i}`);
+      if (i) tl.set(line, { display: "" }, p);
+      type(line, text, p, p + 0.6);
+      tl.set(send8, { className: "send on" }, p + 0.6);
+      press(send8, p + 0.85);                                                        // Enter: the loop turns, the next round
+      tl.fromTo(loop, { rotation: i * 360 }, { rotation: (i + 1) * 360, duration: 0.6, ease: "expo.out", ...NI }, p + 0.85);
+      tl.set($(s8, `.v-${i}`), { display: "none" }, p + 0.85);
+      tl.set($(s8, `.v-${i + 1}`), { display: "" }, p + 0.85);
+      tl.fromTo($(s8, `.v-${i + 1}`), { scale: 1.5 }, { scale: 1, duration: 0.3, ease: "back.out(3)" }, p + 0.85);
+      if (i < TWEAKS.length - 1) { tl.set(line, { display: "none" }, p + 1.1); tl.set(send8, { className: "send" }, p + 1.1); }
+    });
+    tl.set($(s8, ".c8"), { opacity: 0 }, t8 + 0.3 + (TWEAKS.length - 1) * STEP + 0.85);
     leave($(s8, ".iwrap"), 8, END);
 
     // ================= END =================

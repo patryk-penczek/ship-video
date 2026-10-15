@@ -72,4 +72,4 @@
 .iwrap { gap: 40px; }
 .iwrap .word { font-size: 260px; }
 .frames.dark { margin-top: 0; }
-.frames .vn { color: #0b0b0c; }
+.frames .vn { color: #0b0b0c; display: inline-block; }
