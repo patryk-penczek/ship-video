@@ -143,7 +143,8 @@
       grain.style.transform = `translate(${(hash(g) - 0.5) * 300}px, ${(hash(g + 9) - 0.5) * 300}px)`;
       cfg.react && cfg.react(t, ctx);
     }
-    function seek(t) { tl.time(Math.min(t, DURATION - 0.0001), false); react(t); }
+    // a paused timeline doesn't render tl.set(..., 0) when asked for time 0, so the first frame would be blank: clamp to 0.0001
+    function seek(t) { tl.time(Math.min(Math.max(t, 0.0001), DURATION - 0.0001), false); react(t); }
 
     window.__seek = seek;
     window.__duration = DURATION;

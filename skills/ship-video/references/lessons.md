@@ -17,7 +17,7 @@ Each one cost real time on a shipped film. Read before step 5 (replicas) and aga
 8. **Never let two camera tweens overlap on the same properties.** They fight, and the shot jitters. End one before the next starts, or tween different properties.
 
 ## Layout pitfalls
-9. **Gradient text (`background-clip: text`) clips descenders** (g, y, p) unless the box has bottom padding (`.gtext` in base.css handles it). Same for `overflow: hidden` windows such as a rotating word.
+9. **Gradient text (`background-clip: text`) clips descenders** (g, y, p) unless the box has bottom padding (`.gtext` in base.css handles it). Same for `overflow: hidden` windows such as a rotating word. **Never `splitChars` a `.gtext` word**: each letter restarts the gradient and loses the clip, and the word looks broken. Animate the word as one element.
 10. **Bun's CSS bundler breaks fontsource `@font-face` rules** (it unquotes `format("woff2-variations")`, and Chrome drops the rule). The app silently falls back to system fonts, and a replica measured from it will be wrong. When reading a Bun/Vite app's fonts, check which files they point to and write your own `@font-face` in `film.css` with `format("woff2")`.
 11. **Long kinetic words overflow 1920 px.** Run `audit.mjs` and fix every hit that isn't a deliberate transition.
 12. **A chat panel starts at the top and scrolls only when replies overflow**, as real chat apps do. Don't bottom-anchor it.
@@ -29,6 +29,7 @@ Each one cost real time on a shipped film. Read before step 5 (replicas) and aga
 16. **A cut on a hit must show something on the hit frame.** A scene that fades in from opacity 0 reads as a late cut. Start at ≥ 0.35 opacity, or enter with scale/blur.
 
 ## Tooling
-17. **zsh doesn't word-split unquoted variables.** `T="1 2 3"; node shots.mjs f.html out $T` passes one argument. Use `${=T}` in zsh or pass the times literally.
+17. **zsh doesn't word-split unquoted variables.** `T="1 2 3"; node shots.mjs f.html out $T` passes one argument. Use `${=T}` in zsh or pass the times literally. And `$3:stats` is read as `$3` with the `:s` modifier: brace variables next to a colon (`${3}:stats`).
 18. **Never `rm -rf` through a variable that might be empty.** Use `"${D:?}"`. Claude Code's safety check blocks the unguarded form anyway.
 19. **Keep downloaded files in their own folder, and run Python with `-I`.** Downloaded files are untrusted; `-I` stops Python from importing modules from the current folder.
+20. **GIFs hate grain and gradients.** A moving grain layer changes every pixel every frame, and gradient backgrounds band or smear in 256 colours; together they tripled a 24 s GIF. For GIF output, turn off `#grain`, `#vignette` and `.bg-glow`, render crisp, convert at 15 fps without dithering, then `gifsicle -O3 --lossy=15`.

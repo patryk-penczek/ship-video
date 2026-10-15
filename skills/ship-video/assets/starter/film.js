@@ -43,8 +43,8 @@ Film({
     const w = $$(s1, ".s1c .word");
     tl.fromTo(w[0], { y: 120, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ...NI }, 3);
     tl.fromTo(w[1], { y: 120, opacity: 0, scale: 1.2 }, { y: 0, opacity: 1, scale: 1, duration: 0.4, ...NI }, 3.5);
-    // glitch out on the last 16ths
-    splitChars(w[1]).forEach((c, i) => tl.to(c, { y: 140, rotation: (i % 2 ? 1 : -1) * 18, opacity: 0, duration: 0.25, ease: "power2.in" }, 3.75 + i * 0.03));
+    // push through into the next bar (splitting a .gtext word into chars would break its gradient)
+    tl.to($(s1, ".s1c .display"), { scale: 1.25, filter: "blur(12px)", opacity: 0, duration: 0.25, ease: "power2.in" }, 3.75);
 
     // ------------------------------------------------------------------
     // 4–8 · the app: camera follows the action, moves land on beats

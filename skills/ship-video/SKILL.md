@@ -159,10 +159,20 @@ Follow `references/qa-checklist.md`. The loop: run `node $S/audit.mjs <film>/ind
 
 ## 9. Render and report
 
-Crisp first (≈4 s per second of film); motion blur takes ~6× longer, so run it in the background:
+Ask which render they want with AskUserQuestion:
+- *Motion blur (Recommended)*: 240 fps blended 4:1, smoother motion; ~6× slower than crisp.
+- *Crisp*: 60 fps, sharp frames; about 4 s of render per second of film.
+- *Both, I'll compare*.
+
+If the film will become a GIF, recommend *Crisp* instead: blended frames add colours that a 256-colour GIF bands and bloats. Render crisp first either way (the hit check runs on it); run motion blur in the background:
 ```
 node $S/render.mjs <film>/index.html <film>/out/film-crisp.mp4
 node $S/render.mjs <film>/index.html <film>/out/film-motionblur.mp4 --preset motionblur
+```
+A GIF for a README or a post (keep it under ~10 MB; lessons.md #20 for what to turn off first):
+```
+ffmpeg -i film-crisp.mp4 -vf "fps=15,scale=900:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle" film.gif
+gifsicle -O3 --lossy=15 -o film-small.gif film.gif   # brew install gifsicle
 ```
 Use `--preset draft` or `--from/--to` for quick checks while iterating.
 

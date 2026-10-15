@@ -34,7 +34,9 @@ for (let t = 0; t < duration; t += step) {
         if (p.classList.contains("scene")) break;
         if (p.hasAttribute("data-clip-ok") || getComputedStyle(p).overflow === "visible") continue;
         const pr = p.getBoundingClientRect();
-        if (r.right > pr.right + 1 || r.bottom > pr.bottom + 1 || r.left < pr.left - 1 || r.top < pr.top - 1) out.push(`overflow-clip [${p.className || p.tagName}] "${label}"`);
+        // text entirely outside the box (scrolled away, off-camera) is hidden, not cut: only partial overlaps count
+        const touches = r.right > pr.left && r.left < pr.right && r.bottom > pr.top && r.top < pr.bottom;
+        if (touches && (r.right > pr.right + 1 || r.bottom > pr.bottom + 1 || r.left < pr.left - 1 || r.top < pr.top - 1)) out.push(`overflow-clip [${p.className || p.tagName}] "${label}"`);
       }
       const fs = parseFloat(cs.fontSize);
       if (fs >= 48 && (r.left < -2 || r.right > 1922)) out.push(`frame-crop fs=${fs} "${label}" x=${r.left.toFixed(0)}..${r.right.toFixed(0)}`);
