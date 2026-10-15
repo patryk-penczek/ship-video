@@ -63,7 +63,7 @@ Film({
 | `view` | `{ top, bottom, h, cy }`: the free part of the frame (changes with `band()`) |
 | `$`, `$$` | `querySelector`, `querySelectorAll` as array, scoped to a root |
 | `cursor(host, from, steps)` | see *Shot helpers* |
-| `caption(scene, text, t, from?, {pos, x, y}?)` | opaque pill that enters by offset; `pos` `"bl"` (default) `"br"` `"tl"` `"tr"` `"bc"` or `x`/`y` stage px, so it can avoid content |
+| `caption(scene, text, t, from?, {pos, x, y, size}?)` | `size` = font size in px (default 44).  opaque pill that enters by offset; `pos` `"bl"` (default) `"br"` `"tl"` `"tr"` `"bc"` or `x`/`y` stage px, so it can avoid content |
 | `scrollTo(main, y, t, dur?, ease?, {pin}?)` | `y` = scroll position; chains from the previous scrollTo on the same element; `dur` 0 pre-scrolls; returns `{ y, from, at(p), box(b) }` (`at` maps a point measured before the scroll, `box` shifts a rect for `focus`'s `box`) |
 | `keycap(scene, key, t, {pos, x, y, end, size}?)` | key glyph(s) (`"ArrowUp"`, `"Ctrl+K"`) that appear and press at `t`: the cursor of keyboard-driven apps; give it the scene, not the camera layer |
 | `panels(scene, {width, bg}?)` | two margin panels (`.panel`) around a narrow app centred on the stage, for copy; returns `{ l, r, box }`, pass `box` to `focus` |
@@ -72,7 +72,7 @@ Film({
 | `finger(host, from, steps)` / `band(opts)` / `follow(el, pts, t0)` / `focusRect(rect, pad?)` | touch pointer, step-caption band, recorded pointer path, camera that frames a rect |
 | `target(sel, {scene, in, text, withText, fx, fy, dx, dy, t}?)` / `targetRect(sel, opts)` | stage-space point / rect of a selector or element inside a scene (default: the last `scene()`), measured with the camera neutral and the timeline at `t`; stacked copies: the displayed one wins, `in: "state"` picks one. `cursor`/`finger` steps take the same thing as `to` |
 | `autoCam(cam, steps, opts?)` | camera tweens from the click steps (clusters, safe area, spring eases, manual tweens win): see *Camera, pointers and looks* |
-| `spot(scene, target, t0, t1, {dim, pad, radius, ring}?)` / `loupe(scene, target, t0, t1, {scale, size, shape, side, at}?)` | dim everything but the target / a magnified live inset |
+| `spot(scene, target, t0, t1, {dim, pad, radius, ring, ringColor}?)` / `loupe(scene, target, t0, t1, {scale, size, shape, side, at, leader}?)` | dim everything but the target / a magnified live inset |
 | `frame(scene, opts?)` or `scene(html, s, e, { frame: true })` | framed stage: the app as a rounded window with shadow and bar on a token-built backdrop; returns `{ box, content, win }` (landing, hero, README; not feeds) |
 | `spring(w?, z?)`; eases `"focused"`, `"smooth"` | spring ease function (also registered with GSAP by name) |
 | `UI.spin(tl, el, t0, t1, {turns}?)` | (ui.js, not ctx) rotates a captured CSS spinner whose keyframes were not ported |
@@ -204,6 +204,15 @@ All pure functions of `t`; destructure them from the `build` argument like the o
 - **`caption`** is hidden until `t` (it used to sit at its start offset from the scene start).
 - **`UI.spin(tl, el, t0, t1, { turns })`**: rotates a captured CSS spinner (keyframes are not ported). `Film({ images: "auto" })` preloads every image of the captured states.
 - Starter tokens are prefixed `--f-` (`--f-bg`, `--f-accent`, ...) so they cannot collide with the app's own `--card`, `--accent`, `--font-mono`.
+
+## Added in round 6 (engine)
+
+- **`toCard(fromCam, card, T, { mode, from, dur = 0.6, pull, bg, el, to, tile })`**: the join into the end card, no hard cut (`shots.md`, *Into the end card*). `mode: "reveal"` (default) grows the card's colour from `from` (point, selector or element: the last click) while the camera pulls back; `"flip"` flies `el` (payoff element in the product scene) to `to` (its place in the card) over a fading card background; `"tile"` shrinks the product into a rounded tile above the card. The product scene must run to `T + dur` (to the end of the film for `"tile"`), the card scene starts at `T`; both are warned about at build time. `audit.mjs` flags a hard cut into the last scene (`hard-cut`).
+- **`drag(host, from, path, t0, t1, { ease: "none" })`**: pointer press, constant-speed move along `path` (a point, selector, element or an array of them) and release: a slider thumb, a map pan. Every cursor/finger step also takes `ease` (`"none"`, `"power1.inOut"`; default `power2.inOut`) and `hold: "start" | "end"` for a press that spans several steps.
+- **autoCam**: a first framing whose first click is more than 0.5 s after the scene starts is set on the first frame (`startFramed: false` opts out). Every skipped framing prints a build warning with its reason (`[ship-video] ...`, also in `window.__warnings`; `audit`, `render`, `shots` show them). Only click/tap steps (and the start and end of a hold) are clustered: a drag path, `follow()` and `drag()` points are not; pass the points that must stay in frame as `also: [{ path: [{ x, y, t }] }]`, or frame the drag with `focus()`.
+- **spot**: the target is never dimmed (the scrim has a hole); `dim` defaults to 0.6 on a dark app and 0.34 on a light one; the ring uses the captured app's accent (`--f-app-accent`, set from the capture; `ringColor` overrides, and `--f-accent: var(--f-app-accent)` in `film.css` makes the whole film use it). **loupe**: warns when the target covers more than 50 % of the stage (use a camera zoom there), `leader: true` draws a line to the target, and the cloned layer is rebuilt only when its markup changed.
+- **`UI.states(names).lerp(tl, host, t0, t1, opts)`** (ui.js): morphs one DOM between many captured states: `shots.md`, *Data over time*.
+- `warn(msg)` is in the build argument: a build-time note shown by the scripts.
 
 ## Determinism rules
 

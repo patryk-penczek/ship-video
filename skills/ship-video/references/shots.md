@@ -213,6 +213,7 @@ Timing: `direction.md`, *End card* (lines in by ~0.6 s, a readable rest with the
 Don't `splitChars` a `.gtext` word (`lessons.md` 16).
 
 ### Into the end card (seamless, ~0.6 s overlap)
+Use the engine's `toCard(cam, card, T, { mode: "reveal" | "flip" | "tile", from, dur: 0.6 })` (the starter film does): `reveal` is the snippet below, `flip` moves the payoff number or chip to the card's headline, `tile` shrinks the product into a tile above the card. Create the product scene to run to `T + 0.6` and the card with `scene(html, T, null)`. `audit.mjs` warns (`hard-cut`) when the last scene starts with most of the picture changing in 2 frames. The manual version:
 The product scene runs ~0.6 s past the card's start; the camera pulls back while the card's colour grows from the last click point, then the line rises. `P.last` is the last click point measured before tweens; `cam9` the product scene's camera.
 ```js
 const T = cardStart, s9 = scene(UI.shot("final"), t9, T + 0.6), cam9 = wrap(s9);
@@ -223,6 +224,16 @@ enter($(card, ".end"), { y: 60 }, T + 0.35, 0.5);                              /
 enter($(card, ".line"), { y: 40 }, T + 0.5, 0.5);
 ```
 Alternatives: move the payoff element itself (a number, a chip) to the headline position with a FLIP tween and fade the UI out behind it; or shrink the UI into a rounded tile (`scale` 0.5, `borderRadius`) that slides up as the card text enters below. Keep one direction of motion across the join.
+
+### Data over time (one DOM, many captured states)
+A slider, scrubber or date control drives a chart or map and you captured one state per value (`"set"` on the range input, `--seed`/`--timezone` so every state agrees). Swapping 25 screens flickers; keep the first state in the scene and morph it:
+```js
+const names = ["h00", "h06", "h12", "h18", "h24"], S = UI.states(names);
+const s = scene(UI.shot(names[0]), 4, 12), host = UI.pick(s, names[0]);
+S.lerp(tl, host, 5, 11, { sel: "circle", key: (e) => e.getAttribute("cx") + "|" + e.getAttribute("cy"), swap: [".chart-card"], text: [".clock"], css: ["left"] });
+drag(c, ".slider-thumb", ".slider-end", 5, 11);   // the cursor drags the thumb over the same seconds (ease none)
+```
+Elements that exist in two states are matched by `key` and their fills, sizes, positions and path data are interpolated (colours in RGB); `swap`/`text` selectors take their innerHTML / text from the nearest state. Pair it with a camera push or a counter: a recolour alone is little motion (`motion.mjs --region x,y,w,h --level 4 --thresh 0.05` measures it). Open data products with a stake line (what the viewer learns), and add a key-chart zoom (`focusRect` on the card, then `spot`) for the one shot where the small chart text must be readable.
 
 ### Dialog or palette shot
 A scrim darkens the whole captured frame, so a dialog at camera 1.0 is a dark frame with a small box in it. Zoom onto the dialog until it fills at least 50% of the frame (usually 1.8-2.4×), aim `focus()` at its centre (measure it with `UI.measure`), and keep the scrim at the edges only. Type into its input as in shot 2 and cut out on the Enter press. Never two dark shots in a row.
