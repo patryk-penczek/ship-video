@@ -241,5 +241,5 @@ The most useful contributions come from making a real film with it. [Open an iss
 
 [Guide](docs/guide.md) · [Contributing](CONTRIBUTING.md) · [MIT License](LICENSE)
 
-Films you make are yours; music, fonts and assets you add keep their own licenses. The hero uses Inter and JetBrains Mono (SIL OFL) and [GSAP](https://gsap.com/standard-license).
+Films you make are yours; music, fonts and assets you add keep their own licenses. The README films use Inter and JetBrains Mono (SIL OFL) and [GSAP](https://gsap.com/standard-license) under their own licenses; see [NOTICE](NOTICE).
 
