@@ -8,6 +8,9 @@
 //   contrast     samples every 0.5 s and at every cut: text of the FILM (not the captured app, see --app-text) below WCAG AA (4.5:1, 3:1 for large text) for >= 0.5 s. The background is read from a
 //                screenshot with the text hidden, so images and gradients count. Faded frames (opacity < 0.9) are skipped. data-contrast-ok on the element or an ancestor opts out.
 //   privacy      emails, phone numbers, API keys / tokens (and names given with --pii-names) in the rendered DOM text and in value/title/alt/placeholder/aria-label/mailto:/tel:. data-pii-ok opts out.
+//   brand        --brand-deny "ShareGPT,Acme": third-party names that must not appear in rendered text (a brief that keeps other brands out): every frame sampled like privacy, case-insensitive, whole words.
+//                Also checked: value/title/alt/aria-label. data-pii-ok opts out. Check the film's last seconds yourself too: a captured button can carry a name for the whole film.
+//   hard-cut     the last scene (end card) starts with > 45 % of the picture changing in 2 frames and no overlap: join it with toCard() (shots.md, Into the end card). --no-hardcut skips it.
 //   --no-lint  --no-determinism  --no-contrast  --no-pii   skip one check · --lint-only  static lint only (instant, no browser)
 //   --app-text  include text inside the captured app (.app-shot) in the contrast check (default: skipped, it is the app's own design)
 //   --contrast-step S  seconds between contrast samples (default 0.5) · --pii-names "Jane Doe,Sam" · --pii-allow "support@acme.com,..."
@@ -32,12 +35,12 @@
 import path from "node:path";
 import { help, args, openFilm, die, num, known, mustExist } from "./lib/common.mjs";
 import { lintFilm, fmt } from "./lib/lint.mjs";
-import { determinism, contrast, piiScan } from "./lib/qa.mjs";
+import { determinism, contrast, piiScan, hardCut, brandScan } from "./lib/qa.mjs";
 help(import.meta.url);
 
 const a = args();
-known(a, ["step", "no-crop", "summary", "no-motion", "app-clip", "no-lint", "no-determinism", "no-contrast", "no-pii", "lint-only", "app-text", "contrast-step", "pii-names", "pii-allow", "strict"]);
-for (const k of ["pii-names", "pii-allow"]) if (a[k] === true) die(`--${k} needs a value`);
+known(a, ["step", "no-crop", "summary", "no-motion", "app-clip", "no-lint", "no-determinism", "no-contrast", "no-pii", "lint-only", "app-text", "contrast-step", "pii-names", "pii-allow", "strict", "no-hardcut", "brand-deny"]);
+for (const k of ["pii-names", "pii-allow", "brand-deny"]) if (a[k] === true) die(`--${k} needs a value`);
 const [html] = a._;
 if (!html) die("usage: node audit.mjs <film/index.html> [--step 0.125] [--no-crop] [--summary]");
 const step = num(a, "step", 0.125, { min: 0.01 });
@@ -98,7 +101,13 @@ for (let t = 0; t < duration; t += step) {
       if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) continue;
       const keep = cur.style.pointerEvents; cur.style.pointerEvents = "auto";
       const top = document.elementsFromPoint(x, y)[0]; cur.style.pointerEvents = keep;
-      if (top && top !== cur && !cur.contains(top) && !top.classList.contains("ripple")) out.push(`cursor hidden under ${top.id ? "#" + top.id : top.classList[0] ? "." + top.classList[0] : top.tagName.toLowerCase()} (z-index leak: is it inside .app-shot? re-capture css / check isolation)`);
+      if (top && top !== cur && !cur.contains(top) && !top.classList.contains("ripple")) {
+        const nm = (e) => e.id ? "#" + e.id : e.classList[0] ? "." + e.classList[0] : e.tagName.toLowerCase();
+        // the stacking context the covering element lives in: the nearest ancestor that creates one (z-index on a positioned box, transform, opacity < 1, filter, isolation, fixed/sticky)
+        let ctx = null; for (let p = top.parentElement; p && p !== document.body; p = p.parentElement) { const c = getComputedStyle(p); if ((c.zIndex !== "auto" && c.position !== "static") || c.transform !== "none" || Number(c.opacity) < 1 || c.filter !== "none" || c.isolation === "isolate" || c.position === "fixed" || c.position === "sticky") { ctx = p; break; } }
+        const z = (e) => getComputedStyle(e).zIndex;
+        out.push(`cursor hidden under ${nm(top)} (z-index ${z(top)}${ctx ? `, in the stacking context of ${nm(ctx)} (z-index ${z(ctx)})` : ""}; the cursor sits in ${nm(cur.closest(".camlayer") ?? cur.parentElement)}): an app popover / modal paints above the cursor layer. Is it inside .app-shot? Re-capture css, or give the cursor's host a higher z-index in film.css (.ptr { z-index: 99999 })`);
+      }
     }
     return out;
   }, { tt: t, noCrop, appClip });
@@ -179,11 +188,15 @@ if (!a["no-motion"]) {
       const hit = document.elementsFromPoint(tx + (fing ? 0 : 3), ty + (fing ? 0 : 6)).find((e) => !e.closest("#flash, #vignette, #grain, .band, .cap, .cursor, .finger, .ripple"));
       const tgt = hit && (hit.closest("button, a, [role=button], [role=tab], input, select, textarea, summary, label, article, li, tr") || hit), tb = tgt?.getBoundingClientRect();
       const op = (() => { let o = 1; for (let p = el; p; p = p.parentElement) o *= Number(getComputedStyle(p).opacity); return o; })();
-      return { t: c.t, x, y, vis: op > 0.3, w: tb ? tb.width / k : null, h: tb ? tb.height / k : null, cropped: tb ? (tb.left < sr.left - 2 || tb.right > sr.right + 2 || tb.top < sr.top - 2 || tb.bottom > sr.bottom + 2) && tb.width < 600 : false, ok: !!tgt?.closest('[data-clip-ok]:not([data-clip-ok="box"])'), name: tgt ? (tgt.id ? "#" + tgt.id : tgt.classList[0] ? "." + tgt.classList[0] : tgt.tagName.toLowerCase()) : "" };
+      const lay = el.closest(".camlayer"), M = lay ? new DOMMatrix(getComputedStyle(lay).transform) : null;
+      // the camera is clamped at the layer's edge (focus() keeps the frame inside the app): the layer's own edge sits ON the frame edge and the click is on that side. Nothing the cut can fix without over:
+      const clamp = !!M && M.a > 1.05 && ((Math.abs(M.e + 960 - 960 * M.a) <= 3 && x < 384) || (Math.abs(M.e + 960 + 960 * M.a - 1920) <= 3 && x > 1536) || (Math.abs(M.f + 540 - 540 * M.d) <= 3 && y < 216) || (Math.abs(M.f + 540 + 540 * M.d - 1080) <= 3 && y > 864));
+      return { clamp, t: c.t, x, y, vis: op > 0.3, w: tb ? tb.width / k : null, h: tb ? tb.height / k : null, cropped: tb ? (tb.left < sr.left - 2 || tb.right > sr.right + 2 || tb.top < sr.top - 2 || tb.bottom > sr.bottom + 2) && tb.width < 600 : false, ok: !!tgt?.closest('[data-clip-ok]:not([data-clip-ok="box"])'), name: tgt ? (tgt.id ? "#" + tgt.id : tgt.classList[0] ? "." + tgt.classList[0] : tgt.tagName.toLowerCase()) : "" };
     }, i);
     if (!r.vis || r.ok) continue; // data-clip-ok on the target or an ancestor: a deliberate crop (the control sits at the edge under camera zoom)
     const at = `click ${r.t.toFixed(2)} at (${Math.round(r.x)}, ${Math.round(r.y)})${r.name ? " on " + r.name : ""}`;
     if (r.x < 0 || r.x > 1920 || r.y < 0 || r.y > 1080) clickWarn.push(`${at} — off-screen; frame the control before the press`);
+    else if ((r.x < 384 || r.x > 1536 || r.y < 216 || r.y > 864) && r.clamp) continue; // the focus clamp keeps the camera inside the app: the control cannot be centred without autoCam / focus({ over })
     else if (r.x < 384 || r.x > 1536 || r.y < 216 || r.y > 864) clickWarn.push(`${at} — edge of frame (outside the central 60 %); frame the control before the press`);
     else if (r.cropped) clickWarn.push(`${at} — the control is cropped by the frame edge`);
     else if (r.w != null && Math.min(r.w, r.h) < 24) clickWarn.push(`${at} — only ${Math.round(Math.min(r.w, r.h))} px on screen; zoom in before the press`);
@@ -202,6 +215,8 @@ for (const w of endWarn) console.log(`WARNING ${w}`);
 const qa = [];
 if (!a["no-determinism"]) qa.push(...await determinism(html, page, duration));
 if (!a["no-contrast"]) qa.push(...await contrast(page, duration, { step: cstep, appText: !!a["app-text"] }));
+if (!a["no-hardcut"]) qa.push(...await hardCut(page, duration));
+if (a["brand-deny"]) qa.push(...await brandScan(page, duration, String(a["brand-deny"]).split(",").map((x) => x.trim()).filter(Boolean)));
 if (!a["no-pii"]) qa.push(...await piiScan(page, duration, { allow: String(a["pii-allow"] ?? "").split(",").map((s) => s.trim()).filter(Boolean), names: String(a["pii-names"] ?? "").split(",").map((s) => s.trim()).filter(Boolean) }));
 for (const q of qa) console.log(q);
 quality.push(...qa);

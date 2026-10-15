@@ -29,7 +29,7 @@ async function pass(page, times, repeat) {
   return res;
 }
 // pixels that differ by more than 8/255 in a channel (Chromium's own dithering of big gradients and blur differs by 1-2 levels between loads: not a film bug)
-const pixDiff = (page, A, B) => page.evaluate(async ([A, B]) => {
+export const pixDiff = (page, A, B) => page.evaluate(async ([A, B]) => {
   const ld = (x) => new Promise((o) => { const i = new Image(); i.onload = () => o(i); i.src = "data:image/png;base64," + x; });
   const [ia, ib] = [await ld(A), await ld(B)], mk = (i) => { const c = document.createElement("canvas"); c.width = i.width; c.height = i.height; const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(i, 0, 0); return x.getImageData(0, 0, i.width, i.height).data; };
   const da = mk(ia), db = mk(ib); let n = 0, x0 = 1e9, x1 = 0, y0 = 1e9, y1 = 0;
@@ -170,4 +170,40 @@ export async function piiScan(page, duration, { allow = [], names = [] } = {}) {
     }
   }
   return [...found.values()].map((f) => `privacy t=${f.t.toFixed(0)}  ${f.kind} ${mask(f.v)} in ${f.where}  fix: re-capture with capture.mjs --redact (names: --redact-names), or data-pii-ok if it is public on purpose. Real customer data must never appear in a public film`);
+}
+
+// ---------- brand deny list ----------
+// audit.mjs --brand-deny "ShareGPT,Acme": third-party names that must not be visible anywhere in the film (a brief that keeps other brands out). Samples every 0.5 s; text on screen only
+// (display:none stacked states and off-frame boxes are skipped), plus alt / title / aria-label / placeholder / value of visible elements. One line per name with the first and last time seen.
+export async function brandScan(page, duration, names) {
+  const res = new Map();
+  const grab = (list) => {
+    const hits = [], vis = (e) => { if (!e.checkVisibility?.({ opacityProperty: true, visibilityProperty: true })) return false; const r = e.getBoundingClientRect(); return r.width > 1 && r.height > 1 && r.right > 0 && r.bottom > 0 && r.left < innerWidth && r.top < innerHeight; };
+    const re = list.map((n) => [n, new RegExp(`(?<![\\p{L}\\p{N}])${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}])`, "iu")]);
+    const lab = (e) => e.id ? "#" + e.id : e.closest("[class]")?.classList[0] ? "." + e.closest("[class]").classList[0] : e.tagName.toLowerCase();
+    const test = (s, e, at) => { for (const [n, r] of re) if (r.test(s)) hits.push([n, `${lab(e)}${at ? `[${at}]` : ""}`, s.trim().slice(0, 50)]); };
+    const wk = document.createTreeWalker(document.getElementById("scenes"), NodeFilter.SHOW_TEXT);
+    while (wk.nextNode()) { const n = wk.currentNode, e = n.parentElement; if (!e || !n.nodeValue.trim() || e.closest("[data-pii-ok]") || /^(SCRIPT|STYLE)$/.test(e.tagName) || !vis(e)) continue; test(n.nodeValue, e); }
+    for (const e of document.querySelectorAll("#scenes [alt], #scenes [title], #scenes [aria-label], #scenes [placeholder], #scenes input, #scenes textarea")) {
+      if (e.closest("[data-pii-ok]") || !vis(e)) continue;
+      for (const at of ["alt", "title", "aria-label", "placeholder", "value"]) { const v = e.getAttribute(at) ?? (at === "value" ? e.value : null); if (v) test(v, e, at); }
+    }
+    return hits;
+  };
+  for (let t = 0; t <= duration + 1e-6; t += 0.5) {
+    await page.evaluate((tt) => window.__seek(tt), Math.min(t, duration));
+    for (const [n, where, text] of await page.evaluate(grab, names)) { const k = n.toLowerCase(), r = res.get(k) ?? { n, where, text, from: t, to: t }; r.to = t; res.set(k, r); }
+  }
+  return [...res.values()].map((r) => `brand ${r.from.toFixed(1)}–${r.to.toFixed(1)}  "${r.n}" is visible in ${r.where}: "${r.text}"  fix: remove or rename it in the replica (the state's markup or ui.js), re-capture with the control hidden, or data-pii-ok if it is allowed on purpose`);
+}
+
+// ---------- hard cut into the end card ----------
+// The last scene (the end card) should be joined to the product scene (toCard(): reveal, flip, tile). A frame pair 1/30 s around its start that differs over most of the picture is a hard cut.
+export async function hardCut(page, duration) {
+  const T = await page.evaluate(() => { const l = document.getElementById("scenes").lastElementChild; return l && l.__end == null && l.__start > 0.5 ? l.__start : null; });
+  if (T == null || T >= duration - 0.2) return [];
+  const shot = async (t) => { await page.evaluate((tt) => window.__seek(tt), t); return page.screenshot({ type: "png" }); };
+  const a = await shot(T - 1 / 30), b = await shot(T + 1 / 30);
+  const d = await pixDiff(page, a, b), frac = d.n / (1920 * 1080);
+  return frac > 0.45 ? [`hard-cut ${T.toFixed(2)}  ${Math.round(frac * 100)} % of the picture changes in 2 frames into the last scene, with no overlap  fix: join it with toCard(cam, card, T, { mode: "reveal" | "flip" | "tile" }) (shots.md, Into the end card), or justify the cut in SCENARIO.md`] : [];
 }

@@ -65,7 +65,7 @@ export async function openFilm(html, { scale = 1, logs = false } = {}) {
   try {
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: scale });
     let loadError = null;
-    page.on("console", (m) => { if (m.type() === "error") console.error("[page]", m.text()); else if (logs) console.error(`[console.${m.type()}]`, m.text()); }); // logs: a film's own console.log (debug prints) shows up
+    page.on("console", (m) => { if (m.type() === "error") console.error("[page]", m.text()); else if (m.type() === "warning" && m.text().startsWith("[ship-video]")) console.error(`WARNING ${m.text().slice(13)}`); else if (logs) console.error(`[console.${m.type()}]`, m.text()); }); // logs: a film's own console.log (debug prints) shows up
     page.on("pageerror", (e) => { loadError ??= e.message; console.error("[pageerror]", e.message); });
     await page.goto(`${pathToFileURL(path.resolve(html)).href}?render=1`);
     let iv;
