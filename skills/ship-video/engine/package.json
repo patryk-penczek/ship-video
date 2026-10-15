@@ -1,0 +1,11 @@
+{
+  "name": "ship-video-engine",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.2.5",
+    "@fontsource-variable/jetbrains-mono": "^5.2.5",
+    "gsap": "^3.13.0",
+    "playwright": "^1.55.0"
+  }
+}
