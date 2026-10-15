@@ -15,6 +15,11 @@
 //     --redact-names "Jane Doe,Sam Lee"  also swaps those names (full name and each word of >= 3 letters) for fake ones. states.json: "redact": true | { "emails", "phones", "keys": false to skip a kind,
 //     "names": [...], "allow": ["support@acme.com"], "patterns": [{ "regex": "ACME-\\d+", "replace": "ACME-0000" }] }; a state's own "redact": false skips it. Pixels (canvas, photos, avatar images) are NOT redacted:
 //     look at review/ and img/ yourself. Real customer data must never appear in a film that is public or committed. audit.mjs greps the finished film for what is left.
+//   --timezone America/New_York  IANA time zone of every page (default: this machine's). An app that formats local times (a dashboard in ET, a "9:00 AM" label) otherwise shows the zone of whoever
+//     captures; compare.mjs takes the same flag. states.json: "init": { "timezone": "America/New_York" } does the same for every state
+//   --bake-hover "sel,sel2"  capture the :hover look of these elements (hover-only UI: row actions, tooltips' triggers, button hover colours): each match (and its descendants) is hovered with the real
+//     mouse and the styles that change are written inline, so the replica shows the hovered state. Per state: "bakeHover": ["sel", ...] (a state's own list wins). The page is edited live: the screenshot
+//     is taken before, the snapshot after. Hidden-until-hover children (display:none -> block) are baked too
 //   --init-script file.js  JS run before any app script (stub random data, feature flags). Apps with random demo data differ at every load:
 //   capture ALL states in one run (never mix runs: the numbers would disagree) and treat compare.mjs as layout-only (--no-text)
 //   --storage k=v;k2=v2  localStorage seeded before the first navigation (once per tab): log in without a login state. Same as "init" in states.json
@@ -57,7 +62,7 @@ import { detectRoot, outsideRoot, pageInfo, collectSheets, portCss } from "./lib
 help(import.meta.url);
 
 const a = args(undefined, ["css", "full", "discover", "touch", "motion", "prune-hidden", "no-clicks", "redact", "help"]);
-known(a, ["css", "full", "discover", "root", "only", "routes", "depth", "dpr", "viewport", "touch", "scheme", "storage", "motion", "storage-state", "seed", "init-script", "prune-hidden", "no-clicks", "parallel", "max-pages", "redact", "redact-names"]);
+known(a, ["css", "full", "discover", "root", "only", "routes", "depth", "dpr", "viewport", "touch", "scheme", "storage", "motion", "storage-state", "seed", "init-script", "timezone", "prune-hidden", "no-clicks", "bake-hover", "parallel", "max-pages", "redact", "redact-names"]);
 for (const k of ["root", "only", "routes"]) if (a[k] === true) die(`--${k} needs a value`);
 const env = envOptions(a);
 if (a["redact-names"] === true) die("--redact-names needs a list: --redact-names \"Jane Doe,Sam Lee\"");
@@ -357,7 +362,7 @@ async function main(statesFile, film) {
   const usedFonts = new Set(); let lastLen = null; const tks = new Map(), tall = [], META_REC = Object.create(null), jsFonts = new Map(), cssBy = new Map(), shots = [], warned = new Set(), animSeen = new Map(), bakedAll = new Set();
   const warnOnce = (msg) => { if (!warned.has(msg)) { warned.add(msg); console.error(msg); } };
   try {
-    await drive(browser, url, states, { width: W, height: H, errors, dpr: DPR, dprAll: !!env.dprGiven, touch: env.touch, motion: env.motion, scheme: env.scheme, storage: env.storage, init: states.init, setup: states.setup, seed: env.seed, initScript: env.initScript, storageState: env.storageState }, async (page, st) => {
+    await drive(browser, url, states, { width: W, height: H, errors, dpr: DPR, dprAll: !!env.dprGiven, touch: env.touch, motion: env.motion, scheme: env.scheme, storage: env.storage, init: states.init, setup: states.setup, seed: env.seed, initScript: env.initScript, storageState: env.storageState, timezone: env.timezone }, async (page, st) => {
       if (st.capture === false || (only && !only.has(st.name) && !only.has(st.name.replace(/-before$/, "")))) return;
       const sel = st.root ?? a.root ?? await detectRoot(page);
       if (!(await page.$(sel))) throw new Error(`state ${st.name}: root "${sel}" matches nothing on ${page.url()} (set "root" in the state or --root)`);
@@ -420,6 +425,31 @@ async function main(statesFile, film) {
         }, { sel, pin: st.pin });
         console.log(`${st.name.padEnd(18)} pinned the resolved size of ${n} element(s)`);
       }
+      const bake = st.bakeHover ?? (a["bake-hover"] && a["bake-hover"] !== true ? String(a["bake-hover"]).split(",").map((x) => x.trim()).filter(Boolean) : null);
+      if (bake?.length) {
+        const SKIP = /^(transition|animation|cursor|pointer-events|caret|perspective-origin|transform-origin|inline-size|block-size|min-|max-|-webkit-|view-transition|will-change)/;
+        let baked = 0;
+        for (const q of bake) {
+          const loc = page.locator(`${sel} ${q}, ${q}`), n = Math.min(await loc.count(), 20);
+          for (let i = 0; i < n; i++) {
+            const one = loc.nth(i);
+            await page.mouse.move(0, 0);
+            const base = await one.evaluate((e) => { const out = []; for (const x of [e, ...e.querySelectorAll("*")].slice(0, 120)) { const cs = getComputedStyle(x), o = {}; for (const k of cs) o[k] = cs.getPropertyValue(k); out.push(o); } return out; });
+            try { await one.hover({ timeout: 2000 }); } catch { continue; }
+            await page.waitForTimeout(350); // hover transitions (the page's CSS transitions are frozen on a state, but JS-driven reveals take a moment)
+            baked += await one.evaluate((e, [base, skip]) => {
+              let c = 0; const re = new RegExp(skip);
+              [e, ...e.querySelectorAll("*")].slice(0, 120).forEach((x, j) => {
+                const cs = getComputedStyle(x), b = base[j]; if (!b) return;
+                for (const k of cs) { const v = cs.getPropertyValue(k); if (v !== b[k] && !re.test(k)) { x.style.setProperty(k, v, "important"); c++; } }
+              });
+              return c;
+            }, [base, SKIP.source]);
+          }
+        }
+        await page.mouse.move(0, 0);
+        console.log(`${st.name.padEnd(18)} baked :hover of ${bake.join(", ")} (${baked} style values)`);
+      }
       await page.evaluate(async (sel) => { // lazy images: load every one (loading=lazy, data-src) so the snapshot has a real URL, not a placeholder
         const imgs = [...document.querySelector(sel).querySelectorAll("img")];
         for (const i of imgs) {
@@ -450,7 +480,7 @@ async function main(statesFile, film) {
         catch (e) { errors.push(`[${st.name}] asset ${u}: ${e.message}`); }
       }
       SCREENS[st.name] = html;
-      META[st.name] = { attrs: info.attrs, height: snap.height, root: sel, scheme: info.scheme, viewport: [W, H], bg: info.base.background, lum: +info.lum.toFixed(3), ...(frameSrc.length ? { canvas: frameSrc } : {}), ...(META_REC[st.name] ? { record: META_REC[st.name] } : {}) };
+      META[st.name] = { attrs: info.attrs, height: snap.height, root: sel, scheme: info.scheme, viewport: [W, H], bg: info.base.background, lum: +info.lum.toFixed(3), ...(info.accent ? { accent: info.accent } : {}), ...(frameSrc.length ? { canvas: frameSrc } : {}), ...(META_REC[st.name] ? { record: META_REC[st.name] } : {}) };
       { // FontFace-API fonts: keep the faces the browser actually loaded (an app may register a hundred unicode-range shards)
         const got = await page.evaluate(() => ({ made: window.__svFonts || [], loaded: [...document.fonts].filter((f) => f.status === "loaded").map((f) => `${f.family.replace(/^["']|["']$/g, "")}|${f.unicodeRange}|${f.style}`) }));
         const norm = (v) => (v || "U+0-10FFFF").replace(/\s+/g, "");
@@ -486,7 +516,15 @@ async function main(statesFile, film) {
   for (const x of cssSummary?.animations ?? []) { const [k, ...r] = x.split(" on "); (animSeen.get(k) ?? animSeen.set(k, new Set()).get(k)).add(r.join(" on ")); }
   if (animSeen.size) console.error(`WARNING CSS animations on the page are not in the replica (${animSeen.size} @keyframes): ${[...animSeen].slice(0, 8).map(([k, v]) => `${k} on ${[...v].slice(0, 3).join(", ")}`).join("; ")}. Recreate them on the film timeline: each is a tween on the element (rotation for a spinner: UI.spin; fade/slide in: tl.from), see replicas.md Pitfalls "CSS animations and transitions don't run" and motion-vocabulary.md.${bakedAll.size ? ` Held end states were baked into style: ${[...bakedAll].slice(0, 6).join("; ")}.` : " If the page switches animations off under prefers-reduced-motion, fill-forwards end states (draw-on lines, fade-ins) were captured at their START: capture with --motion."}`);
   const names = Object.keys(SCREENS);
-  if (names.length) { const { bg, lum } = META[names[0]]; console.log(`app background ${bg} (luminance ${lum}): the film theme is ${lum > 0.6 ? "light" : "dark"}  (starter: <html data-theme="auto"> follows it; or new-film.mjs --theme light|dark)`); }
+  if (names.length) {
+    const { bg, lum, accent } = META[names[0]], want = lum > 0.6 ? "light" : "dark";
+    console.log(`app background ${bg} (luminance ${lum}): the film theme is ${want}  (starter: <html data-theme="auto"> follows it; or new-film.mjs --theme light|dark)${accent ? `; app accent ${accent}: the spot() ring uses it (--f-app-accent); to make the film's own accent match, set --f-accent: var(--f-app-accent) in film.css` : ""}`);
+    try { // new-film --theme dark on a light app (or the reverse) leaves the film in the wrong theme: say exactly what to change
+      const f = path.join(film, "index.html"), m = existsSync(f) && readFileSync(f, "utf8").match(/<html\b[^>]*>/);
+      const t = m && m[0].match(/data-theme="(light|dark|auto)"/)?.[1];
+      if (t && t !== "auto" && t !== want) console.error(`WARNING the film is fixed to the ${t} theme but the app is ${want}: in ${f} replace ${m[0]} with <html lang="en" data-theme="auto"> (auto follows the captured app) or with ${want === "light" ? '<html lang="en" data-theme="light" class="light">' : '<html lang="en" data-theme="dark">'}`);
+    } catch {}
+  }
   if (!names.length) { console.error(errors.join("\n")); die(only ? `no state captured: --only ${a.only} matches none, or it failed` : "no state captured"); }
   if (only && existsSync(path.join(film, "screens.js"))) { // --only: keep the states of earlier runs
     try {

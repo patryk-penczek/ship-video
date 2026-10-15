@@ -8,7 +8,7 @@
 //   · mouse "down" | "up" | ["move", <sel>|[x, y], {steps}]  (building blocks for drags that need a pause or a second move)
 // State keys that shape the page: scheme ("light"|"dark": prefers-color-scheme), storage {key: value} (localStorage seeded before the
 // first navigation, once per tab), reveal: true (scroll through the page so IntersectionObserver content appears).
-// The file may also be { "init": { storage, sessionStorage, cookies: [{name, value}], scheme }, "states": [...] }: init applies to every page (login).
+// The file may also be { "init": { storage, sessionStorage, cookies: [{name, value}], scheme, timezone }, "states": [...] }: init applies to every page (login).
 // before: true on a state also captures <name>-before, the page right before the last action (the "before" half of a click).
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -21,9 +21,9 @@ export const FREEZE = "*,*::before,*::after{animation-duration:0s!important;anim
 // Options shared by capture.mjs and compare.mjs: --viewport WxH · --touch · --dpr N · --scheme light|dark · --storage "k=v;k2=v2" · --motion
 // (--motion: prefers-reduced-motion stays off, so a page that turns its CSS animations off under "reduce" plays them; the freeze rule then
 // jumps every animation to its end state, which is what a draw-on line or fade-in should be captured as. JS timers/counters still need a wait.)
-export const ENV_FLAGS = ["viewport", "touch", "dpr", "scheme", "storage", "motion", "storage-state", "seed", "init-script"];
+export const ENV_FLAGS = ["viewport", "touch", "dpr", "scheme", "storage", "motion", "storage-state", "seed", "init-script", "timezone"];
 export function envOptions(a) {
-  const o = { width: 1920, height: 1080, dpr: 1, touch: !!a.touch, motion: !!a.motion, scheme: undefined, storage: {} };
+  const o = { width: 1920, height: 1080, dpr: 1, touch: !!a.touch, motion: !!a.motion, scheme: undefined, storage: {}, timezone: undefined };
   if (a.viewport !== undefined) {
     const m = String(a.viewport).match(/^(\d{2,5})x(\d{2,5})$/);
     if (!m) die(`--viewport must look like 390x844, got "${a.viewport === true ? "" : a.viewport}"`);
@@ -32,6 +32,11 @@ export function envOptions(a) {
   }
   if (a.dpr !== undefined) { const v = Number(a.dpr); if (!(v >= 1 && v <= 4)) die(`--dpr must be 1..4, got "${a.dpr === true ? "" : a.dpr}"`); o.dpr = v; o.dprGiven = true; }
   if (a.scheme !== undefined) { if (!/^(light|dark)$/.test(a.scheme)) die("--scheme must be light or dark"); o.scheme = a.scheme; }
+  if (a.timezone !== undefined) { // an app that formats local time shows the machine's zone: pin it (an IANA name, e.g. America/New_York)
+    if (a.timezone === true) die("--timezone needs an IANA zone, e.g. --timezone America/New_York");
+    try { new Intl.DateTimeFormat("en", { timeZone: String(a.timezone) }); } catch { die(`--timezone: "${a.timezone}" is not an IANA zone (America/New_York, Europe/Warsaw, UTC)`); }
+    o.timezone = String(a.timezone);
+  }
   if (a["storage-state"] !== undefined) { if (a["storage-state"] === true || !existsSync(a["storage-state"])) die(`--storage-state: file not found: ${a["storage-state"]}`); o.storageState = a["storage-state"]; }
   if (a.seed !== undefined) { const v = Number(a.seed); if (!Number.isInteger(v)) die("--seed must be an integer"); o.seed = v; }
   if (a["init-script"] !== undefined) { if (a["init-script"] === true || !existsSync(a["init-script"])) die(`--init-script: file not found: ${a["init-script"]}`); o.initScript = readFileSync(a["init-script"], "utf8"); }
@@ -47,7 +52,7 @@ export async function makeContext(browser, url, opts, st = {}, init = {}) {
   const scheme = st.scheme ?? opts.scheme ?? init.scheme;
   const ctx = await browser.newContext({
     viewport: { width: opts.width, height: opts.height }, deviceScaleFactor: opts.dpr, isMobile: !!opts.touch, hasTouch: !!opts.touch,
-    reducedMotion: opts.reducedMotion ?? "reduce", ...(scheme ? { colorScheme: scheme } : {}), ...(opts.storageState ? { storageState: opts.storageState } : {}),
+    reducedMotion: opts.reducedMotion ?? "reduce", ...(scheme ? { colorScheme: scheme } : {}), ...((opts.timezone ?? init.timezone) ? { timezoneId: opts.timezone ?? init.timezone } : {}), ...(opts.storageState ? { storageState: opts.storageState } : {}),
   });
   // deterministic demo data: a seeded Math.random and a fixed clock, installed before any app script runs
   const seed = opts.seed ?? init.seed, date = init.date;
@@ -113,6 +118,7 @@ export function readStates(file) {
   if (setup && Array.isArray(setup)) setup = { actions: setup };
   if (init.date !== undefined && (typeof init.date !== "string" || Number.isNaN(new Date(init.date).getTime()))) die(`${file}: init.date ${JSON.stringify(init.date)} is not a date (use "2026-01-15T10:00:00Z")`);
   if (init.seed !== undefined && !Number.isInteger(init.seed)) die(`${file}: init.seed must be an integer, got ${JSON.stringify(init.seed)}`);
+  if (init.timezone !== undefined) { try { new Intl.DateTimeFormat("en", { timeZone: String(init.timezone) }); } catch { die(`${file}: init.timezone "${init.timezone}" is not an IANA zone (America/New_York, UTC)`); } }
   if (!Array.isArray(s) || !s.length) die(`${file}: expected a non-empty array of { name, path?, actions? } (or { init, states })`);
   const seen = new Set();
   for (const st of s) {
@@ -276,10 +282,10 @@ export async function runActions(page, actions, { name, base, freeze = true } = 
 // Visits each state in order; calls onState(page, state) once its actions are done and fonts/layout settled.
 // A state that fails (bad selector, page error, onState throws) is recorded in `errors` and skipped; the run goes on with the next
 // state, so one typo doesn't lose every other state. animate: false keeps reduced motion for every state (compare.mjs).
-export async function drive(browser, url, states, { width = 1920, height = 1080, freeze = true, errors = [], settle = 150, animate = true, dpr = 1, dprAll = false, touch = false, motion = false, scheme, storage = {}, init = {}, setup = null, seed, initScript, storageState } = {}, onState) {
+export async function drive(browser, url, states, { width = 1920, height = 1080, freeze = true, errors = [], settle = 150, animate = true, dpr = 1, dprAll = false, touch = false, motion = false, scheme, storage = {}, init = {}, setup = null, seed, initScript, storageState, timezone } = {}, onState) {
   let page = null;
   const shut = async (pg) => { if (pg) { await pg.context().close().catch(() => {}); } };
-  const env = { width, height, touch, scheme, storage, seed, initScript, storageState };
+  const env = { width, height, touch, scheme, storage, seed, initScript, storageState, timezone };
   if (setup) { // onboarding / "Try the demo" / a login form: run once, keep the resulting storage (cookies, localStorage, IndexedDB) for every state
     const ctx = await makeContext(browser, url, { ...env, dpr: 1 }, {}, init), pg = await ctx.newPage();
     try {

@@ -13,7 +13,7 @@
 //   replica, and the number of images/svg/canvas. Any missing text marks the state OVER.
 //   --redact / --redact-names "A,B" · states.json "redact": the same fakes capture.mjs --redact wrote are applied to the REAL page before it is compared (pass whatever you captured with, or redacted text shows as missing)
 //   --no-text     skip the text/media presence check (pages with random demo data: compare is layout-only then)
-//   --viewport WxH · --touch · --dpr N · --scheme light|dark · --storage "k=v;k2=v2" · --motion: same meaning as in capture.mjs (use the flags you captured with;
+//   --viewport WxH · --touch · --dpr N · --scheme light|dark · --timezone Zone · --storage "k=v;k2=v2" · --motion: same meaning as in capture.mjs (use the flags you captured with;
 //   a non-1920x1080 viewport compares the real viewport with the replica's .app-shot wrapper). states.json may carry "init" (login) and per-state "scheme".
 //   state "mask": ["#timing", ".clock"]: elements with live values (response time, clock, random numbers): ignored by the pixel diff and the text check
 //   state "clip": "#pricing" compares that element only (the real page scrolls it into view, the replica element of the same selector is cut out);
@@ -28,7 +28,7 @@ import { redactConfig, redactPage, newSummary } from "./lib/redact.mjs";
 help(import.meta.url);
 
 const a = args(undefined, ["full", "touch", "motion", "no-text", "redact", "help"]);
-known(a, ["states", "width", "height", "scale", "full", "max-diff", "max-block", "viewport", "touch", "dpr", "scheme", "storage", "motion", "no-text", "storage-state", "seed", "init-script", "redact", "redact-names"]);
+known(a, ["states", "width", "height", "scale", "full", "max-diff", "max-block", "viewport", "touch", "dpr", "scheme", "storage", "motion", "no-text", "storage-state", "seed", "init-script", "timezone", "redact", "redact-names"]);
 const env = envOptions(a);
 const [url, gallery, outDir] = a._;
 if (a.states === true) die("--states needs a file");
@@ -112,7 +112,7 @@ try {
   await gal.waitForTimeout(300);
   const tool = await browser.newPage({ viewport: { width: 400, height: 300 } });
 
-  await drive(browser, url, states, { width: W, height: H, errors, animate: false, dpr: DPR, dprAll: true, touch: env.touch, motion: env.motion, scheme: env.scheme, storage: env.storage, init: states.init, setup: states.setup, seed: env.seed, initScript: env.initScript, storageState: env.storageState }, async (app, st) => {
+  await drive(browser, url, states, { width: W, height: H, errors, animate: false, dpr: DPR, dprAll: true, touch: env.touch, motion: env.motion, scheme: env.scheme, storage: env.storage, init: states.init, setup: states.setup, seed: env.seed, initScript: env.initScript, storageState: env.storageState, timezone: env.timezone }, async (app, st) => {
     if (st.capture === false) return; // drive-only state, same meaning as in capture.mjs
     const fullPage = !!(st.full ?? a.full);
     const clipSel = st.clip ?? (st.root && !/^(body|html)$/.test(st.root) ? st.root : null); // a section / scrolled state: compare that element, scrolled into view

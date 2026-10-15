@@ -69,6 +69,21 @@ export const pageInfo = (page, rootSel) => page.evaluate((sel) => {
     lum: (() => { // luminance 0..1 of the page background, whatever colour syntax it uses (oklch, rgb, hex)
       try { const c = document.createElement("canvas"); c.width = c.height = 1; const x = c.getContext("2d", { willReadFrequently: true }); x.fillStyle = "#fff"; x.fillStyle = bg || "#fff"; x.fillRect(0, 0, 1, 1); const [r, g, b] = x.getImageData(0, 0, 1, 1).data; return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; } catch { return 1; }
     })(),
+    accent: (() => { // the app's accent: the most saturated background (by area) among buttons, badges and the like, else the most saturated link / icon colour
+      try {
+        const c = document.createElement("canvas"); c.width = c.height = 1; const x = c.getContext("2d", { willReadFrequently: true });
+        const rgb = (v) => { x.clearRect(0, 0, 1, 1); x.fillStyle = "#000"; x.fillStyle = v; x.fillRect(0, 0, 1, 1); const [r, g, b, a] = x.getImageData(0, 0, 1, 1).data; return [r, g, b, a]; };
+        const sat = ([r, g, b]) => { const m = Math.max(r, g, b), n = Math.min(r, g, b); return m ? (m - n) / m : 0; }, lum = ([r, g, b]) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+        const votes = new Map(), vote = (v, w) => { const q = rgb(v); if (q[3] < 200 || sat(q) < 0.35 || lum(q) < 0.08 || lum(q) > 0.92) return; const k = [q[0], q[1], q[2]].map((n) => n.toString(16).padStart(2, "0")).join(""); votes.set(k, (votes.get(k) ?? 0) + w); };
+        for (const e of [...(root ?? b).querySelectorAll("button, a, [role=button], [class*=primary], [class*=accent], [class*=brand], input[type=submit], input[type=checkbox], svg")].slice(0, 600)) {
+          const cs = getComputedStyle(e), r = e.getBoundingClientRect(), area = Math.min(r.width * r.height, 40000) || 1;
+          if (cs.backgroundColor) vote(cs.backgroundColor, area * 4);
+          if (e.tagName === "A" || e.tagName === "BUTTON") vote(cs.color, area * 0.5);
+          if (e.tagName === "svg" && cs.fill && cs.fill !== "none") vote(cs.fill, area * 0.2);
+        }
+        const best = [...votes.entries()].sort((u, v) => v[1] - u[1])[0]; return best ? "#" + best[0] : null;
+      } catch { return null; }
+    })(),
     rootFont: parseFloat(getComputedStyle(de).fontSize),
     bodyMargin: ["Top", "Right", "Bottom", "Left"].map((k) => parseFloat(cs["margin" + k]) || 0), // body { margin: 8px } is lost on the wrapper (margin 0): carried as padding
     base: { color: cs.color, fontFamily: cs.fontFamily, fontSize: cs.fontSize, lineHeight: cs.lineHeight, fontWeight: cs.fontWeight, background: bg },
