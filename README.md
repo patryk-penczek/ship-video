@@ -2,7 +2,9 @@
 
 **Turn your app into a music-synced launch film, as code, from one Claude Code prompt.**
 
-https://github.com/user-attachments/assets/328f4132-e9f7-4604-8e10-9731dd729a46
+<p align="center">
+  <img src="docs/hero.webp" alt="Typing /ship-video: it asks how long and which music, hears the hits, then Plan, Build, Review, Render, one word a bar, and Shipped." width="900">
+</p>
 
 <p align="center"><sub>Made with ship-video itself: one HTML page on a 120 BPM grid. <a href="docs/hero">View source</a>.</sub></p>
 

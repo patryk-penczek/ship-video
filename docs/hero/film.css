@@ -58,3 +58,10 @@
 .frames .cn { color: var(--accent); }
 .hear { position: absolute; left: 0; right: 0; top: 150px; text-align: center; font: 900 200px var(--font-display); letter-spacing: -0.06em; }
 .ship { font: 900 400px var(--font-display); letter-spacing: -0.07em; line-height: 1.05; padding-bottom: .1em; }
+
+/* Build.: ground line and blocks */
+.bwrap { display: flex; flex-direction: column; align-items: center; }
+.plinth { position: relative; width: 1120px; height: 76px; margin-top: 6px; }
+.rule { position: absolute; left: 0; right: 0; top: 0; height: 12px; border-radius: 6px; background: #0b0b0c; transform-origin: 0 50%; display: block; }
+.bricks { position: absolute; left: 0; right: 0; top: 24px; display: flex; justify-content: space-between; }
+.bricks b { width: 255px; height: 46px; border-radius: 10px; background: #0b0b0c; display: block; }

@@ -76,7 +76,7 @@ Film({
     const s3 = scene(`<div class="bgflip"></div>
       <div class="center w-plan"><div class="word">Plan.</div></div>
       <div class="stamp" style="opacity:0">APPROVED</div>
-      <div class="center w-build" style="opacity:0"><div class="word dark">Build.</div></div>
+      <div class="center w-build" style="opacity:0"><div class="bwrap"><div class="word dark">Build.</div><div class="plinth"><i class="rule"></i><span class="bricks"><b></b><b></b><b></b><b></b></span></div></div></div>
       <div class="center w-review" style="opacity:0"><div class="word">Review.<i class="tick">✓</i></div></div>
       <div class="center w-render" style="opacity:0"><div><div class="word dark">Render.</div><div class="frames"><span class="cn">0000</span> frames</div></div></div>`, 6, 10);
     const c3 = wrap(s3), fx3 = fx(c3), bg = $(s3, ".bgflip");
@@ -93,7 +93,12 @@ Film({
     // Build.: the word rises out of its baseline (a mask opening upwards), smooth like the other words
     tl.set($(s3, ".w-build"), { opacity: 1 }, 7);
     const bw = $(s3, ".w-build .word");
-    tl.fromTo(bw, { clipPath: "inset(55% 0 -10% 0)", y: 70 }, { clipPath: "inset(0% 0 -10% 0)", y: 0, duration: 0.5, ease: "expo.out" }, 7);
+    tl.fromTo(bw, { clipPath: "inset(55% 0 -10% 0)", y: 70, rotationX: 50, transformPerspective: 1400, transformOrigin: "50% 100%" },
+      { clipPath: "inset(0% 0 -10% 0)", y: 0, rotationX: 0, duration: 0.55, ease: "expo.out" }, 7);
+    // the ground line draws in, then four blocks land on it, one per 16th
+    tl.fromTo($(s3, ".rule"), { scaleX: 0 }, { scaleX: 1, duration: 0.3, ease: "expo.out" }, 7.2);
+    $$(s3, ".bricks b").forEach((b, i) => tl.fromTo(b, { x: -180, scaleX: 0.4, opacity: 0, transformOrigin: "0 50%" }, { x: 0, scaleX: 1, opacity: 1, duration: 0.24, ease: "back.out(1.7)" }, 7.375 + i * 0.125));
+    tl.fromTo($(s3, ".bwrap"), { scale: 0.97 }, { scale: 1.03, duration: 1, ease: "none" }, 7);
 
     tl.set($(s3, ".w-build"), { opacity: 0 }, 8);
     // Review.: the word, then a check that pops on the off-beat
