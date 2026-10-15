@@ -2,20 +2,20 @@
 
 Ten techniques with working engine code, each tied to a music event and a story role. `direction.md` says what the film is made of (structure, pacing, framing, UI shots); this file is the type-and-camera toolbox for the moments between and around them. All snippets were rendered and checked in stills. `s` is the scene element, `t0` the scene start, times are absolute seconds.
 
-| technique | lands on | story role | use for |
-|---|---|---|---|
-| Flood + stamped word | hit | hook, chapter title | the problem word, a chapter break |
-| Word per beat | each kick/beat | promise, the problem in 4 words | a sentence in rhythm |
-| Letter drop | bar start | title, product name | a name that needs weight |
-| Glitch | a hit or a sudden stop | the problem breaking | "it was broken" beat |
-| Stamp | hit | verdict, the payoff word | "Fixed.", "Done.", a number |
-| Typing on onsets | kicks or hi-hats | the action begins | a query, a command, a name |
-| Focus zoom, pull back on the hit | build, then the hit | action → payoff | the moment the UI answers |
-| Shockwave | big hit or drop | climax | the single biggest moment, once |
-| Screen wall | every kick | coverage of all views | showing the whole product fast |
-| Caret ending | final hit | resolution | tagline + cut out |
+| technique | lands on | story role | use for | silent film |
+|---|---|---|---|---|
+| Flood + stamped word | hit | hook, chapter title | the problem word, a chapter break | yes (a colour cut, not a flash) |
+| Word per beat | each kick/beat | promise, the problem in 4 words | a sentence in rhythm | yes, on the grid |
+| Letter drop | bar start | title, product name | a name that needs weight | yes |
+| Glitch | a hit or a sudden stop | the problem breaking | "it was broken" beat | **no, sound-coded**: use a skewed word that slides in and settles, or a letter drop |
+| Stamp | hit | verdict, the payoff word | "Fixed.", "Done.", a number | **no, sound-coded** (the thud): use the word rising with `expo.out` plus a 1.0 → 1.04 push |
+| Typing on onsets | kicks or hi-hats | the action begins | a query, a command, a name | yes, with jittered human timing |
+| Focus zoom, pull back on the hit | build, then the hit | action → payoff | the moment the UI answers | yes, pull back on the beat |
+| Shockwave | big hit or drop | climax | the single biggest moment, once | **no, sound-coded**: use a zoom-through (`shots.md` 9) or a whip pan |
+| Screen wall | every kick | coverage of all views | showing the whole product fast | yes, on the grid |
+| Caret ending | final hit | resolution | tagline + cut out | yes |
 
-Silent films use the same techniques on the bar grid and drop the shockwave, flash and shake (see `direction.md`, silent-film rules).
+Silent films: use the "yes" rows on the bar grid and follow *Silent films* in `direction.md`.
 
 **Every cut frame is sharp.** Entrances start from an offset or a scale (≤ 1.5×) at full opacity; blur ≤ 6 px; never a fade from 0.
 
@@ -62,7 +62,7 @@ tl.set(base, { x: 0, skewX: 0 }, t0 + 8 / 30);
 Use once, for the "it was broken" beat; more than once reads as a gimmick.
 
 ## 5. Stamp
-A bordered verdict word slams onto the UI: scale 2.4 → 1 in 0.18 s with a tilt, then a small camera thud (silent-safe: it is a scale, not a shake).
+A bordered verdict word slams onto the UI: scale 2.4 → 1 in 0.18 s with a tilt, then a small camera thud (sound-coded: the thud suggests an impact sound, so skip it in a silent film).
 ```js
 show(st, t0 + 0.5);
 tl.fromTo(st, { scale: 2.4, rotation: -12 }, { scale: 1, rotation: -4, duration: 0.18, ease: "power4.in" }, t0 + 0.5);
@@ -121,7 +121,7 @@ The caret's stretch ends on the final hit; the flood is the end card's backgroun
 ## Density rules
 
 - Something changes every beat: a new word, a cut, a number step, a camera landing. If a beat has nothing, add a micro-move (counter, cursor, drift) before adding an effect.
-- The camera is never still for more than a bar (2 s at 120 BPM): drift 1.0 → 1.07 over the shot is enough.
+- Stillness limit: one definition, `direction.md` *Pacing rules* 1 (nothing fully still for more than a bar; a 1.0 → 1.07 drift counts).
 - UI is zoomed 1.4–2.3× onto the element that matters; pull back to the whole UI on the hit.
 - In a montage (screen wall, view run) cut on every kick.
 - One idea per shot; effects (glitch, shockwave, stamp) once each per film.
