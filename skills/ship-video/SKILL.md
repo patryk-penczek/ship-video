@@ -1,6 +1,7 @@
 ---
 name: ship-video
 description: Makes short, music-synced product videos for a user's app (launch films, feature teasers, app trailers, how-to clips) as code. Each film is one HTML page with a GSAP timeline that recreates the app's real UI, rendered frame-exact to a 1080p60 MP4 with every cut on a beat. Use when the user wants a video, film, trailer, promo, teaser or launch clip for their product or app, wants something cut to music or to a Suno track, or wants their app's screens animated into a clip, even if they don't mention GSAP, HTML or rendering. Not for editing existing footage or screen recordings.
+license: MIT
 allowed-tools: Bash(node ${CLAUDE_SKILL_DIR}/scripts/*), Bash(bash ${CLAUDE_SKILL_DIR}/scripts/setup.sh*)
 ---
 
