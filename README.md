@@ -39,10 +39,10 @@ In Claude Code:
 Then, in your app's repo:
 
 ```
-/ship-video 20-second launch video, no music yet
+/ship-video
 ```
 
-The first run installs the engine into `~/.ship-video` (about 2 minutes, once). You approve a scenario, then get a first cut in the film folder's `out/`.
+It asks what it can't find in your code (who it's for, how long, which music), you approve a scenario, then you get a first cut in the film folder's `out/`. The first run also installs the engine into `~/.ship-video` (about 2 minutes, once).
 
 <details>
 <summary>Codex</summary>
@@ -53,7 +53,7 @@ The first run installs the engine into `~/.ship-video` (about 2 minutes, once). 
 npx skills add patryk-penczek/ship-video -a codex -g
 ```
 
-Or copy `skills/ship-video` into `~/.agents/skills/`. Then type `$ship-video 20-second launch video, no music yet`. Setup downloads Chromium and Python packages, so the first run needs network access and write access to `~/.ship-video`: approve it when Codex asks, or run `bash ~/.agents/skills/ship-video/scripts/setup.sh` once yourself.
+Or copy `skills/ship-video` into `~/.agents/skills/`. Then type `$ship-video`. Setup downloads Chromium and Python packages, so the first run needs network access and write access to `~/.ship-video`: approve it when Codex asks, or run `bash ~/.agents/skills/ship-video/scripts/setup.sh` once yourself.
 </details>
 
 <details>
