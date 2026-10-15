@@ -7,7 +7,8 @@
 //   separate <track> <out_dir>                       run demucs htdemucs_6s (needs setup.sh --demucs)
 //   grid     --bpm 120 --duration 20 [--out env.js [--pulse]]  no-music path: beat/bar times; --out writes window.ENV = null, --pulse a synthetic beat envelope
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { HOME_DIR, help, die } from "./lib/common.mjs";
@@ -48,5 +49,20 @@ if (cmd === "separate") {
 } else {
   die(`unknown command "${cmd}". Commands: analyze, envelope, plot, stems, separate, grid`);
 }
+// librosa/soundfile cannot read .m4a/.aac (render accepts them as a track): decode those to a temp wav first
+let tmpDir = null;
+if (PY_SCRIPTS[cmd] && cmd !== "stems") {
+  const i = argv.findIndex((x, k) => k >= 2 && !x.startsWith("-"));
+  const track = argv[i];
+  if (track && existsSync(track) && !/\.(wav|mp3|flac|ogg|opus)$/i.test(track)) {
+    tmpDir = mkdtempSync(path.join(os.tmpdir(), "ship-video-audio-"));
+    const wav = path.join(tmpDir, "in.wav");
+    const f = spawnSync("ffmpeg", ["-loglevel", "error", "-y", "-i", track, "-vn", "-ar", "44100", wav], { stdio: ["ignore", "ignore", "pipe"] });
+    if (f.error?.code === "ENOENT") { rmSync(tmpDir, { recursive: true, force: true }); die("ffmpeg not found in PATH (brew install ffmpeg): needed to read .m4a/.aac"); }
+    if (f.status !== 0) { rmSync(tmpDir, { recursive: true, force: true }); die(`ffmpeg could not decode ${track}: ${String(f.stderr).trim().split("\n").pop() || "no audio stream?"}`); }
+    argv[i] = wav;
+  }
+}
 const r = spawnSync(PY, argv, { stdio: "inherit" });
+if (tmpDir) rmSync(tmpDir, { recursive: true, force: true });
 process.exit(r.status ?? 1);

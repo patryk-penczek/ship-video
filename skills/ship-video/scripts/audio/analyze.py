@@ -15,18 +15,23 @@ if "--json" in argv:
     out_json = argv[i + 1]; del argv[i:i + 2]
 if len(argv) != 1: sys.exit("usage: node music.mjs analyze <track> [--json music.json]")
 path = argv[0]
+if path.startswith("--"): sys.exit(f"unknown option {path}")
 if not os.path.isfile(path): sys.exit(f"track not found: {path}")
+if out_json:  # fail before the analysis, not after it
+    jd = os.path.dirname(os.path.abspath(out_json))
+    if os.path.isdir(out_json) or not os.path.isdir(jd): sys.exit(f"--json {out_json}: the folder does not exist or the path is a folder")
 import librosa
 try:
     y, sr = librosa.load(path, sr=22050, mono=True)
 except Exception as e:
-    sys.exit(f"cannot read audio {path}: {str(e).strip().splitlines()[-1] if str(e).strip() else type(e).__name__}")
+    sys.exit(f"cannot read audio {path}: not a readable audio file (empty, truncated or another format?)")
 dur = len(y) / sr
 hop = 512
 if dur < 1 or np.abs(y).max() < 1e-4: sys.exit(f"{path} is empty or silent ({dur:.1f} s): nothing to analyze. No music? Use: node music.mjs grid --bpm 120 --duration <s>")
 
 S = np.abs(librosa.stft(y, hop_length=hop))
 f = librosa.fft_frequencies(sr=sr)
+band = lambda lo, hi: S[(f >= lo) & (f < hi)].mean(0)
 et = librosa.times_like(S[0], sr=sr, hop_length=hop)
 rms = librosa.feature.rms(y=y, hop_length=hop)[0]
 rt = librosa.times_like(rms, sr=sr, hop_length=hop)
@@ -79,6 +84,21 @@ if len(bars) >= 3:
 else:
     bars, beats = [], [float(b) for b in beats]
 
+# the tracker lags the real onsets by 2-5 frames: slide the whole grid onto the detected strong hits (median offset of each hit
+# to its nearest beat, within 0.12 s), then drop grid lines in the leading silence
+anchor = 0.0
+if bars and beats:
+    anchors = [hits[i][0] for i in strong] if len(strong) >= 3 else [t for t, _ in kicks]
+    res = [h - min(beats, key=lambda b: abs(b - h)) for h in anchors]
+    res = [r for r in res if abs(r) < 0.12]
+    if len(res) >= 3:
+        anchor = float(np.median(res))
+        if abs(anchor) >= 0.008:
+            bars = [b + anchor for b in bars]; beats = [b + anchor for b in beats]
+        else: anchor = 0.0
+    first = float(rt[loud[0]]) if len(loud) else 0.0
+    bars = [b for b in bars if b >= max(0.0, first - 0.05)]; beats = [b for b in beats if b >= max(0.0, first - 0.05)]
+
 # section lifts / dips: level of the next 2 s against the 4 s before, local extremes only
 cands = [(t, mean(rmsn, t, t + 2) / (mean(rmsn, max(0, t - 4), t) + 0.03)) for t in np.arange(1.5, end - 1, 0.25)]
 def extremes(sign):
@@ -102,6 +122,62 @@ cuts = []
 for t in sorted([hits[i][0] for i in strong] + [t for t, _ in lifts]):
     if not cuts or t - cuts[-1] > 0.6: cuts.append(t)
 
+# riser + drop: a riser is >= 2 s of steadily rising high band (noise sweep) with a weak low end, ending in a sudden fall of the
+# high band at the drop. The loudest hit is often the intro stab, not the drop: the drop is the first full-band hit after the riser.
+hb = band(2500, 11000); hbn = hb / (hb.max() + 1e-9)
+step = 0.25; grid_t = np.arange(0, end, step)
+H = np.array([mean(hbn, t, t + step) for t in grid_t]); L = np.array([mean(lown, t, t + step) for t in grid_t])
+Hs = np.convolve(H, np.ones(4) / 4, "same")
+riser, drop = None, None
+# a riser ends on a strong hit: the stretch before it (back to the previous strong hit, at most 6 s, at least 2 s) has a high band that
+# climbs steadily. The best-climbing one wins; its closing hit is the drop.
+sh = sorted(hits[i][0] for i in strong)
+best = 0.0
+cands_r = []
+for k, e in enumerate(sh):
+    if e < 3.0: continue
+    s0 = max(sh[k - 1] + 0.4 if k else 0.0, e - 6.0)
+    seg = Hs[(grid_t >= s0) & (grid_t < e - 0.1)]
+    if len(seg) < 8: continue                       # < 2 s
+    corr = float(np.corrcoef(np.arange(len(seg)), seg)[0, 1]) if seg.std() > 1e-6 else 0.0
+    rise = float(seg[-4:].mean() / max(seg[:4].mean(), 1e-3))
+    score_r = corr * min(rise, 2.0) * len(seg) * step * (0.3 + e / end)   # tracks build to the drop in their second half: later risers win ties
+    if os.environ.get("DEBUG"): print(f"riser cand end {e:.2f} start {s0:.2f} corr {corr:.2f} rise {rise:.2f} jump {[h[2] for h in hits if abs(h[0] - e) < 0.01]}", file=sys.stderr)
+    if corr >= 0.5 and rise >= 1.2:
+        cands_r.append((score_r, float(s0), float(e)))
+        if score_r > best: best = score_r; riser = (float(s0), float(e))
+if riser:
+    drop = riser[1]
+elif strong:
+    drop = max((hits[i] for i in strong), key=lambda h: h[1] * h[2])[0]  # no riser: the strongest hit by flux x low-end jump
+# stretches without low end (risers, breakdowns): the energy table can look busy while the kick is gone
+nolow, st = [], None
+first_t = float(rt[loud[0]]) if len(loud) else 0.0
+for t, v in zip(grid_t, L):
+    if t < first_t + 0.3: continue
+    if v < 0.12 and st is None: st = t
+    if (v >= 0.12 or t >= grid_t[-1]) and st is not None:
+        if t - st >= 1.0: nolow.append((float(st), float(t)))
+        st = None
+# sections: intro until the first section start, build = riser, drop(s) = levels above 0.7 of the loudest 2 s, break = dips, outro = tail
+rms_at = lambda t: mean(rmsn, t, t + 1.0)
+dlevel = rms_at(drop + 0.2) if drop else None
+pts = [(0.0, "intro")]
+if riser: pts.append((riser[0], "build"))
+if drop: pts.append((drop, "drop"))
+for t, _ in lifts + dips:
+    if t < 1.0 or (riser and riser[0] - 1.0 <= t <= riser[1] + 0.3) or (t > 0.8 * end and any(abs(t - d) < 1e-6 for d, _ in dips)) or (drop and abs(t - drop) < 1.0): continue
+    isdip = any(abs(t - d) < 1e-6 for d, _ in dips)
+    lvl = rms_at(t + 0.2)
+    pts.append((t, "break" if isdip else ("drop" if dlevel and lvl >= 0.8 * dlevel and (not drop or t > drop) else "groove")))
+tail = [t for t, _ in dips if t > 0.8 * end]
+if tail: pts.append((tail[-1], "outro"))
+pts.sort()
+secs = []
+for t, n in pts:
+    if secs and (n == secs[-1][1] or t - secs[-1][0] < 1.0) and n not in ("drop", "build"): continue
+    secs.append((t, n))
+
 quiet = rms < 0.3 * np.median(rms)
 gaps, start = [], None
 for t, q in zip(rt, quiet):
@@ -112,21 +188,27 @@ for t, q in zip(rt, quiet):
             gaps.append((float(start), float(t)))
         start = None
 
-band = lambda lo, hi: S[(f >= lo) & (f < hi)].mean(0)
 sub, lowb, mid, high = band(20, 90), band(90, 300), band(300, 2500), band(2500, 11000)
 
 fmt = lambda xs: " ".join(f"{x:.2f}" for x in xs)
 print(f"dur {dur:.2f}s  audible end: {end:.2f} s{'' if end > dur - 0.3 else f'  (silence for the last {dur - end:.1f} s: end the film near {end:.1f})'}")
 print(f"tempo {tempo:.1f} bpm  beat {60 / tempo:.3f}s  bar {240 / tempo:.3f}s" if bars else "tempo: no steady beat found (use bars from `grid` if you need a grid)")
+print(f"grid anchored on the strong hits ({anchor * 1000:+.0f} ms vs the tracker)" if anchor else "grid: tracker phase kept (no strong hits to anchor on)")
 print("bars:  ", fmt(bars))
 print("beats: ", fmt(beats))
 print("cuts:  ", fmt(cuts), "   (strong hits + section lifts: start here)")
 print("lifts: ", " ".join(f"{t:.2f}(x{v:.1f})" for t, v in lifts) or "none", "   (section starts where the level steps up)")
 print("dips:  ", " ".join(f"{t:.2f}(x{v:.1f})" for t, v in dips) or "none", "   (level steps down: breaks, outros)")
 print("hits:  ", " ".join(f"{t:.2f}{'*' if i in strong else ''}" for i, (t, s, j) in enumerate(hits)), "   (* = strong: low end jumps >= 1.5x, or last hit before the decay)")
-print("kicks: ", fmt(t for t, _ in kicks))
+short = lambda xs, n=16: (fmt(xs[:n]) + f" … (+{len(xs) - n} more, all in --json)") if len(xs) > n else fmt(xs)
+print(f"kicks:  {len(kicks)}  " + short([t for t, _ in kicks]))
 print("gaps:  ", " ".join(f"{a:.2f}–{b:.2f}" for a, b in gaps) or "none")
-print("onsets:", fmt(onsets))
+print("no low end:", " ".join(f"{a:.2f}–{b:.2f}" for a, b in nolow) or "none", "   (risers / breakdowns: the kick is gone)")
+print(f"onsets: {len(onsets)}  " + short([float(o) for o in onsets], 12))
+print("riser: ", f"{riser[0]:.2f}–{riser[1]:.2f}" if riser else "none")
+alts = [f"{e:.2f} (riser {s0:.2f}–{e:.2f})" for _, s0, e in sorted(cands_r, reverse=True)[1:3]]
+print("drop:  ", f"{drop:.2f}   (the hit that closes the best riser; the loudest hit is not always the drop){'  other candidates: ' + ', '.join(alts) if alts else ''}" if drop else "none found")
+print("sections:", "  ".join(f"{t:.2f} {n}" for t, n in secs), "   (guesses from the energy curve: check against the plot)")
 print("\n    t   rms  sub  low  mid high")
 for s in np.arange(0, dur, 0.25):
     m = (rt >= s) & (rt < s + 0.25)
@@ -136,5 +218,5 @@ for s in np.arange(0, dur, 0.25):
 if out_json:
     json.dump({"duration": dur, "audible_end": end, "tempo": tempo, "bars": bars, "beats": beats, "cuts": cuts,
                "lifts": [t for t, _ in lifts], "dips": [t for t, _ in dips], "hits": [(t, s) for t, s, _ in hits],
-               "strong_hits": [hits[i][0] for i in strong], "kicks": [t for t, _ in kicks], "gaps": gaps, "onsets": [float(o) for o in onsets]}, open(out_json, "w"), indent=1)
+               "strong_hits": [hits[i][0] for i in strong], "riser": riser, "drop": drop, "sections": [{"t": t, "name": n} for t, n in secs], "no_low_end": nolow, "anchor_offset": anchor, "kicks": [t for t, _ in kicks], "gaps": gaps, "onsets": [float(o) for o in onsets]}, open(out_json, "w"), indent=1)
     print(f"\n→ {out_json}")

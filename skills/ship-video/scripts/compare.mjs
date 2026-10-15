@@ -65,6 +65,8 @@ try {
     await app.evaluate(() => { window.scrollTo(0, 0); for (const e of document.querySelectorAll("*")) if (e.scrollTop || e.scrollLeft) { e.scrollTop = 0; e.scrollLeft = 0; } });
     await app.waitForTimeout(100);
     if (st.canvas) console.error(`note [${st.name}] canvas state: pixels inside animated canvases differ from the captured frame; judge the rest`);
+    const pageH = await app.evaluate(() => document.documentElement.scrollHeight);
+    if (!fullPage && pageH > H + 20) console.error(`note [${st.name}] the page is ${pageH} px tall: only the top ${H} px are compared (add --full, or "full": true on the state, to verify the rest)`);
     const realBuf = await app.screenshot({ fullPage });
     const real = realBuf.toString("base64");
     const frame = await gal.$(`.frame[data-state="${st.name}"]`);

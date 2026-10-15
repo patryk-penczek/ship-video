@@ -1,10 +1,12 @@
 // Capture the running app into a film: one outerHTML per state → <film>/screens.js, a screenshot per state →
 // <film>/review/discovery/<state>.png, and (--css) the app's stylesheets ported to <film>/app.css.
-// usage: node capture.mjs <app-url> <states.json> <film> [--css] [--root "#root > .app"] [--full] [--only a,b]
+// usage: node capture.mjs <app-url> <states.json> <film> [--css] [--root "#root > .app"] [--full] [--only a,b] [--dpr 2]
+//   --dpr N  device pixel ratio for states with a canvas (default 2): the canvas PNGs are N× sharper; place them at CSS size (ui.js does)
 //        node capture.mjs <app-url> <film> --discover [--routes /,/radar,/compare] [--depth 2]
 // states.json (same file compare.mjs reads): [{ "name": "palette", "path": "/", "actions": [{ "press": "Control+k" }, { "type": "Rey" }, { "wait": 200 }] }]
 //   state keys: name · path · actions · continue (keep the previous state's page, no reload) · capture:false (drive only)
 //     · root (selector for this state) · full (full-page screenshot) · canvas { frames: N, every: ms, steps: [[actions], …] }
+//     · before: true (also capture <name>-before, the page right before the last action, so a click has its before and after)
 //   actions: click <sel> · dblclick <sel> · fill [<sel>, <text>] · type <text> · press <key> · hover <sel> · select [<sel>, <v>]
 //     · check <sel> · set [<sel>, <v>] (range inputs) · scroll <y>|[<sel>, <y>] · waitFor <sel> · wait <ms> · goto <path> · eval <js>
 //   Use `fill`, not Control+A + type: on macOS Control+A moves the caret to the line start. `wait` covers timers (a 4 s toast).
@@ -21,9 +23,9 @@ import { detectRoot, pageInfo, collectSheets, portCss } from "./lib/port.mjs";
 help(import.meta.url);
 
 const a = args(undefined, ["css", "full", "discover", "help"]);
-known(a, ["css", "full", "discover", "root", "only", "routes", "depth"]);
+known(a, ["css", "full", "discover", "root", "only", "routes", "depth", "dpr"]);
 for (const k of ["root", "only", "routes"]) if (a[k] === true) die(`--${k} needs a value`);
-const url = a._[0], W = 1920, H = 1080;
+const url = a._[0], W = 1920, H = 1080, DPR = num(a, "dpr", 2, { min: 1, max: 3, int: true }); // device pixel ratio for states with a canvas
 const { chromium } = load("playwright");
 
 async function discover(film) {
@@ -111,6 +113,7 @@ function snapshot({ sel, key, canvasSrc, frameSrc }) {
     else if (l instanceof HTMLCanvasElement) {
       const img = document.createElement("img");
       for (const at of c.attributes) img.setAttribute(at.name, at.value);
+      if (l.clientWidth && l.clientHeight) { img.setAttribute("width", l.clientWidth); img.setAttribute("height", l.clientHeight); } // CSS size, not the (dpr-scaled) backing store
       img.setAttribute("src", canvasSrc[ci] ?? ""); img.setAttribute("alt", "");
       if (frameSrc[ci]?.length > 1) img.setAttribute("data-frames", frameSrc[ci].join(","));
       c.replaceWith(img); ci++;
@@ -153,13 +156,12 @@ async function main(statesFile, film) {
   mkdirSync(path.join(film, "img"), { recursive: true });
   const disc = path.join(film, "review/discovery");
   mkdirSync(disc, { recursive: true });
-  const lastCaptured = states.filter((s) => s.capture !== false && (!only || only.has(s.name))).at(-1);
   const SCREENS = Object.create(null), META = Object.create(null), errors = [], usedImg = new Set(), allImages = [];
   const browser = await chromium.launch();
-  let cssSummary = null;
+  let cssSummary = null, cssIn = null;
   try {
-    await drive(browser, url, states, { width: W, height: H, errors }, async (page, st) => {
-      if (st.capture === false || (only && !only.has(st.name))) return;
+    await drive(browser, url, states, { width: W, height: H, errors, dpr: DPR }, async (page, st) => {
+      if (st.capture === false || (only && !only.has(st.name) && !only.has(st.name.replace(/-before$/, "")))) return;
       const sel = st.root ?? a.root ?? await detectRoot(page);
       if (!(await page.$(sel))) throw new Error(`state ${st.name}: root "${sel}" matches nothing on ${page.url()} (set "root" in the state or --root)`);
       const key = st.name.replace(/[^\w]+/g, "-");
@@ -192,7 +194,7 @@ async function main(statesFile, film) {
         return rel;
       }));
       const info = await pageInfo(page, sel);
-      await page.screenshot({ path: path.join(disc, `${st.name}.png`), fullPage: !!(st.full ?? a.full) });
+      await page.screenshot({ path: path.join(disc, `${st.name}.png`), fullPage: !!(st.full ?? a.full), scale: "css" });
       const snap = await page.evaluate(snapshot, { sel, key, canvasSrc: frameSrc.map((l) => l[0]), frameSrc });
       let html = snap.html;
       for (const u of [...snap.assets].sort((x, y) => y.length - x.length)) { // longest first: ?id=12 before ?id=1
@@ -206,10 +208,9 @@ async function main(statesFile, film) {
       SCREENS[st.name] = html;
       META[st.name] = { attrs: info.attrs, height: snap.height, root: sel, ...(frameSrc.length ? { canvas: frameSrc } : {}) };
       console.log(`${st.name.padEnd(18)} ${String(html.length).padStart(7)} chars  page height ${snap.height}  → ${path.join(disc, `${st.name}.png`)}`);
-      if (a.css && st === lastCaptured) { // collect after the last state so rules injected by earlier views are in the CSSOM
-        cssSummary = await portCss(browser, await collectSheets(page), info, film);
-      }
+      if (a.css) cssIn = { sheets: await collectSheets(page), info }; // the last captured state wins: rules injected by earlier views are in its CSSOM
     });
+    if (a.css && cssIn) cssSummary = await portCss(browser, cssIn.sheets, cssIn.info, film);
     if (a.css && !cssSummary && !errors.length) errors.push("--css: no state was captured, so there is nothing to read the CSS from");
   } finally { await browser.close(); }
   const names = Object.keys(SCREENS);

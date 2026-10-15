@@ -48,7 +48,7 @@ Film({
 | `scene(html, start, end)` | full-frame layer visible from `start` to `end` (`null` = to the end); returns the element |
 | `wrap(sceneEl)` | moves children into a camera layer; tween it with `focus()` |
 | `center(el)` | stage-space centre `{x, y}`; call before tweens that move `el` or its camera |
-| `focus(point, scale, {clamp, box}?)` | `{x, y, scale}` that puts `point` at screen centre at `scale`; clamped so the frame never shows past `box` (default the 1920×1080 stage; pass `rect(el)` for a smaller replica, or `clamp: false`) |
+| `focus(point, scale, {clamp, box, over}?)` | `{x, y, scale}` that puts `point` at screen centre at `scale`; clamped so the frame never shows past `box` (default the 1920×1080 stage; pass `rect(el)` for a smaller replica, or `clamp: false`; `over: 300` allows 300 px of empty edge so targets in the top/bottom third can be centred) |
 | `rect(el)` | stage-space `{l, t, r, b}` of an element, e.g. as focus()'s `box` |
 | `type(el, text, t0, t1, onUpdate?)` | types `text` between t0 and t1; seek-safe. Empties `el` at build time; show a placeholder through `onUpdate(k)` when `k` is 0 (a `tl.set` at 0 is lost when you scrub back across the typing). Irregular timing: `typeOn` |
 | `count(el, from, to, t0, dur, fmt?)` | number tween into `el.textContent`; before `t0` the element shows its own HTML text, so write the start value there |
@@ -61,9 +61,12 @@ Film({
 | `NI` | `{ immediateRender: false }`: the element keeps its natural state until the tween starts (see *Entrances*) |
 | `$`, `$$` | `querySelector`, `querySelectorAll` as array, scoped to a root |
 | `cursor(host, from, steps)` | see *Shot helpers* |
-| `caption(scene, text, t)` | opaque pill that enters by offset |
+| `caption(scene, text, t, from?, {pos, x, y}?)` | opaque pill that enters by offset; `pos` `"bl"` (default) `"br"` `"tl"` `"tr"` `"bc"` or `x`/`y` stage px, so it can avoid content |
+| `scrollTo(main, y, t, dur?)` | tweens a tall page up by `y`; returns `{ y, at(p) }`: `focus(sc.at(center(el)), 1.8, { over: 300 })` aims at the scrolled position |
+| `put(el, str)` | writes into captured markup: input value+attribute, only the first text node when the element has children (`21<sup>°</sup>`); `count`/`type`/`typeOn` use it |
+| `land(t0, dur?, color?)` | fades the frame to the background from t0; `land(D - 0.4, 0.4)` lands the film instead of a hard cut |
 | `typeOn(el, text, times, onUpdate?)` | typing on given times |
-| `push(el, t0, t1, from?, to?)` | slow scale drift |
+| `push(el, t0, t1, from?, to?, ease = "power1.out")` | slow scale drift that eases to rest at t1 (`"none"` = constant drift) |
 | `show(el, t0, t1?)` | hard on/off on a beat |
 | `reveal(el, point, t0, dur?, r0?)` | circle reveal of a stacked copy |
 | `scrubChart(scene, chart, t0, t1, v0, v1, ease?)` | marker, guide, path and tooltip from one value |

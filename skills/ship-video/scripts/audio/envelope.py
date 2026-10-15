@@ -12,7 +12,7 @@ import librosa
 try:
     y, sr = librosa.load(track, sr=22050)
 except Exception as e:
-    sys.exit(f"cannot read audio {track}: {str(e).strip().splitlines()[-1] if str(e).strip() else type(e).__name__}")
+    sys.exit(f"cannot read audio {track}: not a readable audio file (empty, truncated or another format?)")
 if len(y) < 2048: sys.exit(f"{track} is empty or too short")
 os.makedirs(os.path.dirname(os.path.abspath(dest)), exist_ok=True)
 hop = int(sr / 60)

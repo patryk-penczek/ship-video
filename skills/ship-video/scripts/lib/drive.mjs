@@ -3,6 +3,7 @@
 // Actions (one key each): click <sel> · dblclick <sel> · fill [<sel>, <text>] · type <text> · press <key> · hover <sel>
 //   · select [<sel>, <value>] · check <sel> · set [<sel>, <value>] (range/number inputs, fires input+change)
 //   · scroll <y> | [<sel>, <y>] · waitFor <sel> · wait <ms> · goto <path> · eval <js>
+// before: true on a state also captures <name>-before, the page right before the last action (the "before" half of a click).
 import { readFileSync } from "node:fs";
 import { die } from "./common.mjs";
 
@@ -21,6 +22,11 @@ export function readStates(file) {
     // names become file names (<name>.png, img/<name>-c0-0.png): compare case-insensitively, macOS would overwrite
     if (seen.has(st.name.toLowerCase())) die(`${file}: duplicate state "${st.name}" (names are compared case-insensitively: their files would collide)`);
     seen.add(st.name.toLowerCase());
+    if (st.before) {
+      if (!st.actions?.length) die(`${file}: state ${st.name}: "before" needs at least one action`);
+      if (seen.has(`${st.name}-before`.toLowerCase())) die(`${file}: "${st.name}-before" (made by before:true) collides with another state`);
+      seen.add(`${st.name}-before`.toLowerCase());
+    }
     if (st.canvas) {
       const f = st.canvas.frames;
       if (f !== undefined && !(Number.isInteger(f) && f >= 1 && f <= 60)) die(`${file}: state ${st.name}: canvas.frames must be an integer 1..60 (got ${JSON.stringify(f)})`);
@@ -41,19 +47,34 @@ async function open(page, href, freeze) {
 
 export const ACTION_TIMEOUT = 5000; // a wrong selector fails in 5 s instead of Playwright's 30 s
 
+// A selector that matches several elements used to hit the first one silently (a sidebar filter instead of the dialog's input).
+// Now it warns with the count and picks the first VISIBLE match, preferring one inside a dialog/modal, then <main>.
+async function pick(page, sel, name, act) {
+  const loc = page.locator(sel), n = await loc.count();
+  if (n <= 1) return loc;
+  const i = await loc.evaluateAll((els) => {
+    const vis = (e) => { const r = e.getBoundingClientRect(), s = getComputedStyle(e); return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none"; };
+    const ok = els.map((e, k) => [e, k]).filter(([e]) => vis(e));
+    const inside = (q) => ok.find(([e]) => e.closest(q));
+    return (inside("dialog[open], [role=dialog], [aria-modal=true]") ?? inside("main") ?? ok[0] ?? [null, 0])[1];
+  });
+  console.error(`WARNING [${name}] ${JSON.stringify(act)}: selector matches ${n} elements, using #${i} (the first visible one, preferring a dialog, then <main>); scope it (e.g. "[role=dialog] input") to be sure`);
+  return loc.nth(i);
+}
+
 export async function runActions(page, actions, { name, base, freeze = true } = {}) {
   for (const act of actions ?? []) {
     const [k, v] = Object.entries(act)[0] ?? [];
     const T = { timeout: ACTION_TIMEOUT };
     try {
-      if (k === "click") await page.click(v, T);
-      else if (k === "dblclick") await page.dblclick(v, T);
-      else if (k === "fill") await page.fill(v[0], v[1], T);
+      if (k === "click") await (await pick(page, v, name, act)).click(T);
+      else if (k === "dblclick") await (await pick(page, v, name, act)).dblclick(T);
+      else if (k === "fill") await (await pick(page, v[0], name, act)).fill(v[1], T);
       else if (k === "type") await page.keyboard.type(v);
       else if (k === "press") await page.keyboard.press(v);
-      else if (k === "hover") await page.hover(v, T);
-      else if (k === "select") await page.selectOption(v[0], v[1], T);
-      else if (k === "check") await page.check(v, T);
+      else if (k === "hover") await (await pick(page, v, name, act)).hover(T);
+      else if (k === "select") await (await pick(page, v[0], name, act)).selectOption(v[1], T);
+      else if (k === "check") await (await pick(page, v, name, act)).check(T);
       else if (k === "set") await page.$eval(v[0], (el, val) => {
         Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), "value").set.call(el, val);
         el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true }));
@@ -74,7 +95,7 @@ export async function runActions(page, actions, { name, base, freeze = true } = 
 // Visits each state in order; calls onState(page, state) once its actions are done and fonts/layout settled.
 // A state that fails (bad selector, page error, onState throws) is recorded in `errors` and skipped; the run goes on with the next
 // state, so one typo doesn't lose every other state. animate: false keeps reduced motion for every state (compare.mjs).
-export async function drive(browser, url, states, { width = 1920, height = 1080, freeze = true, errors = [], settle = 150, animate = true } = {}, onState) {
+export async function drive(browser, url, states, { width = 1920, height = 1080, freeze = true, errors = [], settle = 150, animate = true, dpr = 1 } = {}, onState) {
   let page = null;
   try {
     for (const st of states) {
@@ -84,13 +105,20 @@ export async function drive(browser, url, states, { width = 1920, height = 1080,
           // A state with canvas.frames > 1 needs a running animation: most apps pause it under prefers-reduced-motion, so that
           // state gets "no-preference" and a controllable clock (page.clock.runFor advances rAF/timers deterministically).
           const animated = animate && (st.canvas?.frames ?? 0) > 1;
-          page = await browser.newPage({ viewport: { width, height }, reducedMotion: animated ? "no-preference" : "reduce" });
+          // a state with a canvas renders it at devicePixelRatio (apps use min(2, dpr)): dpr 2 keeps it sharp when the film zooms 2×
+          page = await browser.newPage({ viewport: { width, height }, reducedMotion: animated ? "no-preference" : "reduce", deviceScaleFactor: st.canvas ? dpr : 1 });
           page.clocked = false;
           if (animated) { try { await page.clock.install(); page.clocked = true; } catch {} }
           page.on("pageerror", (e) => errors.push(`[app ${st.name}] ${e.message}`));
           await open(page, new URL(st.path ?? "", url).href, freeze);
         } else if (st.path) await open(page, new URL(st.path, url).href, freeze);
-        await runActions(page, st.actions, { name: st.name, base: url, freeze });
+        if (st.before) { // also capture the state right before the last action: <name>-before (what the viewer sees before the click)
+          await runActions(page, st.actions.slice(0, -1), { name: st.name, base: url, freeze });
+          await page.evaluate(() => document.fonts.ready);
+          await page.waitForTimeout(settle);
+          await onState(page, { ...st, name: `${st.name}-before`, actions: undefined, before: false, canvas: undefined });
+          await runActions(page, st.actions.slice(-1), { name: st.name, base: url, freeze });
+        } else await runActions(page, st.actions, { name: st.name, base: url, freeze });
         await page.evaluate(() => document.fonts.ready);
         await page.waitForTimeout(settle);
         await onState(page, st);

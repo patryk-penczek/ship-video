@@ -36,7 +36,7 @@ node $S/compare.mjs <url> <film>/gallery.html <film>/review/compare --states <fi
 ]
 ```
 
-State keys: `name` (letters, digits, `-_.`; must match the gallery `.frame[data-state]`), `path`, `actions`, `continue: true` (keep the previous state's page instead of reloading: no repeated prefix), `capture: false` (drive only), `root`, `full`, `canvas`.
+State keys: `name` (letters, digits, `-_.`; must match the gallery `.frame[data-state]`), `path`, `actions`, `continue: true` (keep the previous state's page instead of reloading: no repeated prefix), `capture: false` (drive only), `root`, `full`, `canvas`, `before: true` (also captures `<name>-before`, the page right before the last action). A canvas state runs without reduced motion on a fake clock (frames advance by `every` ms) at `--dpr 2` (default); identical frames print a WARNING. A selector matching several elements warns and takes the first visible one (dialog, then main). A failing state is reported and skipped; the others are still written.
 Actions: `click` · `dblclick` · `fill [sel, text]` · `type text` · `press key` · `hover` · `select [sel, value]` · `check` · `set [sel, value]` (range inputs) · `scroll y | [sel, y]` · `waitFor sel` · `wait ms` · `goto path` · `eval js`.
 
 - Scope every selector (`.dialog input`, not `input`): an ambiguous one fills the first match (a sidebar filter instead of the dialog) and the state still looks fine. Check the captured state's PNG.
