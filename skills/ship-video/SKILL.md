@@ -136,7 +136,7 @@ node $S/music.mjs plot <film>/track.<ext> <film>/review/music.png
 Without a track: `node $S/music.mjs grid --bpm <bpm> --duration <seconds>` prints bar and beat times; write `MUSIC.md` from them (first line `SILENT, <bpm> BPM, duration <s> s`, or `GRID DRAFT` while a Suno track is pending; format in `music-map.md`, *No music*).
 
 Length was decided in the brief; this step only checks it.
-- Track more than ~3 s longer than the chosen length: ask *Use the full track* / *Cut a section* (preview: which bars, e.g. "build → drop → final hit, 9.98–32.02 s").
+- Track more than ~3 s longer than the chosen length: ask *Use the full track* / *Cut a section* (preview: which bars, e.g. "build → drop → final hit, 9.60–30.72 s").
   A cut starts and ends on bar lines, keeps the drop and the final hit, and fades over the last bar: `ffmpeg -ss <start> -to <end> -i <track> -af "afade=t=out:st=<end-start-bar>:d=<bar>" track-cut.mp3`. Re-run the analysis on it.
 - No length chosen and a track over ~60 s: propose a 30–45 s cut, or confirm a long film and warn about render time.
 - The track fades out early (`audible end`) or a Suno take runs long: end the film at the audible end plus a short fade, or crop on a bar line and re-analyse; not on dead air.

@@ -155,7 +155,7 @@ The two raw forms are for when `enter` does not fit (several properties on a sta
 ```js
 const h = $(s, ".alert").offsetHeight;                                  // measured with it present
 // height 0 + overflow hidden hides it; no opacity fade, so the frame on the hit is already sharp
-tl.fromTo($(s, ".alert"), { height: 0, marginBottom: -gap }, { height: h, marginBottom: 0, duration: 0.35, ease: "expo.out" }, 9.98);   // plain fromTo: collapsed until 9.98
+tl.fromTo($(s, ".alert"), { height: 0, marginBottom: -gap }, { height: h, marginBottom: 0, duration: 0.35, ease: "expo.out" }, 9.60);   // plain fromTo: collapsed until 9.60
 ```
 
 **Captions** (use few: when and where is `direction.md`, *Framing*). `caption(scene, text, t, from = { x: -70 }, { pos, x, y, end }?)` appended **after** `wrap()` so it stays out of the camera layer; opaque, offset-only entrance, returns the element; `end` removes it at that second.

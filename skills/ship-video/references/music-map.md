@@ -27,17 +27,17 @@ Detection is a starting point. Open the plot (`music.mjs plot`, then Read the PN
 One row per musical event, in seconds, 2 decimals (terms *hit*, *kick*, *cut*: SKILL.md). The first line is the header: `# Track: <file> · Duration: <s> s`, or `GRID DRAFT` (a Suno track is pending), or `SILENT, <bpm> BPM, duration <s> s` (no music: see *No music* below). This table is an example from one track; your numbers will differ.
 
 ```
-# Track: track.mp3 · Duration: 34.0 s
+# Track: track.mp3 · Duration: 33.0 s
 | t (s) | music | use | role in the story |
 |---|---|---|---|
-| 0.00–2.02 | intro pad, swell | opening line types itself | problem |
-| 2.02 | hit* | first cut, flash | hero enters |
-| 2.02–6.01 | motif, kick every beat | word per beat | promise |
-| 6.01 | hit* | cut to the app | action starts |
-| 9.98 | hit*, groove starts | … | action: step 2 |
-| 18.00–21.99 | break, snare roll | build tension, push in | the last step before the result |
-| 21.99 | drop* | the big moment | payoff = climax |
-| 32.02 | final hit | end card | resolution |
+| 0.00–1.92 | intro pad, swell | opening line types itself | problem |
+| 1.92 | hit* | first cut, flash | hero enters |
+| 1.92–5.76 | motif, kick every beat | word per beat | promise |
+| 5.76 | hit* | cut to the app | action starts |
+| 9.60 | hit*, groove starts | … | action: step 2 |
+| 17.28–21.12 | break, snare roll | build tension, push in | the last step before the result |
+| 21.12 | drop* | the big moment | payoff = climax |
+| 30.72 | final hit | end card | resolution |
 ```
 The **role in the story** column is mandatory: it ties each musical section to a beat of the story in `scenario-template.md` (problem → hero → action → payoff). **The climax lands on the drop.** If the drop is early, move the payoff there and put the tour before it; if the track has no drop, use the strongest hit after the build. Fill the roles provisionally here, by position (problem first, payoff on the drop); the scenario may adjust them. A section with no role is a section the film has no use for: cut it or give it a role.
 
@@ -66,7 +66,7 @@ A beat made with `music.mjs synth` (`synth.md`) is analyzed like any track, but 
 
 ## Re-timing to a new take
 
-Suno takes and edits change timings. Re-run `analyze`, compare old and new MUSIC.md row by row, and shift each scene's `start`/`end` and its tweens by the difference. A helper constant per act (`const A2 = 9.98;` and tweens at `A2 + 0.36`) makes this a one-line change. If any act moves by more than one bar, show the user the new act table and ask for approval again.
+Suno takes and edits change timings. Re-run `analyze`, compare old and new MUSIC.md row by row, and shift each scene's `start`/`end` and its tweens by the difference. A helper constant per act (`const A2 = 9.60;` and tweens at `A2 + 0.36`) makes this a one-line change. If any act moves by more than one bar, show the user the new act table and ask for approval again.
 
 ## Rights
 
