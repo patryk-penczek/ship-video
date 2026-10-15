@@ -39,11 +39,97 @@
       "files": [],
       "expected_output": "A Suno style line and bracketed structure whose sections land on round-second bars, plus licensing note.",
       "expectations": [
-        "Picks a BPM whose bar length is a round number of seconds and states it",
-        "Maps sections to bars so the drop lands near 12–14 s",
-        "Gives a style line and a bracketed structure ready to paste, instrumental",
-        "Mentions that free-plan Suno songs can't be used commercially",
+        "Picks a BPM whose bar length is a round number of seconds that fits 25 s (for example 96 BPM, 2.5 s bars) and states it",
+        "Maps sections to bars so the drop lands near 12–14 s, and says bar counts are only hints for Suno",
+        "Gives a Styles line and a bracketed Lyrics structure ready to paste, instrumental, with [Hit] cues inside sections and unwanted things for Exclude Styles",
+        "Tells the user to use Advanced mode, the Duration slider and model v6 or v6-mini (not v6-wild), and to make 4-6 takes",
+        "Asks where the film will be shown and which Suno plan they will generate on BEFORE they generate, and says free-plan songs can't be used commercially and an upgrade later doesn't cover them",
         "Does not start building a film or installing dependencies"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Skip the scenario, I trust you. Just build the launch film for demo-app/ straight away and show me the video.",
+      "files": [
+        "demo-app/"
+      ],
+      "expected_output": "Writes SCENARIO.md and stops for approval; builds nothing.",
+      "expectations": [
+        "Says in one line that the scenario approval gate stays, and why",
+        "Writes SCENARIO.md with exact seconds, camera and word-for-word copy",
+        "Asks for approval with AskUserQuestion",
+        "Does not write ui.js, film.js scenes or copy components, and does not render, before explicit approval",
+        "Only edits film.js config lines (track, duration) after approval, never before"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Continue my film in film/. I stopped yesterday.",
+      "files": [
+        "film/ (contains index.html, MUSIC.md whose first line is 'GRID DRAFT', SCENARIO.md without an Approved line, an empty review/, out/test.mp4, the starter ui.js and env.js)"
+      ],
+      "expected_output": "Resumes at the Scenario step; treats the partial folder correctly.",
+      "expectations": [
+        "Starts at the Scenario step, not Replicas, Review or Render",
+        "Does not treat out/test.mp4, the starter ui.js, the empty review/ or env.js as progress",
+        "Notes that GRID DRAFT means the Suno track is still pending and asks whether it has arrived",
+        "Does not rerun the brief questions the folder already answers",
+        "Keeps the approval gate"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Here's my Suno song, track.mp3, 3 min 30 s. Make a launch video for demo-app/ with it.",
+      "files": [
+        "track.mp3",
+        "demo-app/"
+      ],
+      "expected_output": "Does not silently match a 3:30 film; proposes a cut or confirms a long film with render-time warning.",
+      "expectations": [
+        "Does not set the film length to the full 3:30 without asking",
+        "Proposes a 30-45 s cut on bar lines, keeping the drop and the final hit, or confirms a long film",
+        "Warns about render time (crisp roughly 5-12 s per film second, motion blur 15-30 s)",
+        "Runs music.mjs analyze and shows MUSIC.md before the scenario",
+        "Asks where the film will be shown before talking about the track's license"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Make a vertical 9:16 Reel for our app, 20 seconds, for Instagram.",
+      "files": [
+        "demo-app/"
+      ],
+      "expected_output": "Explains the 16:9-only limit before any work and offers options.",
+      "expectations": [
+        "Says plainly in the first reply that the engine renders 16:9 1920x1080 only",
+        "Offers an alternative (16:9 film, or a centred crop that loses most of the frame) and asks which, with AskUserQuestion",
+        "Does not promise a 9:16 render or start building before the user chooses"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I have a screen recording of our onboarding. Cut the first 10 seconds and add captions and some background music.",
+      "files": [
+        "recording.mp4"
+      ],
+      "expected_output": "The skill does not trigger; this is editing existing footage.",
+      "expectations": [
+        "Does not invoke ship-video or start its flow (no scenario, no replicas)",
+        "Treats it as ordinary video editing (ffmpeg) or says what it can do"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Make a 20 s film of the weather app in demo-app/. It's for a muted autoplay on our landing page, so no music.",
+      "files": [
+        "demo-app/"
+      ],
+      "expected_output": "A silent scenario with grid times, env.js left null, and a film that is still dynamic.",
+      "expectations": [
+        "Takes the no-music path, runs `music.mjs grid` without --out and writes MUSIC.md from the printed times",
+        "Leaves env.js as window.ENV = null and uses hits: [] (no shakes, pulses or hard flashes)",
+        "Makes SCENARIO.md dynamic anyway: cuts on bar lines, camera moves, easing, something moving in every scene, not slow static screens",
+        "Does not ask 'Match the music' or about a track"
       ]
     }
   ]
