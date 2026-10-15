@@ -12,6 +12,20 @@ ROLES = ("intro", "build", "break", "drop", "groove", "outro")
 ROLE_E = {"intro": 0.35, "build": 0.65, "break": 0.25, "drop": 1.0, "groove": 0.75, "outro": 0.35}
 
 # ---------------------------------------------------------------- args and plan
+if not os.environ.get("DEBUG"):
+    sys.excepthook = lambda t, e, tb: (print(f"synth: {e}", file=sys.stderr), os._exit(1))
+OUT_EXT = (".wav", ".mp3", ".m4a", ".flac", ".aac")
+def bad(msg): sys.exit(f"bad plan: {msg}")
+def warn(msg): print(f"warn: {msg}", file=sys.stderr)
+def num(v, name, lo=None, hi=None, whole=False, err=bad):
+    if isinstance(v, bool) or v is None: err(f"{name} must be a number, got {json.dumps(v)}")
+    try: x = float(v)
+    except (TypeError, ValueError): err(f"{name} must be a number, got {json.dumps(v)}")
+    if not math.isfinite(x): err(f"{name} must be a finite number")
+    if whole and x != int(x): err(f"{name} must be a whole number, got {v}")
+    if (lo is not None and x < lo) or (hi is not None and x > hi): err(f"{name} must be {lo}..{hi}, got {v}")
+    return x
+def cli_err(m): sys.exit(f"{m}\n{USAGE}")
 argv = sys.argv[1:]
 opts = {}
 i = 0
@@ -24,13 +38,18 @@ while i < len(argv):
     if i + 1 >= len(argv): sys.exit(f"{a} needs a value\n{USAGE}")
     opts[a[2:]] = argv[i + 1]; i += 2
 if "plan" not in opts or "out" not in opts: sys.exit(USAGE)
+# the output type is checked before any synthesis
+_ext = os.path.splitext(opts["out"])[1].lower()
+if _ext not in OUT_EXT: sys.exit(f"unknown output type {_ext or opts['out']!r} (use .wav, .mp3, .m4a, .flac)")
+if os.path.isdir(opts["out"]): sys.exit(f"--out {opts['out']} is a folder")
 try: plan = json.load(open(opts["plan"]))
 except Exception as e: sys.exit(f"cannot read plan {opts['plan']}: {e}")
-SR = int(opts.get("sr", plan.get("sr", 44100)))
+if not isinstance(plan, dict): bad(f"the plan must be a JSON object ({{...}}), got {type(plan).__name__}")
+SR = int(num(opts.get("sr", plan.get("sr", 44100)), "--sr", whole=True, err=cli_err))
 if SR not in (44100, 48000): sys.exit("--sr must be 44100 or 48000")
-SEED = int(opts.get("seed", plan.get("seed", 7)))
-LUFS = float(opts.get("lufs", plan.get("lufs", -14)))
-rng = np.random.default_rng(SEED)
+SEED = int(num(opts.get("seed", plan.get("seed", 7)), "--seed", whole=True, err=cli_err))
+LUFS = num(opts.get("lufs", plan.get("lufs", -14)), "--lufs", -30, -6, err=cli_err)
+rng = np.random.default_rng(SEED % (2 ** 63))   # negative and huge seeds fold into the generator's range
 
 PRESETS = {
     # bright electro pulse: four on the floor, offbeat bass, 16th plucked arp
@@ -40,27 +59,31 @@ PRESETS = {
     # halftime hip-hop/trap leaning: 808 glide bass, snare on beat 3, rolled hats, bell pluck, swing
     "punchy": dict(root="G", mode="minor", prog=[(0, "m"), (0, "m"), (8, "M"), (10, "M")], chord_bars=1,
         kick=dict(f0=44, f1=130, sweep=45, decay=9.0), kick_pat=[0, 6, 10], snare_pat=[8], snare="snare", hat_pat=[0, 2, 4, 6, 8, 10, 12, 14], hat16=True, open_hat=[11],
-        bass="808", bass_oct=1, pluck_wave="bell", pluck_cut=5000, pluck_decay=5.5, pluck_oct=1, pad_level=0.32, pad_cut=1200, swing=0.14, verb=0.18, impact=1.0, arp=[0, 2, 1, 2, 3, 2, 1, 0, 2, 1, 3, 4, 3, 2, 1, 0]),
+        bass="808", bass_oct=1, pluck_wave="synthpl", pluck_cut=5000, pluck_decay=5.5, pluck_oct=1, pad_level=0.5, pad_cut=1600, swing=0.14, verb=0.18, impact=1.0, arp=[0, 2, 1, 2, 3, 2, 1, 0, 2, 1, 3, 4, 3, 2, 1, 0],
+        # arrangement: the drop changes chords (Eb F Gm Bb), opens the filter on chord stabs, adds bells, a fuller 808 and a ghost kick
+        prog_drop=[(8, "M"), (10, "M"), (0, "m"), (3, "M")], stab=True, pluck_gain=2.4, bass_gain=0.75, sparkle=("drop",), spark_pat=[[0, 10], [6, 14], [0, 8, 12], [4, 10, 14]]),
     # soft lo-fi / warm: Rhodes-ish pluck, brushed hats, pure sub, wide pad, major 7ths
     "calm": dict(root="F", mode="major", prog=[(0, "M7"), (9, "m7"), (5, "M7"), (7, "7")], chord_bars=1,
         kick=dict(f0=52, f1=110, sweep=30, decay=8.0), kick_pat=[0, 10], snare_pat=[8], snare="rim", hat_pat=[0, 2, 4, 6, 8, 10, 12, 14], hat16=False, open_hat=[],
-        bass="long", bass_oct=2, pluck_wave="epiano", pluck_cut=2800, pluck_decay=3.2, pluck_oct=0, pad_level=0.8, pad_cut=1500, swing=0.1, verb=0.38, impact=0.6, arp=[0, 2, 3, 2, 1, 2, 3, 4, 0, 2, 3, 2, 4, 3, 2, 1]),
+        bass="long", bass_oct=2, pluck_wave="epiano", pluck_cut=7500, bright=1.6, pluck_decay=3.2, pluck_oct=0, pad_level=0.8, pad_cut=2300, swing=0.1, verb=0.38, impact=0.6, arp=[0, 2, 3, 2, 1, 2, 3, 4, 0, 2, 3, 2, 4, 3, 2, 1],
+        # a 4-bar phrase (question, answer) over an 8-bar chord cycle, bells in the upper octave, layers that change per section
+        arp4=[[0, 2, 3, 2, 1, 2, 3, 4, 0, 2, 3, 2, 4, 3, 2, 1], [4, 3, 2, 3, 5, 3, 2, 3, 4, 3, 2, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 3, 2, 1, 2, 3, 4, 5, 6, 5, 4, 3], [6, 5, 4, 3, 2, 3, 4, 2, 3, 2, 1, 2, 0, 1, 2, 0]],
+        prog_b=[(9, "m7"), (2, "m7"), (5, "M7"), (7, "7")], sparkle=("build", "groove", "drop", "intro", "outro"), spark_pat=[[0, 10], [6, 14], [0, 8, 12], [4, 10]]),
     # taiko and strings: low drums, long swelling pad, driving 8th ostinato, huge impacts, sparse bells
     "cinematic": dict(root="D", mode="minor", prog=[(0, "m"), (8, "M"), (3, "M"), (10, "M")], chord_bars=2,
         kick=dict(f0=40, f1=95, sweep=22, decay=4.5), kick_pat=[0, 8], snare_pat=[8], snare="taiko", hat_pat=[], hat16=False, open_hat=[],
         bass="ostinato", bass_oct=1, pluck_wave="bell", pluck_cut=6000, pluck_decay=2.2, pluck_oct=2, pad_level=0.9, pad_cut=2600, swing=0.0, verb=0.5, impact=1.3, arp=[0, 2, 4, 2, 0, 2, 4, 5, 0, 2, 4, 2, 3, 4, 5, 4]),
 }
 preset = str(opts.get("preset", plan.get("preset", plan.get("style", plan.get("mood", "pulse"))))).lower()
-if preset not in PRESETS: sys.exit(f"unknown preset {preset!r}. Presets: {', '.join(PRESETS)}")
+if preset not in PRESETS: bad(f"unknown preset {preset!r}. Presets: {', '.join(PRESETS)}")
 P = PRESETS[preset]
 
-bpm = float(plan.get("bpm", 120))
-if not 40 <= bpm <= 220: sys.exit("bpm must be 40..220")
+bpm = num(plan.get("bpm", 120), "bpm", 40, 220)
 beat = 60 / bpm; bar = beat * 4; step = beat / 4
-if "duration" in plan: dur = float(plan["duration"])
-elif "bars" in plan: dur = float(plan["bars"]) * bar
-else: sys.exit("plan needs bars or duration")
-if not 4 <= dur <= 180: sys.exit("duration must be 4..180 s")
+if "duration" in plan: dur = num(plan["duration"], "duration", 4, 180)
+elif "bars" in plan: dur = num(plan["bars"], "bars", 1, 400) * bar
+else: bad("the plan needs bars or duration")
+if not 4 <= dur <= 180: bad(f"duration must be 4..180 s, got {dur:.1f}")
 nbars = max(1, math.ceil(dur / bar - 1e-6))
 N = int(round(dur * SR))
 def tt(x): return int(round(x * SR))
@@ -69,7 +92,7 @@ def tt(x): return int(round(x * SR))
 NOTE = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 def parse_key(s):
     m = re.match(r"^\s*([A-Ga-g])([#b]?)\s*(m|min|minor|M|maj|major)?\s*$", s)
-    if not m: sys.exit(f"cannot read key {s!r} (examples: Am, F# minor, C major)")
+    if not m: bad(f"cannot read key {s!r} (examples: Am, F# minor, C major)")
     pc = (NOTE[m.group(1).upper()] + {"#": 1, "b": -1, "": 0}[m.group(2)]) % 12
     q = m.group(3) or ""
     return pc, ("minor" if q in ("m", "min", "minor") else "major" if q else None)
@@ -84,20 +107,31 @@ if mode != P["mode"]:  # switch minor <-> major: reuse the same shape with the o
     prog = [(0, "m"), (8, "M"), (3, "M"), (10, "M")] if mode == "minor" else [(0, "M"), (7, "M"), (9, "m"), (5, "M")]
 QUAL = {"m": (0, 3, 7), "M": (0, 4, 7), "M7": (0, 4, 7, 11), "m7": (0, 3, 7, 10), "7": (0, 4, 7, 10)}
 def chord_at_bar(b):
-    off, q = prog[(b // P["chord_bars"]) % len(prog)]
+    pg = prog
+    if mode == P["mode"]:
+        if P.get("prog_b") and (b // 4) % 2 == 1: pg = P["prog_b"]
+        if P.get("prog_drop") and b < len(role_of) and role_of[b] == "drop": pg = P["prog_drop"]
+    off, q = pg[(b // P["chord_bars"]) % len(pg)]
     return (root_pc + off) % 12, QUAL[q]
 def mtof(m): return 440.0 * 2 ** ((m - 69) / 12)
 
 # sections: 0-based bars, to_bar exclusive
 role_of = [None] * nbars; en_of = [0.0] * nbars
 secs = plan.get("sections")
+if secs is not None and not isinstance(secs, list): bad('"sections" must be a list of {from_bar, to_bar, role, energy} objects')
 if secs:
-    for s in secs:
+    for si, s in enumerate(secs):
+        if not isinstance(s, dict): bad(f"sections[{si}] must be an object like {{\"from_bar\": 0, \"to_bar\": 2, \"role\": \"intro\"}}, got {json.dumps(s)}")
+        if "from_bar" not in s: bad(f"sections[{si}] is missing from_bar")
         role = s.get("role", "groove")
-        if role not in ROLES: sys.exit(f"section role {role!r} must be one of {', '.join(ROLES)}")
-        a, b = int(s["from_bar"]), int(s.get("to_bar", s["from_bar"] + 1))
-        if not 0 <= a < b: sys.exit(f"bad section bars {a}..{b}")
-        for k in range(a, min(b, nbars)): role_of[k] = role; en_of[k] = float(s.get("energy", ROLE_E[role]))
+        if role not in ROLES: bad(f"sections[{si}] role {role!r} must be one of {', '.join(ROLES)}")
+        a = int(num(s["from_bar"], f"sections[{si}].from_bar", 0, whole=True))
+        b = int(num(s["to_bar"], f"sections[{si}].to_bar", 1, whole=True)) if "to_bar" in s else a + 1
+        if not 0 <= a < b: bad(f"sections[{si}] bars {a}..{b}: to_bar must be greater than from_bar")
+        en = min(1.0, max(0.0, num(s["energy"], f"sections[{si}].energy"))) if "energy" in s else ROLE_E[role]
+        if a >= nbars: warn(f"sections[{si}] ({role}) starts at bar {a}, past the end of the film ({nbars} bars): ignored")
+        elif b > nbars: warn(f"sections[{si}] ({role}) runs to bar {b}, past the end of the film ({nbars} bars): cut")
+        for k in range(a, min(b, nbars)): role_of[k] = role; en_of[k] = en
     last = "groove"
     for k in range(nbars):
         if role_of[k] is None: role_of[k] = last; en_of[k] = ROLE_E[last] * 0.8
@@ -117,27 +151,49 @@ drops = [k * bar for k in range(nbars) if role_of[k] == "drop" and (k == 0 or ro
 drops_nz = [t for t in drops if t > 0.01]
 
 end_mode = str(plan.get("end", "ring")).lower()
-if end_mode not in ("fade", "stinger", "ring"): sys.exit("end must be fade, stinger or ring")
-final_t = (nbars - 1) * bar if end_mode != "fade" and nbars >= 2 and dur - (nbars - 1) * bar > 0.3 else None
+if end_mode not in ("fade", "stinger", "ring"): bad("end must be fade, stinger or ring")
+RING_MIN = 1.5   # the last chord needs at least this long to ring out inside the film
+final_t = None
+if end_mode != "fade" and nbars >= 2:
+    final_t = (nbars - 1) * bar
+    moved = False
+    while dur - final_t < RING_MIN and final_t - bar >= bar - 1e-6: final_t -= bar; moved = True
+    if dur - final_t < RING_MIN: final_t = None
+    elif moved: warn(f"the end hit moved to bar {int(round(final_t / bar))} ({final_t:.2f} s) so the last chord rings {dur - final_t:.1f} s inside the {dur:g} s film; later sections are cut")
 if final_t is None and end_mode != "fade": end_mode = "fade"
 gap_len = bar * 0.25 if plan.get("silenceBeforeDrop", True) else 0.0
 gap_len = min(gap_len, 0.6)
 
 # hits: number = seconds; "bar:N" or {"bar":N,"beat":B} or {"t":S}; optional strength 0..1
 hits = []
-for h in plan.get("hits", []):
-    st = 0.9
+hl = plan.get("hits", [])
+if hl is None: hl = []
+if not isinstance(hl, list): bad('"hits" must be a list: seconds, "bar:N" or {"bar": N, "beat": B, "strength": S}')
+for hi_, h in enumerate(hl):
+    st = 0.9; nm = f"hits[{hi_}]"
     if isinstance(h, dict):
-        st = float(h.get("strength", 0.9))
-        t = float(h["t"]) if "t" in h else float(h["bar"]) * bar + float(h.get("beat", 0)) * beat
+        if "t" not in h and "bar" not in h: bad(f'{nm} needs "t" (seconds) or "bar" (+ optional "beat"), got {json.dumps(h)}')
+        st = min(1.0, max(0.0, num(h["strength"], nm + ".strength"))) if "strength" in h else 0.9
+        t = num(h["t"], nm + ".t") if "t" in h else num(h["bar"], nm + ".bar") * bar + num(h.get("beat", 0), nm + ".beat") * beat
     elif isinstance(h, str):
         m = re.match(r"^\s*bar[: ]?\s*(\d+(?:\.\d+)?)\s*$", h)
-        if not m: sys.exit(f"cannot read hit {h!r} (number of seconds, 'bar:N' or an object)")
+        if not m: bad(f"cannot read {nm} {h!r} (number of seconds, 'bar:N' or an object)")
         t = float(m.group(1)) * bar
-    else: t = float(h)
-    if not 0 <= t < dur: sys.exit(f"hit at {t:.2f}s is outside the film (0..{dur:.2f})")
+    else: t = num(h, nm)
+    if t < 0: bad(f"{nm} is at {t:.2f} s, before the start")
+    if t >= dur: warn(f"{nm} at {t:.2f} s is past the end of the film ({dur:.2f} s): ignored"); continue
     hits.append((t, st))
 hits.sort()
+if final_t is not None:   # the ending is its own gesture: nothing lands in the ring-out or right on top of the final hit
+    kept = []
+    for t, st in hits:
+        if t > final_t - max(0.5, beat) - 1e-6 and t < dur:
+            warn(f"hit at {t:.2f} s is too close to the final hit ({final_t:.2f} s) or inside the ring-out: ignored"); continue
+        if any(role_of[k] == "outro" and k * bar <= t < (k + 1) * bar for k in range(nbars)) and abs(t / beat - round(t / beat)) * beat > 0.04:
+            t2 = round(t / beat) * beat
+            warn(f"hit at {t:.2f} s in the outro is off the beat grid: snapped to {t2:.2f} s"); t = t2
+        kept.append((t, st))
+    hits = kept
 
 # ---------------------------------------------------------------- synth voices
 def nz(n): return rng.standard_normal(n)
@@ -193,11 +249,21 @@ def v_pluck(m, dur_s, wave, cut, dec, g=1.0):
     elif wave == "bell":
         y = sum(a * np.sin(2 * np.pi * f * r * t) * np.exp(-t * d) for r, a, d in ((1, 1, dec), (2.76, .4, dec * 1.8), (5.4, .2, dec * 3), (8.9, .1, dec * 4)))
         return fade(y * g * 0.7, 0.001, 0.03)
+    elif wave == "synthpl":   # analog pluck: two detuned saws and a sub octave, the filter closes with the note
+        y = saw(f, n, 16) + 0.7 * saw(f, n, 16, 0.007) + 0.6 * np.sin(2 * np.pi * f * 0.5 * t)
+        lo_, hi_ = sos("low", 900, y), sos("low", min(cut, SR * 0.45), y)
+        y = (lo_ + (hi_ - lo_) * np.exp(-t * 14)) * 0.35 * np.exp(-t * dec)
+        return fade(y * g, 0.002, 0.04)
     else:  # epiano
         y = np.sin(2 * np.pi * f * t) + 0.35 * np.sin(2 * np.pi * 2 * f * t) * np.exp(-t * 6) + 0.12 * np.sin(2 * np.pi * 4 * f * t) * np.exp(-t * 14)
         y += 0.6 * np.sin(2 * np.pi * f * 1.003 * t) * 0.3
+        y += 0.5 * np.sin(2 * np.pi * 5 * f * t) * np.exp(-t * 16) + 0.25 * np.sin(2 * np.pi * 7 * f * t) * np.exp(-t * 24)   # tine bark: content above 2 kHz
     y = sos("low", min(cut, SR * 0.45), y) * np.exp(-t * dec)
     return fade(y * g, 0.002, 0.04)
+def v_stab(freqs, dur_s, cut, g=1.0):
+    n = tt(dur_s); t = np.arange(n) / SR
+    y = sum(saw(f, n, 12) + 0.6 * saw(f, n, 12, 0.006) for f in freqs) / len(freqs)
+    return fade(sos("low", min(cut, SR * 0.45), y) * np.exp(-t * 9) * g * 0.5, 0.002, 0.03)
 def v_pad(freqs, n, cut, pan_set):
     t = np.arange(n) / SR; L = np.zeros(n); R = np.zeros(n)
     for fi, f in enumerate(freqs):
@@ -274,9 +340,11 @@ for b in range(nbars):
         rise = in_riser(t)
         # kick
         kp = P["kick_pat"]
-        if role in ("intro", "outro"): kp = [0, 8] if e >= 0.45 else []
+        if role == "intro": kp = [0, 8]   # the intro always pulses (soft), never a pad alone
+        elif role == "outro": kp = [0, 8] if e >= 0.45 else []
         elif role == "break": kp = []
         elif role == "build": kp = [0, 4, 8, 12] if P["kick_pat"] != [0, 8] else [0, 8]
+        if role == "drop" and P.get("prog_drop") and s == 14 and not rise: kp = kp + [14]   # ghost kick (punchy drop)
         if s in kp and not rise:
             g = (1.0 if full else 0.7) * gscale
             put("drums", t, v_kick(P["kick"], g), 1.0); kick_times.append(t)
@@ -289,13 +357,13 @@ for b in range(nbars):
             put("drums", t, {"clap": v_clap, "snare": v_snare, "rim": v_rim}.get(kind, v_snare)(g) if kind != "taiko" else v_taiko(g * 1.0, 0.8), 1.0, 0.0)
             if kind == "snare": put("drums", t, v_clap(g * 0.5), 1.0, 0.1)
         # hats
-        if P["hat_pat"] and role not in ("break",) and not (role in ("intro", "outro") and e < 0.5):
+        if P["hat_pat"] and role not in ("break",) and not (role == "outro" and e < 0.5):
             pat = P["hat_pat"]
             dense = (role == "drop" and P["hat16"]) or (role == "build" and P["hat16"] and (e >= 0.6 or rise))
             if rise and P["hat16"]: dense = True
             if s in pat or (dense and s % 2 == 1):
                 acc = 1.0 if s % 4 == 2 else 0.6
-                g = (1.2 if full else 0.8) * gscale * acc * (0.8 + 0.4 * rng.random()) * (0.55 if s % 2 == 1 else 1)
+                g = (1.2 if full else 0.8) * (0.55 if role == "intro" and e < 0.5 else 1.0) * gscale * acc * (0.8 + 0.4 * rng.random()) * (0.55 if s % 2 == 1 else 1)
                 put("drums", t, v_hat(g, op=(s in P["open_hat"] and full and role == "drop")), 1.0, 0.25 if s % 4 else -0.15)
         # snare roll into the drop
         pr = riser_progress(t)
@@ -312,7 +380,7 @@ for b in range(nbars):
             if midi < 28: midi += 12
             if kind == "pulse" and s in (2, 6, 10, 14) and not rise:
                 put("bass", t, v_sub(mtof(midi), step * 3.2, 0.0, 6.0, 0.85), 1.0)
-            elif kind == "808" and s in (0, 7, 10) and not rise:
+            elif kind == "808" and (s in (0, 7, 10) or (s == 14 and role == "drop")) and not rise:
                 put("bass", t, v_sub(mtof(midi), beat * (1.7 if s == 0 else 1.0), 0.6, 2.2, 0.95), 1.0)
             elif kind == "long" and s == 0 and not rise:
                 put("bass", t, v_sub(mtof(midi), bar * 0.96, 0.0, 0.5, 0.8), 1.0)
@@ -327,7 +395,7 @@ for b in range(nbars):
         elif role == "intro": dens = 8 if e >= 0.3 else 4
         elif role == "outro": dens = 4
         if preset == "cinematic": dens = min(dens, 8) if role in ("drop", "groove") else min(dens, 4)
-        if preset == "calm": dens = min(dens, 8)
+        if preset == "calm": dens = 16 if (role == "drop" and e >= 0.85) else 4 if role == "intro" else min(dens, 8)
         if dens == 16: hitstep = True
         elif dens == 8: hitstep = s % 2 == 0
         elif dens == 4: hitstep = s in (0, 6, 10) if preset != "cinematic" else s in (0, 8)
@@ -335,12 +403,26 @@ for b in range(nbars):
         if hitstep and not (role == "outro" and b == nbars - 1):
             ct = [root + iv for iv in tones]
             allt = ct + [x + 12 for x in ct] + [x + 24 for x in ct]
-            idx = P["arp"][s % 16]
+            idx = (P["arp4"][b % 4] if P.get("arp4") else P["arp"])[s % 16]
             m = 12 * (4 + P["pluck_oct"]) + root + (allt[idx % len(allt)] - root) - 12 * (1 if P["pluck_oct"] == 2 else 0)
             while m > 96: m -= 12
             acc = 1.0 if s % 4 == 0 else 0.62
             g = 0.55 * acc * (0.45 + 0.55 * e) * (1.35 if role == "break" else 1.0) * (0.85 + 0.3 * rng.random())
             put("pluck", t, v_pluck(m, beat * 0.9 if dens < 16 else beat * 0.55, P["pluck_wave"], P["pluck_cut"], P["pluck_decay"], g), 0.9, -0.5 + (s % 8) / 8)
+        # chord stabs (punchy): the filter opens at the drop
+        if P.get("stab") and not rise and role in ("groove", "drop") and s in ((0, 6, 10, 14) if role == "drop" else (6, 10)):
+            sg = 0.55 * (0.5 + 0.5 * e) * (1.2 if role == "drop" else 0.8)
+            put("pluck", t, v_stab([mtof(60 + root + iv) for iv in tones], beat * 0.6, 6500 if role == "drop" else 2200, sg), 0.9, 0.35)
+        # bell layer in the upper octave (calm: all sections, sparse in the intro and outro; punchy: drop only)
+        if P.get("sparkle") and not rise and role in P["sparkle"]:
+            pat = P["spark_pat"][b % 4]
+            if role in ("intro", "outro"): pat = [0] if b % 4 == 0 else []
+            elif role == "build": pat = pat[:1]
+            if s in pat and not (role == "outro" and b == nbars - 1):
+                ci = (pat.index(s) + b) % len(tones)
+                bm = 84 + (root + tones[ci]) % 12
+                bg = 0.8 * (0.5 + 0.5 * e) * (0.7 if role in ("intro", "outro") else 1.0)
+                put("pluck", t, v_pluck(bm, beat * 1.4, "bell", 9000, 2.6, bg), 0.9, 0.4 if s < 8 else -0.4)
 
 # pad: one evolving chord per chord segment (crossfaded), level follows the section energies
 PADBASE = {"intro": 0.85, "build": 0.85, "break": 1.0, "drop": 0.6, "groove": 0.65, "outro": 0.95}
@@ -378,6 +460,10 @@ for a, b in riser_info:
     ya = riser(tt(b - a))
     put("fx", a, ya * 0.3, 0.3, 0.7)
 
+# presence on the keys (calm): a high-passed copy of the pluck bus lifts the 2-6 kHz band
+if P.get("bright"):
+    for bus in (L, R): bus["pluck"] += P["bright"] * sos("high", 2200, bus["pluck"])
+
 # sidechain-style ducking for bass, pad, pluck
 for k, dpt in (("bass", 1.0), ("pad", 0.9), ("pluck", 0.45)):
     dk = 1 - (1 - duck) * dpt
@@ -391,8 +477,8 @@ def reverb(x, wet, seconds):
 verb_in = [L["pluck"] * 0.8 + L["pad"] * 0.5 + L["drums"] * 0.12, R["pluck"] * 0.8 + R["pad"] * 0.5 + R["drums"] * 0.12]
 rv = reverb(np.array(verb_in), P["verb"], 1.8 if preset != "cinematic" else 3.2)
 
-mixL = L["drums"] * 0.95 + L["bass"] * 0.9 + L["pad"] * 1.0 + L["pluck"] * 0.55 + L["fx"] + rv[0]
-mixR = R["drums"] * 0.95 + R["bass"] * 0.9 + R["pad"] * 1.0 + R["pluck"] * 0.55 + R["fx"] + rv[1]
+mixL = L["drums"] * 0.95 + L["bass"] * 0.9 * P.get("bass_gain", 1) + L["pad"] * 1.0 + L["pluck"] * 0.55 * P.get("pluck_gain", 1) + L["fx"] + rv[0]
+mixR = R["drums"] * 0.95 + R["bass"] * 0.9 * P.get("bass_gain", 1) + R["pad"] * 1.0 + R["pluck"] * 0.55 * P.get("pluck_gain", 1) + R["fx"] + rv[1]
 
 # silence right before each drop: everything off for gap_len (4 ms edges), the drop then lands on a dead floor
 mask = np.ones(len(mixL))
@@ -404,7 +490,8 @@ for d in drops_nz:
 for t, st in hits + ([(final_t, 1.0)] if final_t is not None else []):   # explicit hits and the end hit: a 90 ms dip just before, so the hit stands out of a busy groove
     a, b = tt(max(0, t - 0.09)), tt(t)
     if b - a > 8:
-        e1 = tt(0.004); mask[a:b] *= 0.05; mask[a - e1:a] *= np.linspace(1, 0.05, e1) if a >= e1 else 1
+        dp = 1 - 0.95 * min(1.0, 0.3 + 0.7 * st)
+        e1 = tt(0.004); mask[a:b] *= dp; mask[a - e1:a] *= np.linspace(1, dp, e1) if a >= e1 else 1
 mixL *= mask; mixR *= mask
 
 # ending: everything stops at final_t, then impact + chord ring (stinger: short chord)
@@ -419,26 +506,30 @@ if final_t is not None:
 
 # hits: impacts at planned seconds (drops get a full one), end hit
 imp = []
-for d in drops_nz: imp.append((d, 1.0))
-for t, st in hits: imp.append((t, st))
-if final_t is not None: imp.append((final_t, 0.9))
-for t, st in imp:
-    y = impact(st * P["impact"] * (0.9 if (t in drops_nz or t == final_t) else 1.8), (1.0 if (t in drops_nz or t == final_t) else 1.7) if st >= 0.8 else 0.7, 2.4 if (t >= (final_t or 1e9) - 1e-6) else 1.9)
+for d in drops_nz: imp.append((d, 1.0, "drop"))
+for t, st in hits: imp.append((t, st, "hit"))
+if final_t is not None: imp.append((final_t, 0.9, "end"))
+REF = P["impact"] * 0.9   # the drop impact is the loudest one; explicit hits scale with their strength and stay below it
+for t, st, kind in imp:
+    if kind == "drop": g, boom = REF, 1.0
+    elif kind == "end": g, boom = REF * 0.9, 1.0
+    else: g, boom = REF * 0.9 * (0.2 + 0.8 * st), 0.5 + 0.5 * st
+    y = impact(g, boom, 2.4 if kind == "end" else 1.9)
     i = tt(t)
     k = min(len(y), len(mixL) - i)
     mixL[i:i + k] += y[:k]; mixR[i:i + k] += y[:k]
     # a short low stab so the hit is felt on the beat grid
-    st_y = v_kick(P["kick"], 0.8 * st, 0.4)
+    st_y = v_kick(P["kick"], 0.8 * (0.2 + 0.8 * st), 0.4)
     k2 = min(len(st_y), len(mixL) - i); mixL[i:i + k2] += st_y[:k2]; mixR[i:i + k2] += st_y[:k2]
 if final_t is not None:
-    root, tones = chord_at_bar(nbars - 1)
+    root, tones = root_pc, QUAL[prog[0][1]]   # the ending resolves on the tonic chord
     ring = tt(dur - final_t)
     for iv in [x for x in tones] + [12]:
         for octv in (0, 12):
             f = mtof(60 + root + iv + octv - 12)
             n = ring; t = np.arange(n) / SR
-            decay = 3.2 if end_mode == "stinger" else 1.0
-            y = (np.sin(2 * np.pi * f * t) + 0.4 * np.sin(2 * np.pi * 2.01 * f * t) * np.exp(-t * 2)) * np.exp(-t * decay) * 0.06
+            decay = min(3.2, 1.9 / max(ring / SR, 0.3)) if end_mode == "stinger" else min(1.0, 1.7 / max(ring / SR, 0.3))   # still audible at the file end
+            y = (np.sin(2 * np.pi * f * t) + 0.4 * np.sin(2 * np.pi * 2.01 * f * t) * np.exp(-t * 2)) * np.exp(-t * decay) * 0.09
             i = tt(final_t)
             k = min(n, len(mixL) - i); mixL[i:i + k] += y[:k]; mixR[i:i + k] += y[:k]
 if end_mode == "fade":
@@ -451,7 +542,7 @@ y -= y.mean(axis=0)
 y = np.stack([sos("low", 15500, y[:, 0], 4), sos("low", 15500, y[:, 1], 4)], axis=1)   # no content near Nyquist: safer for mp3/aac and true peaks
 y = np.tanh(y * 0.9) / 0.9 * 0.97   # gentle glue
 # short tail fade so the file never ends on a click
-y[-tt(0.01):] *= np.linspace(1, 0, tt(0.01))[:, None]
+y[-tt(0.3):] *= (np.cos(np.linspace(0, math.pi / 2, tt(0.3))) ** 2)[:, None]   # ~0.3 s closing fade: the file never ends mid-sound
 
 # ---------------------------------------------------------------- loudness and limiter
 CEIL = 10 ** (-1.5 / 20)
@@ -494,9 +585,25 @@ elif ext in (".mp3", ".m4a", ".flac", ".aac"):
         if r.returncode: sys.exit("ffmpeg failed: " + r.stderr.strip().split("\n")[-1])
 else: sys.exit(f"unknown output type {ext} (use .wav, .mp3, .m4a, .flac)")
 
+# sidecar <out>.plan.json: what was planned, so analyze reads the grid, drops and sections from the plan instead of guessing from audio
+runs = []
+for k in range(nbars if final_t is None else int(round(final_t / bar)) + 1):   # bars after a moved end hit are cut
+    if k == 0 or role_of[k] != role_of[k - 1] or abs(en_of[k] - en_of[k - 1]) > 1e-9: runs.append([k, k + 1, role_of[k], round(float(en_of[k]), 3)])
+    else: runs[-1][1] = k + 1
+sidecar = {
+    "synth": 1, "bpm": bpm, "beat": beat, "bar": bar, "duration": dur, "bars": nbars, "preset": preset, "seed": SEED, "sr": SR,
+    "key": ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][root_pc] + (" minor" if mode == "minor" else " major"),
+    "sections": [{"from_bar": a_, "to_bar": b_, "role": r_, "energy": e_, "t": round(a_ * bar, 4), "t_end": round(min(dur, b_ * bar), 4)} for a_, b_, r_, e_ in runs],
+    "drops": [round(d, 4) for d in drops_nz], "risers": [[round(a_, 4), round(b_, 4)] for a_, b_ in riser_info],
+    "gaps": [[round(d - gap_len, 4), round(d, 4)] for d in drops_nz] if gap_len > 0 else [],
+    "hits": [{"t": round(t, 4), "strength": round(st, 3)} for t, st in hits],
+    "end": {"mode": end_mode, "t": round(final_t, 4) if final_t is not None else None},
+}
+json.dump(sidecar, open(out + ".plan.json", "w"), indent=1)
+
 fmt = lambda v: f"{v:.2f}"
 print(f"synth {preset}  {bpm:g} bpm  beat {beat:.3f}s  bar {bar:.3f}s  {nbars} bars  {dur:.2f}s  key {['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][root_pc]} {mode}  {SR} Hz  seed {SEED}")
-print("sections:", "  ".join(f"bar{b} {r} @{fmt(b * bar)}s" for b, r in sections_out))
+print("sections:", "  ".join(f"bar{b} {r} @{fmt(b * bar)}s" for b, r in sections_out if final_t is None or b * bar <= final_t + 1e-6))
 print("drops:  ", " ".join(fmt(d) for d in drops_nz) or "none", "  gap before drop:", f"{gap_len:.2f}s" if drops_nz and gap_len else "none")
 print("risers: ", " ".join(f"{fmt(a)}-{fmt(b)}" for a, b in riser_info) or "none")
 print("hits:   ", " ".join(fmt(t) for t, _ in hits) or "none", "   end:", f"{end_mode}" + (f" at {fmt(final_t)}s" if final_t is not None else ""))

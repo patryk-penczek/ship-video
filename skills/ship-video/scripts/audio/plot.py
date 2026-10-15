@@ -37,10 +37,11 @@ grid_beats = grid_bars = None
 if bpm is None:
     # the same grid analyze prints (tempo fit + anchored on the strong hits), so title, text and plot lines agree
     import subprocess, tempfile, json
-    tmp = os.path.join(tempfile.mkdtemp(prefix="ship-video-plot-"), "a.json")
-    r = subprocess.run([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "analyze.py"), mix, "--json", tmp], capture_output=True, text=True)
-    if r.returncode == 0 and os.path.exists(tmp):
-        j = json.load(open(tmp)); bpm = float(j["tempo"]); grid_beats = j["beats"]; grid_bars = j["bars"]
+    with tempfile.TemporaryDirectory(prefix="ship-video-plot-") as td:
+        tmp = os.path.join(td, "a.json")
+        r = subprocess.run([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "analyze.py"), mix, "--json", tmp], capture_output=True, text=True)
+        if r.returncode == 0 and os.path.exists(tmp):
+            j = json.load(open(tmp)); bpm = float(j["tempo"]); grid_beats = j["beats"]; grid_bars = j["bars"]
     if not bpm or bpm <= 0: sys.exit("no steady beat found; pass --bpm N")
 names = sorted(n[:-4] for n in os.listdir(stems_dir) if n.endswith(".wav")) if stems_dir else []
 

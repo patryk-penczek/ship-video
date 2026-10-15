@@ -1,6 +1,6 @@
 // Music tools, one entry point. Runs the Python ones in the ship-video venv (python -I).
 // usage: node music.mjs <command> [args]       (node music.mjs <command> --help for details)
-//   analyze  <track> [--json music.json]            tempo, audible end, bars/beats, cuts, section lifts, hits (* = strong), kicks, gaps, energy table
+//   analyze  <track> [--json music.json] [--no-plan]            tempo, audible end, bars/beats, cuts, section lifts, hits (* = strong), kicks, gaps, energy table
 //   envelope <track> <film/env.js>                  60 fps sub/mid/high/rms envelope for audio-reactive effects
 //   plot     <track> <out.png> [stems_dir] [--bpm N]  spectrogram with beat and bar lines; Read the PNG
 //   stems    <demucs_out_dir>                        per-stem energy + onsets (needs setup.sh --demucs)
@@ -63,6 +63,8 @@ if (PY_SCRIPTS[cmd] && cmd !== "stems" && cmd !== "synth") {
     if (f.status !== 0) { rmSync(tmpDir, { recursive: true, force: true }); die(`ffmpeg could not decode ${track}: ${String(f.stderr).trim().split("\n").pop() || "no audio stream?"}`); }
     argv[i] = wav;
   }
+  // a track made by `synth` has <track>.plan.json next to it; the temp copy above would lose it, so hand it over
+  if (track && existsSync(`${track}.plan.json`)) process.env.SHIP_VIDEO_PLAN = path.resolve(`${track}.plan.json`);
 }
 const r = spawnSync(PY, argv, { stdio: "inherit" });
 if (tmpDir) rmSync(tmpDir, { recursive: true, force: true });

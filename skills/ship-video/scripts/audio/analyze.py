@@ -1,5 +1,6 @@
 # Music map raw data: tempo, bars/beats to the audible end, hits (* = strong), suggested cuts, section lifts, kicks, gaps, 0.25 s energy table.
-# usage: node music.mjs analyze <track> [--json music.json]
+# usage: node music.mjs analyze <track> [--json music.json] [--plan track.plan.json | --no-plan]
+# A track made by `synth` has a sidecar <track>.plan.json: the grid, drop, riser and sections then come from the plan (exact), the audio only adds detail.
 # Read it like a musician: cuts = where cuts go, hits = candidates, lifts = section starts, kicks = small moves, table = sections.
 # A hit is strong when the low end jumps >= 1.5x over the half second before it, or when it is the last hit before the music decays.
 import sys, os, json
@@ -9,11 +10,17 @@ if not os.environ.get("DEBUG"):
     sys.excepthook = lambda t, e, tb: (print(f"analyze: {e}", file=sys.stderr), os._exit(1))
 argv = sys.argv[1:]
 out_json = None
+plan_file, use_plan = None, True
+if "--no-plan" in argv: argv.remove("--no-plan"); use_plan = False
+if "--plan" in argv:
+    i = argv.index("--plan")
+    if i + 1 >= len(argv) or argv[i + 1].startswith("--"): sys.exit("--plan needs a file (the track.plan.json written by synth)")
+    plan_file = argv[i + 1]; del argv[i:i + 2]
 if "--json" in argv:
     i = argv.index("--json")
     if i + 1 >= len(argv) or argv[i + 1].startswith("--"): sys.exit("usage: node music.mjs analyze <track> [--json music.json]  (--json needs a file)")
     out_json = argv[i + 1]; del argv[i:i + 2]
-if len(argv) != 1: sys.exit("usage: node music.mjs analyze <track> [--json music.json]")
+if len(argv) != 1: sys.exit("usage: node music.mjs analyze <track> [--json music.json] [--plan track.plan.json | --no-plan]")
 path = argv[0]
 if path.startswith("--"): sys.exit(f"unknown option {path}")
 if not os.path.isfile(path): sys.exit(f"track not found: {path}")
@@ -27,6 +34,16 @@ except Exception as e:
     sys.exit(f"cannot read audio {path}: not a readable audio file (empty, truncated or another format?)")
 dur = len(y) / sr
 hop = 512
+plan = None
+if use_plan:
+    cand_files = [plan_file] if plan_file else [os.environ.get("SHIP_VIDEO_PLAN"), path + ".plan.json"]
+    for pf in cand_files:
+        if pf and os.path.isfile(pf):
+            try: pl = json.load(open(pf))
+            except Exception: pl = None
+            if isinstance(pl, dict) and pl.get("synth") and abs(float(pl.get("duration", -9)) - dur) < 0.35: plan = pl
+            elif plan_file: sys.exit(f"--plan {pf}: not a synth plan for this track (missing or different duration)")
+            if plan: break
 if dur < 1 or np.abs(y).max() < 1e-4: sys.exit(f"{path} is empty or silent ({dur:.1f} s): nothing to analyze. No music? Use: node music.mjs grid --bpm 120 --duration <s>")
 
 S = np.abs(librosa.stft(y, hop_length=hop))
@@ -66,6 +83,11 @@ jump = lambda t: mean(lown, t - 0.02, t + 0.25) / (mean(lown, t - 0.5, t - 0.05)
 hits = [(t, s, jump(t)) for t, s in cand]
 final = max(range(len(hits)), key=lambda i: hits[i][0]) if hits else None
 strong = [i for i, h in enumerate(hits) if h[2] >= 1.5 or i == final]
+if plan:   # planned impacts (drops, hits, the end hit) are the strong hits, at their planned times; every other detected hit is plain
+    planned = sorted([float(t) for t in plan.get("drops", [])] + [float(h["t"]) for h in plan.get("hits", [])] + ([float(plan["end"]["t"])] if plan.get("end", {}).get("t") is not None else []))
+    keep = [h for h in hits if all(abs(h[0] - tp) > 0.08 for tp in planned)]
+    hits = sorted(keep + [(tp, 1.0, jump(tp)) for tp in planned if tp <= end + 0.1])
+    strong = [i for i, h in enumerate(hits) if any(abs(h[0] - tp) < 1e-9 for tp in planned)]
 
 # tempo grid: bars from the beat tracker, then a straight-line fit so the grid runs on to the audible end
 tempo, beats = librosa.beat.beat_track(y=y, sr=sr, units="time")
@@ -99,6 +121,11 @@ if bars and beats:
     first = float(rt[loud[0]]) if len(loud) else 0.0
     bars = [b for b in bars if b >= max(0.0, first - 0.05)]; beats = [b for b in beats if b >= max(0.0, first - 0.05)]
 
+if plan:   # the plan's grid is exact: bar 0 starts at 0 s, no tracker, no anchor
+    per = float(plan["bar"]); tempo = 240 / per; anchor = 0.0
+    bars = [k * per for k in range(int((end + 0.05) / per) + 1)]
+    beats = [b0 + j * per / 4 for b0 in bars for j in range(4)]; beats = [b for b in beats if b <= end + 0.05]
+
 # section lifts / dips: level of the next 2 s against the 4 s before, local extremes only
 cands = [(t, mean(rmsn, t, t + 2) / (mean(rmsn, max(0, t - 4), t) + 0.03)) for t in np.arange(1.5, end - 1, 0.25)]
 def extremes(sign):
@@ -109,14 +136,22 @@ def extremes(sign):
         if not keep or t - keep[-1][0] > 1.5: keep.append((t, v))
     return keep
 lifts, dips = extremes(1), extremes(-1)
+if plan:   # section starts where the planned energy steps up or down
+    lifts, dips = [], []
+    ps = plan.get("sections", [])
+    for a_, b_ in zip(ps, ps[1:]):
+        r_ = (b_["energy"] + 1e-3) / (a_["energy"] + 1e-3)
+        if r_ >= 1.12: lifts.append((float(b_["t"]), float(r_)))
+        elif r_ <= 0.7: dips.append((float(b_["t"]), float(r_)))
 # the level ramps up a little before the section starts: land on the nearest strong hit (else bar line) within 0.6 s
 def snap(t):
     for pool in ([hits[i][0] for i in strong], bars):
         near = [x for x in pool if abs(x - t) <= 0.6]
         if near: return min(near, key=lambda x: abs(x - t))
     return t
-lifts = [(snap(t), v) for t, v in lifts]
-dips = [(snap(t), v) for t, v in dips]
+if not plan:
+    lifts = [(snap(t), v) for t, v in lifts]
+    dips = [(snap(t), v) for t, v in dips]
 
 cuts = []
 for t in sorted([hits[i][0] for i in strong] + [t for t, _ in lifts]):
@@ -154,7 +189,12 @@ for k, e in enumerate(sh):
 if riser:
     drop = riser[1]
 elif strong:
-    drop = max((hits[i] for i in strong), key=lambda h: h[1] * h[2])[0]  # no riser: the strongest hit by flux x low-end jump
+    pool = [hits[i] for i in strong if hits[i][0] < end - 2.0]   # the closing hit is an ending, not a drop
+    dh = max(pool, key=lambda h: h[1] * h[2])[0] if pool else None  # no riser: the strongest hit by flux x low-end jump
+    # ...but only if the level steps up and stays up after it: a fill hit in a flat groove is not a drop
+    aft = 0.0 if dh is None else 0.5 * mean(lown, dh + 0.3, dh + 4.0) + 0.5 * mean(rmsn, dh + 0.3, dh + 4.0)
+    bef = 0.0 if dh is None else 0.5 * mean(lown, max(0, dh - 3.0), dh - 0.2) + 0.5 * mean(rmsn, max(0, dh - 3.0), dh - 0.2)
+    if dh is not None and aft - bef >= 0.05: drop = dh
 # stretches without low end (risers, breakdowns): the energy table can look busy while the kick is gone
 nolow, st = [], None
 first_t = float(rt[loud[0]]) if len(loud) else 0.0
@@ -176,6 +216,15 @@ for a0, b0 in nolow:
     sc = 8.0 * min(b0 - a0, 1.0) * (0.15 + step_up * 4) * (0.3 + e / end)
     cands_r.append((sc, float(a0), float(e), float(step_up)))
     if sc > best: best = sc; drop = float(e)
+_d = []
+for c in sorted(cands_r, reverse=True):   # one candidate per 0.1 s: the best-scoring one
+    if all(abs(c[2] - k[2]) > 0.1 for k in _d): _d.append(c)
+cands_r = _d
+if plan:
+    pr, pd = plan.get("risers") or [], plan.get("drops") or []
+    riser = (float(pr[0][0]), float(pr[0][1])) if pr else None
+    drop = float(pd[0]) if pd else None
+    cands_r = []
 # sections: intro until the first section start, build = riser, drop(s) = levels above 0.7 of the loudest 2 s, break = dips, outro = tail
 rms_at = lambda t: mean(rmsn, t, t + 1.0)
 dlevel = rms_at(drop + 0.2) if drop else None
@@ -195,6 +244,9 @@ for t, n in pts:
     if secs and (n == secs[-1][1] or t - secs[-1][0] < 1.0) and n not in ("drop", "build"): continue
     secs.append((t, n))
 
+if plan:
+    secs = [(float(x["t"]), x["role"]) for k, x in enumerate(plan["sections"]) if k == 0 or x["role"] != plan["sections"][k - 1]["role"]]
+
 quiet = rms < 0.3 * np.median(rms)
 gaps, start = [], None
 for t, q in zip(rt, quiet):
@@ -210,7 +262,7 @@ sub, lowb, mid, high = band(20, 90), band(90, 300), band(300, 2500), band(2500, 
 fmt = lambda xs: " ".join(f"{x:.2f}" for x in xs)
 print(f"dur {dur:.2f}s  audible end: {end:.2f} s{'' if end > dur - 0.3 else f'  (silence for the last {dur - end:.1f} s: end the film near {end:.1f})'}")
 print(f"tempo {tempo:.1f} bpm  beat {60 / tempo:.3f}s  bar {240 / tempo:.3f}s" if bars else "tempo: no steady beat found (use bars from `grid` if you need a grid)")
-print(f"grid anchored on the strong hits ({anchor * 1000:+.0f} ms vs the tracker)" if anchor else "grid: tracker phase kept (no strong hits to anchor on)")
+print(f"grid, drop, riser, sections and strong hits from the synth plan ({plan['preset']}, {plan['bpm']:g} bpm): exact, audio-checked for the rest" if plan else f"grid anchored on the strong hits ({anchor * 1000:+.0f} ms vs the tracker)" if anchor else "grid: tracker phase kept (no strong hits to anchor on)")
 print("bars:  ", fmt(bars))
 print("beats: ", fmt(beats))
 print("cuts:  ", fmt(cuts), "   (strong hits + section lifts: start here)")
@@ -236,5 +288,5 @@ for s in np.arange(0, dur, 0.25):
 if out_json:
     json.dump({"duration": dur, "audible_end": end, "tempo": tempo, "bars": bars, "beats": beats, "cuts": cuts,
                "lifts": [t for t, _ in lifts], "dips": [t for t, _ in dips], "hits": [(t, s) for t, s, _ in hits],
-               "strong_hits": [hits[i][0] for i in strong], "riser": riser, "drop": drop, "sections": [{"t": t, "name": n} for t, n in secs], "no_low_end": nolow, "anchor_offset": anchor, "kicks": [t for t, _ in kicks], "gaps": gaps, "onsets": [float(o) for o in onsets]}, open(out_json, "w"), indent=1)
+               "strong_hits": [hits[i][0] for i in strong], "riser": riser, "drop": drop, "sections": [{"t": t, "name": n} for t, n in secs], "from_plan": bool(plan), "no_low_end": nolow, "anchor_offset": anchor, "kicks": [t for t, _ in kicks], "gaps": gaps, "onsets": [float(o) for o in onsets]}, open(out_json, "w"), indent=1)
     print(f"\n→ {out_json}")
