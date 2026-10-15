@@ -2,8 +2,7 @@
 
 **Turn your app into a music-synced launch film, as code, from one Claude Code prompt.**
 
-<!-- Hero video: upload docs/hero/out/hero-motionblur.mp4 by dragging it into this file in GitHub's editor;
-     GitHub inserts a https://github.com/user-attachments/assets/… link that renders as a player. Keep it on its own line here. -->
+https://github.com/user-attachments/assets/328f4132-e9f7-4604-8e10-9731dd729a46
 
 <p align="center"><sub>Made with ship-video itself: one HTML page on a 120 BPM grid. <a href="docs/hero">View source</a>.</sub></p>
 
