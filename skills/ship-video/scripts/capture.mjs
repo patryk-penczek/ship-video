@@ -10,6 +10,11 @@
 //   --storage-state file.json  a Playwright storage state (cookies, localStorage, IndexedDB) used by every state: log in / onboard once, reuse it
 //   --prune-hidden  drop display:none elements (inactive tabs, hidden CodeMirror editors) from every state's markup
 //   --seed N  seeded Math.random (mulberry32: the same N gives the same sequence on every load, so random demo data is reproducible) for every page (and "init": { "seed": N, "date": "2026-01-15T10:00:00Z" } in states.json: a fixed clock);
+//   --redact  replace emails, phone numbers and API keys/tokens in the live page with consistent fakes BEFORE the screenshot and the snapshot (text nodes, value/title/alt/placeholder/aria-label, mailto:/tel:;
+//     never CSS or class names). Same input -> same fake in every state and run (alex.rivera@example.com, 555 01xx phones, sk_live_<same length>). Prints a summary of what was replaced (masked), not the values.
+//     --redact-names "Jane Doe,Sam Lee"  also swaps those names (full name and each word of >= 3 letters) for fake ones. states.json: "redact": true | { "emails", "phones", "keys": false to skip a kind,
+//     "names": [...], "allow": ["support@acme.com"], "patterns": [{ "regex": "ACME-\\d+", "replace": "ACME-0000" }] }; a state's own "redact": false skips it. Pixels (canvas, photos, avatar images) are NOT redacted:
+//     look at review/ and img/ yourself. Real customer data must never appear in a film that is public or committed. audit.mjs greps the finished film for what is left.
 //   --init-script file.js  JS run before any app script (stub random data, feature flags). Apps with random demo data differ at every load:
 //   capture ALL states in one run (never mix runs: the numbers would disagree) and treat compare.mjs as layout-only (--no-text)
 //   --storage k=v;k2=v2  localStorage seeded before the first navigation (once per tab): log in without a login state. Same as "init" in states.json
@@ -47,13 +52,17 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { drive, readStates, runActions, freezePage, envOptions, makeContext, scrollThrough, hiddenContent, gotoPage } from "./lib/drive.mjs";
 import { existsSync, readFileSync } from "node:fs";
+import { redactConfig, redactPage, newSummary, printSummary } from "./lib/redact.mjs";
 import { detectRoot, outsideRoot, pageInfo, collectSheets, portCss } from "./lib/port.mjs";
 help(import.meta.url);
 
-const a = args(undefined, ["css", "full", "discover", "touch", "motion", "prune-hidden", "no-clicks", "help"]);
-known(a, ["css", "full", "discover", "root", "only", "routes", "depth", "dpr", "viewport", "touch", "scheme", "storage", "motion", "storage-state", "seed", "init-script", "prune-hidden", "no-clicks", "parallel", "max-pages"]);
+const a = args(undefined, ["css", "full", "discover", "touch", "motion", "prune-hidden", "no-clicks", "redact", "help"]);
+known(a, ["css", "full", "discover", "root", "only", "routes", "depth", "dpr", "viewport", "touch", "scheme", "storage", "motion", "storage-state", "seed", "init-script", "prune-hidden", "no-clicks", "parallel", "max-pages", "redact", "redact-names"]);
 for (const k of ["root", "only", "routes"]) if (a[k] === true) die(`--${k} needs a value`);
 const env = envOptions(a);
+if (a["redact-names"] === true) die("--redact-names needs a list: --redact-names \"Jane Doe,Sam Lee\"");
+const redactSummary = newSummary();
+let REDACT = redactConfig(undefined, a.redact, a["redact-names"]); // main() adds the states.json "redact" block
 const url = a._[0], W = env.width, H = env.height, DPR = num(a, "dpr", 2, { min: 1, max: 4 }); // device pixel ratio: canvas states always, every state when --dpr is given
 const sha = (b) => createHash("sha1").update(b).digest("hex").slice(0, 12);
 const hashRoute = (u) => (/^#!?\//.test(u.hash) ? u.hash : ""); // hash routers: /#/notes is a view, /#section is an anchor
@@ -105,6 +114,7 @@ async function discover(film) {
         };
       });
       const name = (route.replace(/^\/+|\/+$/g, "").replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "") || "home");
+      if (REDACT) await redactPage(page, REDACT, redactSummary, route);
       const shot = await page.screenshot({ path: path.join(dir, `${name}.png`), fullPage: true });
       const here = new URL(page.url()), landed = norm(here.pathname) + here.search + hashRoute(here);
       const row = { route, status: res.status(), file: `${name}.png`, hash: sha(shot), ...info };
@@ -335,6 +345,8 @@ async function recordFrames(page, st, film, sel, allImages) {
 
 async function main(statesFile, film) {
   const states = readStates(statesFile);
+  REDACT = redactConfig(states.redact, a.redact, a["redact-names"]);
+  if (REDACT) console.log(`redact: emails ${REDACT.emails ? "on" : "off"}, phones ${REDACT.phones ? "on" : "off"}, keys ${REDACT.keys ? "on" : "off"}${REDACT.names.length ? `, ${REDACT.names.length} name(s)` : ""}${REDACT.patterns.length ? `, ${REDACT.patterns.length} custom pattern(s)` : ""}`);
   const only = a.only ? new Set(String(a.only).split(",")) : null;
   mkdirSync(path.join(film, "img"), { recursive: true });
   const disc = path.join(film, "review/discovery");
@@ -386,6 +398,7 @@ async function main(statesFile, film) {
         allImages.push(rel);
         return rel;
       }));
+      if (REDACT && st.redact !== false) { const r = await redactPage(page, REDACT, redactSummary, st.name); if (r.total && frameSrc.length) warnOnce(`WARNING [${st.name}] redacted text, but this state has canvas pixels (${frameSrc.length} canvas group(s)): the canvas image still shows the real data`); }
       const info = await pageInfo(page, sel);
       const shotBuf = await page.screenshot({ path: path.join(disc, `${st.name}.png`), fullPage: !!(st.full ?? a.full), scale: "css" });
       if (!/-before$/.test(st.name)) {
@@ -483,6 +496,8 @@ async function main(statesFile, film) {
     } catch (e) { console.error(`note: could not merge the old screens.js (${e.message.split("\n")[0]})`); }
   }
   writeFileSync(path.join(film, "screens.js"), `// generated by scripts/capture.mjs: regenerate, don't hand-edit\nwindow.SCREENS = ${JSON.stringify(SCREENS)};\nwindow.SCREENS_META = ${JSON.stringify(META)};\n`);
+  if (REDACT && redactSummary.states.length) printSummary(redactSummary);
+  else if (REDACT) console.log("redact: nothing matched (no emails, phones, keys or listed names found)");
   console.log(`screens → ${path.join(film, "screens.js")} (${names.length} states)`);
   if (allImages.length) console.log(`images (list in film.js "images:"): ${JSON.stringify([...new Set(allImages)])}`);
   if (cssSummary?.failed.length) errors.push(`--css: ${cssSummary.failed.length} font/image file(s) could not be copied (see above)`);

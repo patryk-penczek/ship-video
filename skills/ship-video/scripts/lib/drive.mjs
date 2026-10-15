@@ -13,6 +13,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { die } from "./common.mjs";
+import { checkRedactBlock } from "./redact.mjs";
 
 // no CSS animation/transition/caret may move between the screenshot and the DOM capture
 export const FREEZE = "*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition:none!important;caret-color:transparent!important}html{scroll-behavior:auto!important}";
@@ -106,8 +107,9 @@ export const hiddenContent = (page, rootSel = "body") => page.evaluate((sel) => 
 export function readStates(file) {
   let s;
   try { s = JSON.parse(readFileSync(file, "utf8").replace(/^\uFEFF/, "")); } catch (e) { die(`${file}: ${e.message}`); }
-  let init = {}, setup = null;
-  if (s && !Array.isArray(s) && typeof s === "object" && Array.isArray(s.states)) { init = s.init ?? {}; setup = s.setup ?? init.setup ?? null; s = s.states; }
+  let init = {}, setup = null, redact;
+  if (s && !Array.isArray(s) && typeof s === "object" && Array.isArray(s.states)) { init = s.init ?? {}; setup = s.setup ?? init.setup ?? null; redact = s.redact; s = s.states; }
+  const rerr = checkRedactBlock(redact, file); if (rerr) die(rerr);
   if (setup && Array.isArray(setup)) setup = { actions: setup };
   if (init.date !== undefined && (typeof init.date !== "string" || Number.isNaN(new Date(init.date).getTime()))) die(`${file}: init.date ${JSON.stringify(init.date)} is not a date (use "2026-01-15T10:00:00Z")`);
   if (init.seed !== undefined && !Number.isInteger(init.seed)) die(`${file}: init.seed must be an integer, got ${JSON.stringify(init.seed)}`);
@@ -133,7 +135,7 @@ export function readStates(file) {
     if (st.scheme !== undefined && !/^(light|dark)$/.test(st.scheme)) die(`${file}: state ${st.name}: scheme must be "light" or "dark"`);
     for (const act of st.actions ?? []) if (!act || typeof act !== "object" || Object.keys(act).length !== 1) die(`${file}: state ${st.name}: each action needs exactly one key, got ${JSON.stringify(act)} (put "wait" in its own action)`);
   }
-  s.init = init; s.setup = setup;
+  s.init = init; s.setup = setup; s.redact = redact;
   return s;
 }
 

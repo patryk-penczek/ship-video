@@ -11,6 +11,7 @@
 //                 toast is a small area, so the whole-page % stays low; the worst cell is printed and outlined in yellow in the diff image
 //   Also checked per state, not just pixels: visible text of the real page that is MISSING in the replica (a dropped toast / portal), text only in the
 //   replica, and the number of images/svg/canvas. Any missing text marks the state OVER.
+//   --redact / --redact-names "A,B" · states.json "redact": the same fakes capture.mjs --redact wrote are applied to the REAL page before it is compared (pass whatever you captured with, or redacted text shows as missing)
 //   --no-text     skip the text/media presence check (pages with random demo data: compare is layout-only then)
 //   --viewport WxH · --touch · --dpr N · --scheme light|dark · --storage "k=v;k2=v2" · --motion: same meaning as in capture.mjs (use the flags you captured with;
 //   a non-1920x1080 viewport compares the real viewport with the replica's .app-shot wrapper). states.json may carry "init" (login) and per-state "scheme".
@@ -23,16 +24,18 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { help, args, load, die, mustExist, known, num } from "./lib/common.mjs";
 import { drive, readStates, freezePage, envOptions } from "./lib/drive.mjs";
+import { redactConfig, redactPage, newSummary } from "./lib/redact.mjs";
 help(import.meta.url);
 
-const a = args(undefined, ["full", "touch", "motion", "no-text", "help"]);
-known(a, ["states", "width", "height", "scale", "full", "max-diff", "max-block", "viewport", "touch", "dpr", "scheme", "storage", "motion", "no-text", "storage-state", "seed", "init-script"]);
+const a = args(undefined, ["full", "touch", "motion", "no-text", "redact", "help"]);
+known(a, ["states", "width", "height", "scale", "full", "max-diff", "max-block", "viewport", "touch", "dpr", "scheme", "storage", "motion", "no-text", "storage-state", "seed", "init-script", "redact", "redact-names"]);
 const env = envOptions(a);
 const [url, gallery, outDir] = a._;
 if (a.states === true) die("--states needs a file");
 if (!url || !gallery || !outDir || !a.states) die("usage: node compare.mjs <app-url> <gallery.html> <outDir> --states states.json [--scale 1] [--full]");
 mustExist(gallery, "gallery"); mustExist(a.states, "states file");
 const states = readStates(a.states);
+const REDACT = redactConfig(states.redact, a.redact, a["redact-names"]), redactSum = newSummary();
 const W = a.viewport ? env.width : num(a, "width", 1920, { min: 320, max: 7680, int: true }), H = a.viewport ? env.height : num(a, "height", 1080, { min: 240, max: 4320, int: true });
 const DPR = env.dpr, maxBlock = num(a, "max-block", 30, { min: 0, max: 100 }), small = W !== 1920 || H !== 1080;
 const scale = num(a, "scale", 0.5, { min: 0.1, max: 2 }), max = num(a, "max-diff", 2, { min: 0, max: 100 });
@@ -116,6 +119,7 @@ try {
     // a click may have scrolled the real page (the replica is captured at scroll 0): put window and scroll containers back first (not for a clipped element: it is scrolled to)
     if (!clipSel) await app.evaluate(() => { window.scrollTo(0, 0); for (const e of document.querySelectorAll("*")) if (e.scrollTop || e.scrollLeft) { e.scrollTop = 0; e.scrollLeft = 0; } });
     await app.waitForTimeout(100);
+    if (REDACT && st.redact !== false) await redactPage(app, REDACT, redactSum, st.name);
     const pageH = await app.evaluate(() => document.documentElement.scrollHeight);
     if (!fullPage && !(st.clip ?? st.root) && pageH > H + 20) console.error(`note [${st.name}] the page is ${pageH} px tall: only the top ${H} px are compared (add --full, or "full": true on the state, to verify the rest)`);
     const frame = await gal.$(`.frame[data-state="${st.name}"]`);
