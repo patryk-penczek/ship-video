@@ -26,7 +26,7 @@ const isRender = (pid, outAbs) => {
   try { process.kill(pid, 0); } catch { return false; }
   try {
     const cmd = execFileSync("ps", ["-o", "command=", "-p", String(pid)], { encoding: "utf8" });
-    return /render\.mjs/.test(cmd) && cmd.includes(path.basename(outAbs));
+    return /render\.mjs/.test(cmd) && cmd.trim().split(/\s+/).some((t) => t === outAbs || path.resolve(t) === outAbs); // the exact output path, not a substring of another render's name
   } catch { return false; }
 };
 
@@ -121,7 +121,7 @@ ff = spawn("ffmpeg", [
   "-f", "image2pipe", "-framerate", String(fps), "-c:v", "mjpeg", "-i", "-",
   ...(audio ? ["-ss", String(from), "-t", String(to - from), "-i", audio, "-map", "0:v", "-map", "1:a", "-af", "apad", "-c:a", "aac", "-b:a", "256k", "-shortest", "-t", String(to - from)] : ["-an"]),
   // JPEG frames are full-range BT.601 (yuvj420p): convert to standard limited-range BT.709 yuv420p, the format social platforms and phones expect
-  "-vf", `${blend > 1 ? `tmix=frames=${blend}:weights=${Array(blend).fill(1).join(" ")},fps=60,` : ""}scale=in_range=full:out_range=limited:in_color_matrix=bt601:out_color_matrix=bt709:flags=accurate_rnd+full_chroma_int,setparams=range=tv:colorspace=bt709:color_primaries=bt709:color_trc=bt709`,
+  "-vf", `crop=trunc(iw/2)*2:trunc(ih/2)*2,${blend > 1 ? `tmix=frames=${blend}:weights=${Array(blend).fill(1).join(" ")},fps=60,` : ""}scale=in_range=full:out_range=limited:in_color_matrix=bt601:out_color_matrix=bt709:flags=accurate_rnd+full_chroma_int,setparams=range=tv:colorspace=bt709:color_primaries=bt709:color_trc=bt709`,
   "-c:v", "libx264", "-preset", "slow", "-crf", "14", "-pix_fmt", "yuv420p", "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-movflags", "+faststart",
   "-f", "mp4", part,
 ], { stdio: ["pipe", "ignore", "pipe"] });

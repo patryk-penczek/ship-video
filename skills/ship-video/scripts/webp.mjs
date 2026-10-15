@@ -33,9 +33,10 @@ mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
 // encodes frames in <dir> at descending quality (down to qmin) until the file fits; prints "<quality> <bytes> <frames>"
 const ENCODE = `import sys, glob
 from PIL import Image
-d, out, fps, q, maxb, qmin = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]), int(sys.argv[6])
+d, out, fps, src, q, maxb, qmin = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]), int(sys.argv[6]), int(sys.argv[7])
 files = sorted(glob.glob(d + "/*.png"))
 if not files: sys.exit("no frames in range (is --from beyond the end of the video?)")
+if fps < src: files = [files[int(i * src / fps)] for i in range(int(len(files) * fps / src))] # a lower frame rate reuses the extracted frames
 fr = [Image.open(f).convert("RGB") for f in files]
 import os
 while True:
@@ -49,22 +50,27 @@ print(q, size, len(fr))
 const tmp = mkdtempSync(path.join(os.tmpdir(), "ship-video-webp-"));
 try {
   writeFileSync(path.join(tmp, "encode.py"), ENCODE);
+  const frames = path.join(tmp, "frames"); // frames are extracted at the requested fps and width; the fps ladder only picks from them (re-extracted when the width changes)
+  let srcFps = fps;
+  const extract = () => {
+  srcFps = fps; rmSync(frames, { recursive: true, force: true }); mkdirSync(frames);
+  const ff = spawnSync("ffmpeg", ["-loglevel", "error", ...(from ? ["-ss", String(from)] : []), ...(Number.isFinite(to) ? ["-to", String(to)] : []), "-i", mp4,
+    "-vf", `fps=${fps},scale=${width}:-2:flags=lanczos`, path.join(frames, "%05d.png")], { encoding: "utf8" });
+  if (ff.error?.code === "ENOENT") throw new Error("ffmpeg not found in PATH (brew install ffmpeg)");
+  if (ff.status !== 0) throw new Error(`ffmpeg could not read ${mp4}: ${(ff.stderr || "").trim().split("\n").pop()}`);
+  };
+  extract();
+  let q0 = quality;
   for (let attempt = 0; ; attempt++) {
-    const frames = path.join(tmp, "frames");
-    rmSync(frames, { recursive: true, force: true });
-    mkdirSync(frames);
-    const ff = spawnSync("ffmpeg", ["-loglevel", "error", ...(from ? ["-ss", String(from)] : []), ...(Number.isFinite(to) ? ["-to", String(to)] : []), "-i", mp4,
-      "-vf", `fps=${fps},scale=${width}:-2:flags=lanczos`, path.join(frames, "%05d.png")], { encoding: "utf8" });
-    if (ff.error?.code === "ENOENT") throw new Error("ffmpeg not found in PATH (brew install ffmpeg)");
-    if (ff.status !== 0) throw new Error(`ffmpeg could not read ${mp4}: ${(ff.stderr || "").trim().split("\n").pop()}`);
-    const enc = spawnSync(PY, ["-I", path.join(tmp, "encode.py"), frames, path.resolve(out), String(fps), String(quality), String(Math.round(maxMb * 1e6)), String(qmin)], { encoding: "utf8" });
+    const enc = spawnSync(PY, ["-I", path.join(tmp, "encode.py"), frames, path.resolve(out), String(fps), String(srcFps), String(q0), String(Math.round(maxMb * 1e6)), String(qmin)], { encoding: "utf8" });
     if (enc.status !== 0) throw new Error((enc.stderr || "WebP encode failed").trim().split("\n").pop());
     const [q, bytes, n] = enc.stdout.trim().split(" ").map(Number);
     const mb = bytes / 1e6;
     if (maxMb && mb > maxMb) {
-      if (fpsStep < fpsLadder.length) { fps = fpsLadder[fpsStep++]; console.error(`still ${mb.toFixed(1)} MB at quality ${q}; lowering the frame rate to ${fps} fps (UI text stays sharp)`); continue; }
+      if (fpsStep < fpsLadder.length) { fps = fpsLadder[fpsStep++]; q0 = Math.min(quality, q + 10); // fewer frames: start near the quality that nearly fitted, not at the top again
+        console.error(`still ${mb.toFixed(1)} MB at quality ${q}; lowering the frame rate to ${fps} fps (UI text stays sharp)`); continue; }
       if (force && qmin > 25) { qmin = 25; console.error(`still ${mb.toFixed(1)} MB; --force-fit: quality down to 25`); continue; }
-      if (force && width > 480) { width = Math.max(480, Math.round(width * 0.8 / 2) * 2); console.error(`still ${mb.toFixed(1)} MB at quality ${q}; trying ${width} px wide`); continue; }
+      if (force && width > 480) { width = Math.max(480, Math.round(width * 0.8 / 2) * 2); console.error(`still ${mb.toFixed(1)} MB at quality ${q}; trying ${width} px wide`); extract(); continue; }
     }
     console.log(`${n} frames, ${fps} fps, ${width} px, quality ${q} → ${out} (${mb.toFixed(1)} MB${maxMb && mb > maxMb ? `, over the ${maxMb} MB target` : ""})`);
     if (maxMb && mb > maxMb) console.error(`hint: not degraded further (text would turn soft). Post the MP4 instead (GitHub plays it in a README via a user-attachments link), trim the film (--from/--to), raise --max-mb, or pass --force-fit to accept quality 25 / 480 px.`);
