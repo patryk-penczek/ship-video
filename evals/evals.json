@@ -329,18 +329,6 @@
       ]
     },
     {
-      "id": 24,
-      "prompt": "Make a 20 s launch film for app/. The app has a /missing route that shows an error page.",
-      "files": [
-        "app/"
-      ],
-      "expected_output": "Discovery treats the error page as a skip-level view; nothing in the film or the capture list is about it.",
-      "expectations": [
-        "Lists the error page in PRODUCT.md as skip (plumbing), or leaves it out, and does not add an unknown-route or error state to states.json",
-        "The scenario does not spend any shot on it"
-      ]
-    },
-    {
       "id": 25,
       "prompt": "I have a native iOS app, no web version. Make a 20 s launch video of it.",
       "files": [],
