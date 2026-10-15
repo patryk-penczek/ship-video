@@ -26,13 +26,13 @@
       "files": [
         "film/"
       ],
-      "expected_output": "Track analysed, MUSIC.md updated, scenes moved to the real hits, stills shown before rendering.",
+      "expected_output": "Track analysed, MUSIC.md updated, scenes moved to the real hits, the film reviewed (stills, audit), rendered crisp and shown.",
       "expectations": [
         "Resumes at the music/analysis steps instead of restarting the brief",
         "Asks where the film will be shown (draft vs public) with AskUserQuestion before asking about the track's license, and keeps the track out of git unless its license allows sharing the file",
         "Copies the track into the film folder and runs `music.mjs analyze` and `music.mjs envelope`",
         "Updates MUSIC.md and shifts scene times in film.js to the detected strong hits",
-        "Shows contact sheets or stills and asks for approval before the full render, even though the user said 'render it'",
+        "Reviews its own stills and runs audit.mjs before the full render, then renders crisp and verifies the cuts with hits.mjs",
         "After rendering, runs hits.mjs on the crisp MP4 and reports what it shows"
       ]
     },
@@ -156,19 +156,19 @@
       "files": [
         "film/ (contains index.html, PRODUCT.md, MUSIC.md, SCENARIO.md without an Approved line, track.mp3)"
       ],
-      "expected_output": "Does not accept the skipped gate silently: asks for explicit approval, then builds, and still shows stills before rendering.",
+      "expected_output": "Does not accept the skipped gate silently: asks for explicit approval, then builds, then builds, reviews its own stills and renders.",
       "expectations": [
         "Notes in one line that SCENARIO.md has no Approved line and asks for explicit approval with AskUserQuestion (Approve / change something)",
         "Does not write film.js scenes or ui.js before that approval",
         "After approval adds an Approved: date line to SCENARIO.md",
-        "Shows contact sheets or stills and waits for approval before the full render even though the user said 'render'"
+        "Does not stop for a second approval before rendering: reviews its own stills, runs the audit, renders crisp and shows the film"
       ]
     },
     {
       "id": 12,
       "prompt": "I got a new take from Suno after you rendered the film. Update the film to it.",
       "files": [
-        "film/ (a finished film with out/film-crisp.mp4, review/APPROVED, MUSIC.md for the old track)"
+        "film/ (a finished film with out/film-crisp.mp4, MUSIC.md for the old track)"
       ],
       "expected_output": "Re-time, re-approve if a move exceeds a bar, re-render, re-check hits.",
       "expectations": [
@@ -201,7 +201,7 @@
       "expected_output": "Legacy folder: does Discovery first.",
       "expectations": [
         "Starts at Discovery (PRODUCT.md is missing), not at Replicas",
-        "Writes PRODUCT.md and shows the product map, then lists the core views the approved scenario does not cover and asks whether to add them, without rewriting the scenario"
+        "Writes PRODUCT.md and shows the product map, and asks before changing the approved scenario if PRODUCT.md shows core views it misses"
       ]
     },
     {
@@ -284,7 +284,7 @@
         "Coverage picks the 2-4 sections that carry the promise and names every skipped section with a reason",
         "Opens with full identity for strangers within about 3 s (name, promise, the page's core view moving)",
         "Asks whether the hero plays muted and loops, and makes the story readable without sound with a last frame matching the first if it loops",
-        "Plans the tall page as a document-scroll shot (shots.md 7), not a view-by-view tour"
+        "Plans the tall page as a document-scroll shot (shots.md, Scroll a tall page), not a view-by-view tour"
       ]
     },
     {
@@ -295,7 +295,7 @@
       ],
       "expected_output": "Path D: a beat.json from the planned acts, a synthesised track.wav, analysed like any track, with no rights question.",
       "expectations": [
-        "Chooses the generated-beat path (step 2D): writes beat.json from the planned acts and runs `music.mjs synth --plan ... --out <film>/track.wav`",
+        "Chooses the generated-beat path (step 3): writes beat.json from the planned acts and runs `music.mjs synth --plan ... --out <film>/track.wav`",
         "Does not ask a rights question and says the track is free to publish",
         "Says plainly that it is a functional score, not a song, and offers Suno for a richer final",
         "Analyses track.wav like any track and writes MUSIC.md with a `# Track: track.wav` header"
