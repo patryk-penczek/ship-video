@@ -44,6 +44,7 @@
   window.Film = function Film(cfg) {
     // <html data-theme="auto"> (the starter): a captured app with a light background switches the film to the light tokens (film.css html.light)
     const root = document.documentElement, first = Object.values(window.SCREENS_META || {})[0];
+    if (first?.accent) root.style.setProperty("--f-app-accent", first.accent); // the captured app's own accent (spot ring); film.css may adopt it: --f-accent: var(--f-app-accent)
     if (root.dataset.theme === "auto" && first && first.lum != null) root.classList.toggle("light", first.lum > 0.6);
     const imgs = cfg.images === "auto" ? autoImages() : cfg.images || [];
     const waits = [...(cfg.fonts || []).map((f) => document.fonts.load(f)), ...imgs.map(preload)];
@@ -68,6 +69,8 @@
     // fromTo renders its from-values at build time; use NI for elements that share a scene
     const NI = { immediateRender: false };
     const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    // Build-time notes for the director (autoCam skipped a framing, loupe target too big): console.warn "[ship-video] ..." (audit / snap / render print them) and window.__warnings.
+    const warn = (msg) => { (window.__warnings ??= []).push(msg); console.warn(`[ship-video] ${msg}`); };
 
     // A scene is a full-frame layer shown from start to end. Hidden scenes get visibility:hidden AND opacity:0
     // (base.css), so a child with visibility:visible can't leak through; they still have layout, so center() works.
@@ -291,8 +294,9 @@
       const appear = opts.appear ?? rs[0]?.t ?? 0;
       if (appear > 0) { tl.set(cur, { opacity: 0 }, 0); tl.set(cur, { opacity: 1 }, appear); }
       for (const s of rs) {
-        tl.fromTo(w, { x: at.x, y: at.y }, { x: s.to.x, y: s.to.y, duration: s.dur, ease: "power2.inOut", ...NI }, s.t);
-        if (s.hold) { const dn = kind === "finger" ? 0.8 : 0.86; tl.fromTo(cur, { scale: 1 }, { scale: dn, duration: kind === "finger" ? 0.12 : 0.1, ease: "power2.in", ...NI }, s.t); tl.fromTo(cur, { scale: dn }, { scale: 1, duration: 0.2, ease: "back.out(3)", ...NI }, s.t + s.dur); }
+        tl.fromTo(w, { x: at.x, y: at.y }, { x: s.to.x, y: s.to.y, duration: s.dur, ease: s.ease ?? "power2.inOut", ...NI }, s.t);
+        if (s.hold === true || s.hold === "start") { const dn = kind === "finger" ? 0.8 : 0.86; tl.fromTo(cur, { scale: 1 }, { scale: dn, duration: kind === "finger" ? 0.12 : 0.1, ease: "power2.in", ...NI }, s.t); }
+        if (s.hold === true || s.hold === "end") { const dn = kind === "finger" ? 0.8 : 0.86; tl.fromTo(cur, { scale: dn }, { scale: 1, duration: 0.2, ease: "back.out(3)", ...NI }, s.t + s.dur); }
         if (s.click || s.tap) {
           const tc = s.t + s.dur;
           (window.__clicks ??= []).push({ t: tc, el: cur }); // audit.mjs checks where each press lands in the frame
@@ -310,17 +314,28 @@
     // (default: its first step); { appear: 0 } shows it from the start. hold:true presses at the step's start and releases at its end (a drag).
     // `from` may be a point or a selector too. Returns the wrapper (tween its x/y, or pass it to follow()); .__steps = the resolved steps.
     function cursor(host, from, steps, opts = {}) { return pointer("cursor", host, from, steps, opts); }
+    // drag(host, from, path, t0, t1, { ease: "none", kind, appear, size }): the pointer goes to `from` (appears there at t0), presses, follows `path` (a point, a selector,
+    // an element, or an array of them) at constant speed from t0 to t1 (default ease "none": a slider thumb, a map pan, a long linear drag), releases at t1. Segments share the
+    // time by their length. Same as cursor(host, from, [{ to, t: t0, dur: t1 - t0, hold: true, ease: "none" }]); each step also accepts `ease` ("none", "power1.inOut"...).
+    // Returns the pointer wrapper (.__steps resolved: autoCam sees the press and the release; use autoCam's also: [{ path }] for the points between).
+    function drag(host, from, path, t0, t1, { ease = "none", kind = "cursor", ...o } = {}) {
+      const scn = sceneOf(host), pts = [].concat(path).map((p) => resolve(p, scn, { t: t1 }, t1)), p0 = resolve(from, scn, { t: t0 }, t0);
+      const len = pts.map((p, i) => Math.hypot(p.x - (i ? pts[i - 1] : p0).x, p.y - (i ? pts[i - 1] : p0).y) || 1), tot = len.reduce((a, b) => a + b, 0);
+      let t = t0; const steps = pts.map((p, i) => { const dur = ((t1 - t0) * len[i]) / tot, st = { to: p, t, dur, ease, hold: pts.length === 1 ? true : i === 0 ? "start" : i === pts.length - 1 ? "end" : "mid" }; t += dur; return st; });
+      return pointer(kind, host, p0, steps, { appear: t0 - 0.0001, ...o });
+    }
     // Caption pill (.cap in base.css), appended to the scene AFTER wrap() so it doesn't zoom. Opaque, enters by offset only: sharp on its first frame.
     // opts.pos: "bl" (default) | "br" | "tl" | "tr" | "bc"; or opts.x / opts.y = stage px of its top-left corner. Pick the corner that
     // leaves the content free. The default offset slides from the left edge (from the right for "br"/"tr").
-    // opts.end = second at which the caption is removed (hard cut, like show()); without it the caption stays to the end of its scene.
+    // opts.size = font size in px (default 44: the .cap rule). opts.end = second at which the caption is removed (hard cut, like show()); without it the caption stays to the end of its scene.
     function caption(s, text, t, from, opts = {}) {
-      if (from && ("pos" in from || "end" in from || ("x" in from && "pos" in opts) === false && ("left" in from))) { opts = from; from = undefined; }
-      const { pos = "bl", x, y, end } = opts;
+      if (from && ("pos" in from || "end" in from || "size" in from || ("x" in from && "pos" in opts) === false && ("left" in from))) { opts = from; from = undefined; }
+      const { pos = "bl", x, y, end, size } = opts;
       const c = document.createElement("div");
       c.className = "cap";
       c.textContent = text;
       const st = c.style, m = 96;
+      if (size) st.fontSize = `${size}px`; // opts.size: font size in px (default 44 from .cap); padding and radius stay
       if (x != null || y != null) { st.left = `${x ?? m}px`; st.top = `${y ?? 900}px`; st.bottom = "auto"; }
       else {
         if (pos[0] === "t") { st.top = `${m}px`; st.bottom = "auto"; }
@@ -346,7 +361,9 @@
     // <= opts.max (2.4); a cluster that would need less than opts.min (1.25) zoom, or that moves the camera less than a dead zone, is skipped (stays wide).
     // Eases are the spring presets ("focused" default, or opts.preset: "smooth"). Manual tweens on the same layer WIN: autoCam sees every tween already on `cam`
     // (call it after your own focus() tweens; push() counts too), starts from where they leave the camera and drops any framing that would overlap one. It only
-    // ever adds non-overlapping fromTo tweens. Returns the plan: [{ t0, t1, zoom, at, skipped? }] (also cam.__plan).
+    // ever adds non-overlapping fromTo tweens. Returns the plan: [{ t0, t1, zoom, at, skipped? }] (also cam.__plan); every skipped framing (but the dead zone) is also printed as a build
+    // warning with its reason. A first framing whose first click is > 0.5 s after the scene starts is set from the first frame (no zoom-in from 1.0 over the cut): startFramed: false opts out.
+    // Only click / tap steps (and the start and end of a hold) are clustered: a drag's path, a follow() and holds are not: add the points that must stay in frame as also: [{ path: [{ x, y, t }] }].
     // opts: zoom 1.7, max 2.4, min 1.25, merge 2.5, pad 0.5, early 0.5, safe 0.6, margin 140 (px of context around the click boxes), inDur / outDur (preset),
     //       preset, ease, box + over (as focus()), from / to (window it may use: default the scene), settle (zoom back out at the end, default true),
     //       also: [{ t, to }] extra moments to frame (a typing field, a result), start (cursor's start point, for a first drag).
@@ -363,7 +380,7 @@
         if (s.click || s.tap || s.hold) evs.push({ t: s.t + s.dur, p });
         prev = p;
       }
-      for (const e of P.also || []) evs.push({ t: e.t, p: resolve(e.to, scn, { t: e.t }, e.t) });
+      for (const e of P.also || []) { if (Array.isArray(e.path)) for (const q of e.path) evs.push({ t: q.t, p: resolve(q.to ?? q, scn, { t: q.t }, q.t) }); else evs.push({ t: e.t, p: resolve(e.to, scn, { t: e.t }, e.t) }); }
       evs.sort((a, b) => a.t - b.t);
       const sx = 960 * P.safe, sy = (view.h / 2) * P.safe, over = P.over ?? 220;
       // 3 · the camera state of a cluster: the largest zoom <= zoom/max that keeps every click in the safe area (and inside the clamp box + over)
@@ -414,28 +431,36 @@
         const cur = stateAt(s0);
         if (near(cur, c.st)) { info.skipped = "already framed (dead zone)"; prevC = { leave, st: cur }; continue; }
         if (busy(s0, s0 + d)) { info.skipped = "overlaps a manual camera tween"; if (out) { list.splice(list.indexOf(out), 1); moves.splice(moves.indexOf(out), 1); } continue; }
-        add(s0, d, c.st); info.move = [+s0.toFixed(2), +(s0 + d).toFixed(2)];
+        if (plan.length === 1 && P.startFramed !== false && c.ta - from > 0.5 && !busy(from, from + 0.01) && near(stateAt(from), rest)) { // the first click comes later than 0.5 s after the cut: the cut frame is already the framing (zoom 1 at the cut is unreadable)
+          const m = { a: from, b: from, fr: rest, end: c.st, d: 0 }; list.push(m); moves.push(m); info.move = [+from.toFixed(2), +from.toFixed(2)]; info.startFramed = true;
+        } else { add(s0, d, c.st); info.move = [+s0.toFixed(2), +(s0 + d).toFixed(2)]; }
         prevC = { leave, st: c.st }; free = leave;
       }
       if (P.settle && prevC) {
         const d = Math.min(P.outDur, to - prevC.leave);
         if (d >= 0.6 && !busy(prevC.leave, prevC.leave + d) && !near(stateAt(prevC.leave), rest)) add(prevC.leave, d, rest);
       }
-      for (const m of moves) tl.fromTo(cam, { x: m.fr.x, y: m.fr.y, scale: m.fr.scale }, { x: m.end.x, y: m.end.y, scale: m.end.scale, duration: m.d, ease: P.ease, ...NI }, m.a);
+      for (const i of plan) if (i.skipped && !/dead zone/.test(i.skipped)) warn(`autoCam: framing ${i.t0.toFixed(2)}-${i.t1.toFixed(2)} s skipped (${i.skipped}); the camera stays where it is. Clicks that spread wide or sit at an edge: pass over / margin / min, or frame them with focus()`);
+      for (const m of moves) if (m.d === 0) tl.set(cam, { x: m.end.x, y: m.end.y, scale: m.end.scale }, m.a); else tl.fromTo(cam, { x: m.fr.x, y: m.fr.y, scale: m.fr.scale }, { x: m.end.x, y: m.end.y, scale: m.end.scale, duration: m.d, ease: P.ease, ...NI }, m.a);
       cam.__plan = plan;
       return plan;
     }
 
     // ---------- spot() and loupe(): crisp overlays inside the camera layer (they zoom with the UI) ----------
-    // spot(scene, target, t0, t1, { dim: 0.6, pad: 14, radius, ring, in, text }): dims everything except the target (a rect {l,t,r,b}, a selector or an element)
-    // between t0 and t1: an opaque-edge scrim with a hole, so the target stays at full brightness and sharp. Put the caption above it (captions sit over the scrim).
-    // The target should stand still while the spot is on.
-    function spot(sc, tgt, t0, t1, { dim = 0.6, pad = 14, radius, ring = false, ...o } = {}) {
+    // spot(scene, target, t0, t1, { dim, pad: 14, radius, ring: false, ringColor, in, text }): dims everything except the target (a rect {l,t,r,b}, a selector or an element)
+    // between t0 and t1: an opaque-edge scrim with a hole, so the target stays at full brightness and sharp (it is never dimmed: the dimmed part is everything AROUND the rect, so
+    // measure the element you want to read, not a small child of it). dim defaults to 0.6 on a dark app and 0.34 on a light one (the captured app's background luminance: a heavy
+    // scrim washes a light UI grey). The ring is the captured app's accent (--f-app-accent, set from the capture), else the film's --f-accent; ringColor overrides it.
+    // in: "<state name>" picks the stacked copy (see targetRect). Put the caption above it (captions sit over the scrim). The target should stand still while the spot is on.
+    function spot(sc, tgt, t0, t1, { dim, pad = 14, radius, ring = false, ringColor, ...o } = {}) {
       const host = camOf(sc), r = typeof tgt.l === "number" ? tgt : targetRect(tgt, { scene: sc, t: t0, ...o });
       const el = document.createElement("div");
       el.className = "spot"; el.setAttribute("data-clip-ok", "");
       const rad = radius ?? (r.el ? parseFloat(getComputedStyle(r.el).borderRadius) || 10 : 10);
-      el.style.cssText = `left:${r.l - pad}px;top:${r.t - pad}px;width:${r.r - r.l + pad * 2}px;height:${r.b - r.t + pad * 2}px;border-radius:${rad + pad * 0.6}px;box-shadow:0 0 0 6000px rgb(0 0 0 / ${dim})${ring ? ", 0 0 0 3px var(--f-accent)" : ""}`;
+      const shot = (r.el ?? host).closest?.("[data-shot]") ?? host.querySelector("[data-shot]"), lum = (window.SCREENS_META || {})[shot?.dataset.shot]?.lum;
+      const light = lum != null ? lum > 0.6 : document.documentElement.classList.contains("light");
+      const d = dim ?? (light ? 0.34 : 0.6);
+      el.style.cssText = `left:${r.l - pad}px;top:${r.t - pad}px;width:${r.r - r.l + pad * 2}px;height:${r.b - r.t + pad * 2}px;border-radius:${rad + pad * 0.6}px;box-shadow:0 0 0 6000px rgb(0 0 0 / ${d})${ring ? `, 0 0 0 3px ${ringColor ?? "var(--f-app-accent, var(--f-accent))"}` : ""}`;
       host.appendChild(el);
       const f = Math.min(0.3, (t1 - t0) / 3);
       tl.set(el, { opacity: 0 }, 0);
@@ -447,8 +472,12 @@
     // field label) without a camera move. The lens shows the live scene (a clone of the camera layer, refreshed every frame from the timeline: typing, counters and
     // tweens inside it move), cropped to a circle (or a rounded rect) next to the target; side: "above" | "below" | "left" | "right" (default: where there is room),
     // at: { x, y } = centre of the lens in stage px. Appears with a small pop at t0, gone at t1. Marked data-clip-ok (the clone repeats the scene's text on purpose).
-    function loupe(sc, tgt, t0, t1, { scale = 2, size = 360, shape = "circle", side, gap = 28, at, ...o } = {}) {
+    // leader: true draws a thin line from the lens to the target (when the lens sits away from it: dense maps and charts, where the lens would otherwise cover the data).
+    // For TINY UI only: a target over 50 % of the stage prints a warning (a big region magnified shows the page's middle: use a camera zoom). The clone is rebuilt only when the
+    // scene's markup changed since the last frame (a still target costs one clone), but a dense scene (100 KB+ of DOM) still doubles the layout work per frame.
+    function loupe(sc, tgt, t0, t1, { scale = 2, size = 360, shape = "circle", side, gap = 28, at, leader = false, ...o } = {}) {
       const host = camOf(sc), r = typeof tgt.l === "number" ? tgt : targetRect(tgt, { scene: sc, t: t0, ...o });
+      if ((r.r - r.l) * (r.b - r.t) > 0.5 * 1920 * 1080) warn(`loupe at ${t0.toFixed(2)} s: the target covers ${Math.round(((r.r - r.l) * (r.b - r.t)) / (1920 * 1080) * 100)} % of the stage, so the lens shows its middle, not the detail. A loupe is for tiny UI (a badge, a price): for a big region use a camera zoom (focusRect) or spot()`);
       const w = shape === "round" ? Math.round(size * 1.5) : size, h = shape === "round" ? Math.round(size * 0.9) : size;
       const cx = (r.l + r.r) / 2, cy = (r.t + r.b) / 2, m = 24;
       let x, y;
@@ -465,9 +494,22 @@
       el.innerHTML = `<div class="loupe-in" style="transform:translate(${w / 2 - cx * scale}px,${h / 2 - cy * scale}px) scale(${scale})"></div>`;
       host.appendChild(el);
       const inner = el.firstElementChild;
+      let line = null;
+      if (leader) {
+        const lx = x + w / 2, ly = y + h / 2, dx = cx - lx, dy = cy - ly, dist = Math.hypot(dx, dy);
+        if (dist > Math.max(w, h) / 2 + 10) {
+          line = document.createElement("i"); line.className = "loupe-line"; line.setAttribute("data-clip-ok", "");
+          line.style.cssText = `left:${lx}px;top:${ly}px;width:${dist}px;transform:rotate(${Math.atan2(dy, dx)}rad)`;
+          host.insertBefore(line, el);
+          tl.set(line, { visibility: "hidden" }, 0); tl.set(line, { visibility: "visible" }, t0); tl.set(line, { visibility: "hidden" }, t1);
+        }
+      }
+      let sig = null;
       live.push((t) => {
         if (t < t0 - 0.001 || t > t1 + 0.001) return;
-        inner.replaceChildren(...[...host.children].filter((k) => !/\b(loupe|spot|ptr)\b/.test(k.className)).map((k) => k.cloneNode(true)));
+        const kids = [...host.children].filter((k) => !/\b(loupe|loupe-line|spot|ptr)\b/.test(k.className)), now = kids.map((k) => k.outerHTML).join("");
+        if (now === sig) return; sig = now; // unchanged markup: keep the clone (and its decoded images)
+        inner.replaceChildren(...kids.map((k) => k.cloneNode(true)));
         const imgs = [...inner.querySelectorAll("img")];
         return imgs.length ? Promise.all(imgs.map((i) => (i.decode ? i.decode().catch(() => {}) : null))) : null;
       });
@@ -629,6 +671,55 @@
       tl.set(el, { display: "none" }, 0);
       tl.set(el, { display: "" }, t0);
       tl.fromTo(el, { clipPath: circ(r0) }, { clipPath: circ(r1), duration: dur, ease: "power2.inOut", ...NI }, t0);
+      tl.set(el, { clipPath: "none" }, t0 + dur + 0.001); // a finished reveal leaves no clip layer behind (a clip-path layer rasterises its text differently: determinism)
+    }
+    // The join into the end card: no hard cut. toCard(fromCam, card, T, { mode, from, dur: 0.6, pull, bg, el, to, tile }): fromCam = the product scene's camera layer (wrap(s)), card = the end
+    // card's scene (scene(html, T, null)), T = the card's start. The product scene must run until T + dur (scene(..., T + dur)); for mode "tile" until the end of the film.
+    //   "reveal" (default)  the card's colour grows as a circle from `from` (a point, selector or element: the last click; default the centre) while the camera pulls back (pull: true = zoom 0.92,
+    //                       a number = that zoom, false = leave the camera to you / autoCam). bg = the card element that grows (selector or element; default the whole card scene).
+    //   "flip"              the payoff element `el` (inside the product scene) flies to `to` (the element of the card that holds the same number / chip) while the card's background (bg: selector
+    //                       or element, default the first full-frame child) fades in under it. The flown copy is a clone: el itself is hidden at T.
+    //   "tile"              the product shrinks into a rounded tile (tile: { scale: 0.46, y: -150, radius: 44 }) that slides up while the card, already behind it, shows below. Put the card's text
+    //                       in the lower half, e.g. a line under the tile.
+    // Entrances of the card's own text are yours (enter(el, { y: 40 }, T + 0.35, 0.5)). Call toCard BEFORE autoCam on the product camera (autoCam then plans around the pull-back). Returns { point, bg }.
+    function toCard(fromCam, card, T, { mode = "reveal", from, dur = 0.6, pull = true, bg, r0 = 70, el, to, tile = {} } = {}) {
+      if (!["reveal", "flip", "tile"].includes(mode)) throw new Error(`toCard: mode must be "reveal", "flip" or "tile" (got "${mode}")`);
+      const scn = sceneOf(fromCam), cs = sceneOf(card), find = (v, root) => (typeof v === "string" ? $(root, v) : v);
+      if (cs.__start != null && Math.abs(cs.__start - T) > 0.01) warn(`toCard: the card scene starts at ${cs.__start} s but T is ${T} s; create it with scene(html, ${T}, null)`);
+      if (mode === "tile") { if (scn.__end != null && scn.__end < DURATION - 0.01) warn(`toCard tile: the product scene ends at ${scn.__end} s, so the tile disappears; end it at the film's end (null)`); }
+      else if (scn.__end != null && scn.__end < T + dur - 0.01) warn(`toCard: the product scene ends at ${scn.__end} s, before the join is done (${(T + dur).toFixed(2)} s): scene(..., ${(T + dur).toFixed(2)}) keeps it under the card`);
+      const p = from ? resolve(from, scn, { t: T }, T) : { x: 960, y: 540 };
+      if (mode === "reveal") {
+        if (pull) tl.to(fromCam, { ...focus({ x: 960, y: 540 }, typeof pull === "number" ? pull : 0.92, { clamp: false }), duration: dur, ease: "focused" }, T);
+        const bgEl = bg ? find(bg, cs) : cs, r1 = Math.max(...[[0, 0], [1920, 0], [0, 1080], [1920, 1080]].map(([x, y]) => Math.hypot(x - p.x, y - p.y))) + 40;
+        reveal(bgEl, p, T, dur, r0, r1);
+        return { point: p, bg: bgEl };
+      }
+      if (mode === "tile") {
+        const k = tile.scale ?? 0.46, dy = tile.y ?? -150, rad = tile.radius ?? 44;
+        cs.style.zIndex = "0"; scn.style.zIndex = "1";
+        tl.fromTo(scn, { scale: 1, y: 0, clipPath: "inset(0px round 0px)" }, { scale: k, y: dy, clipPath: `inset(0px round ${Math.round(rad / k)}px)`, duration: dur, ease: "power3.inOut", ...NI }, T);
+        return { point: p, bg: cs };
+      }
+      // flip
+      if (!el || !to) throw new Error('toCard flip: pass el (the payoff element in the product scene) and to (its place in the card): toCard(cam, card, T, { mode: "flip", el, to })');
+      const src = find(el, scn), dst = find(to, cs);
+      if (!src || !dst) throw new Error(`toCard flip: ${!src ? "el" : "to"} not found`);
+      const er = rect(src), tr = rect(dst), shot = src.closest("[data-shot], .app-shot") ?? scn;
+      let node = src.cloneNode(true);
+      node.style.cssText += `;position:absolute;left:${er.l}px;top:${er.t}px;width:${er.r - er.l}px;height:${er.b - er.t}px;margin:0;transform-origin:0 0;box-sizing:border-box`;
+      const leaf = node;
+      for (let a = src.parentElement; a && a !== scn; a = a.parentElement) { const c = a.cloneNode(false); c.style.cssText = "display:contents"; c.appendChild(node); node = c; if (a === shot) break; }
+      const fly = document.createElement("div"); fly.className = "flip-fly"; fly.setAttribute("data-clip-ok", ""); fly.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none";
+      fly.appendChild(node); scenesEl.appendChild(fly);
+      const g = leaf, s1 = (tr.r - tr.l) / Math.max(1, er.r - er.l);
+      const bgEl = bg ? find(bg, cs) : [...cs.children].find((e) => e.getBoundingClientRect().width >= 1900) ?? cs;
+      tl.set(fly, { visibility: "hidden" }, 0); tl.set(fly, { visibility: "visible" }, T); tl.set(fly, { visibility: "hidden" }, T + dur + 0.001);
+      tl.fromTo(g, { x: 0, y: 0, scale: 1 }, { x: tr.l - er.l, y: tr.t - er.t, scale: s1, duration: dur, ease: "power3.inOut" }, T);
+      tl.fromTo(bgEl, { opacity: 0 }, { opacity: 1, duration: dur * 0.8, ease: "power2.out", ...NI }, T);
+      tl.set(src, { visibility: "hidden" }, T);
+      tl.set(dst, { visibility: "hidden" }, 0); tl.set(dst, { visibility: "visible" }, T + dur);
+      return { point: p, bg: bgEl };
     }
     // One value drives dot, guide line, highlighted path and tooltip: seek-safe both ways. chart = { xy: [[x,y]…] in svg units, vals: value per point,
     // pad: [left, top] offset of the svg inside the tooltip's parent, fmt }. The scene needs .tip, .dot, .guide, .hl (display:none in the HTML).
@@ -652,7 +743,7 @@
       tl.fromTo(p, { v: v0 }, { v: v1, duration: t1 - t0, ease, onUpdate: () => draw(p.v), ...NI }, t0);
     }
 
-    const ctx = { tl, $, $$, rnd, NI, scene, frame, wrap, target, targetRect, autoCam, spot, loupe, spring, splitChars, type, put, scrollTo, count, center, rect, focus, focusRect, enter, follow, view, band, dock, finger, flash, press, burst, rings, cursor, caption, keycap, panels, edge, typeOn, push, land, show, reveal, scrubChart, stage, cam, hash, css };
+    const ctx = { tl, $, $$, rnd, NI, warn, toCard, drag, scene, frame, wrap, target, targetRect, autoCam, spot, loupe, spring, splitChars, type, put, scrollTo, count, center, rect, focus, focusRect, enter, follow, view, band, dock, finger, flash, press, burst, rings, cursor, caption, keycap, panels, edge, typeOn, push, land, show, reveal, scrubChart, stage, cam, hash, css };
     cfg.build(ctx);
     tl.set({}, {}, DURATION);
     window.__tl = tl; // audit.mjs reads tween start times from it

@@ -106,7 +106,62 @@ window.UI = (() => {
     tl.fromTo(el, { rotation: from }, { rotation: from + 360 * turns, duration: t1 - t0, ease, immediateRender: false }, t0);
     return el;
   }
+  // ---------- data over time: one DOM, many captured states ----------
+  // A control (a slider, a scrubber, a date picker) drives a visualisation and you captured N states of it (capture.mjs "set" on a range input, one state per value). Showing all N as
+  // swapped screens would flicker; instead keep ONE copy in the scene and morph it between the states: attributes and inline styles of the elements that exist in both are interpolated
+  // (colours in RGB, numbers, path data / points / transforms with the same shape), text and chart cards that are replaced wholesale swap at the nearest state.
+  //   const S = UI.states(["h00", "h06", "h12"]);                       // parses each state's markup (no layout, no ids clash)
+  //   const s = scene(UI.shot("h00"), 4, 10);                           // the first state is the DOM that gets morphed
+  //   S.lerp(tl, pick(s, "h00"), 4.5, 9, { sel: "circle", key: (e) => e.getAttribute("cx") + "|" + e.getAttribute("cy"), swap: [".chart-card"], text: [".clock"] });
+  // lerp(tl, host, t0, t1, { sel, key, attrs, css, swap, text, from: 0, to: last, ease: "none", fmt }): between t0 and t1 the position p goes from `from` to `to` (fractional state index; a pure
+  //   function of the time: seek-safe both ways; before t0 the host shows state `from`, after t1 state `to`). Returns { at(p) } to apply any p yourself (drive it from a cursor drag's progress).
+  //   sel   elements to morph (default "circle, rect, path, polygon, ellipse, line, [data-lerp]"); they must appear in the same order in every state unless key maps them
+  //   key   (el) => string: identity of an element across states (default tag + index among the same tag). Use a stable attribute: the cx|cy of a map dot, a data-id of a bar
+  //   attrs attributes to interpolate (default fill stroke r cx cy x y width height opacity d points transform); css: inline style properties (default left top width height backgroundColor color opacity transform)
+  //   swap  selectors whose elements take innerHTML from the nearest state (chart cards, legends): matched by position; text: the same for textContent (a clock, a counter)
+  //   a slider's thumb and an <input type=range>: put its position in an inline style (left / width / transform) or swap it, and drive the same p with the cursor drag() over t0..t1.
+  function states(names, { } = {}) {
+    const docs = names.map((n) => { const html = (window.SCREENS || {})[n]; if (html == null) throw new Error(`no captured state "${n}" (have: ${Object.keys(window.SCREENS || {}).join(", ") || "none"})`); const d = document.createElement("div"); d.innerHTML = html; return d; });
+    const NUM = /(-?\d*\.?\d+(?:e[-+]?\d+)?)/gi;
+    const col = (v) => { const m = String(v).trim().match(/^#([0-9a-f]{3,8})$/i); if (m) { let h = m[1]; if (h.length < 6) h = [...h].map((c) => c + c).join(""); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16), h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1]; }
+      const r = String(v).trim().match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+%?))?\s*\)$/i); return r ? [+r[1], +r[2], +r[3], r[4] == null ? 1 : r[4].endsWith("%") ? parseFloat(r[4]) / 100 : +r[4]] : null; };
+    const mix = (a, b, f) => {
+      if (a === b || f <= 0) return a; if (f >= 1) return b;
+      const ca = col(a), cb = col(b);
+      if (ca && cb) { const q = ca.map((x, i) => x + (cb[i] - x) * f); return q[3] < 1 ? `rgba(${q.slice(0, 3).map(Math.round).join(",")},${+q[3].toFixed(3)})` : `rgb(${q.slice(0, 3).map(Math.round).join(",")})`; }
+      const pa = String(a).split(NUM), pb = String(b).split(NUM);
+      if (pa.length === pb.length && pa.length > 1 && pa.every((x, i) => i % 2 || x === pb[i])) return pa.map((x, i) => (i % 2 ? +(+x + (+pb[i] - +x) * f).toFixed(3) : x)).join("");
+      return f < 0.5 ? a : b;
+    };
+    function lerp(tl, host, t0, t1, { sel = "circle, rect, path, polygon, ellipse, line, [data-lerp]", key, attrs = ["fill", "stroke", "r", "cx", "cy", "x", "y", "width", "height", "opacity", "d", "points", "transform"], css = ["left", "top", "width", "height", "backgroundColor", "color", "opacity", "transform"], swap = [], text = [], from = 0, to = names.length - 1, ease = "none" } = {}) {
+      const kf = key ?? ((e, i, all) => `${e.tagName}|${all.filter((x, j) => j < i && x.tagName === e.tagName).length}`);
+      const keyed = (root) => { const all = [...root.querySelectorAll(sel)], m = new Map(); all.forEach((e, i) => m.set(kf(e, i, all), e)); return m; };
+      const maps = docs.map(keyed), hostAll = [...host.querySelectorAll(sel)], hostKeys = hostAll.map((e, i) => kf(e, i, hostAll));
+      if (!hostAll.length) throw new Error(`UI.states lerp: nothing in the host matches "${sel}"`);
+      const lone = hostKeys.filter((k) => !maps[0].has(k)).length;
+      if (lone) console.warn(`[ship-video] UI.states lerp: ${lone} of ${hostAll.length} host elements have no match in state "${names[0]}" (is the host showing that state? is key() stable across states?)`);
+      const nth = (root, q) => [...root.querySelectorAll(q)];
+      const sw = swap.map((q) => ({ q, els: nth(host, q) })), tx = text.map((q) => ({ q, els: nth(host, q) })), last = { sw: null };
+      const at = (p) => {
+        p = Math.min(Math.max(p, 0), names.length - 1);
+        const i = Math.min(Math.floor(p), names.length - 2), f = names.length > 1 ? p - i : 0, A = maps[i], B = maps[Math.min(i + 1, names.length - 1)];
+        hostAll.forEach((e, n) => {
+          const a = A.get(hostKeys[n]), b = B.get(hostKeys[n]); if (!a && !b) return;
+          for (const at of attrs) { const u = (a ?? b).getAttribute(at), v = (b ?? a).getAttribute(at); if (u != null && v != null) e.setAttribute(at, mix(u, v, f)); }
+          for (const c of css) { const u = (a ?? b).style[c], v = (b ?? a).style[c]; if (u && v) e.style[c] = mix(u, v, f); }
+        });
+        const k = Math.round(p), D = docs[k];
+        if (last.sw !== k) { last.sw = k; for (const g of sw) { const src = nth(D, g.q); g.els.forEach((e, n) => { if (src[n] && e.innerHTML !== src[n].innerHTML) e.innerHTML = src[n].innerHTML; }); } for (const g of tx) { const src = nth(D, g.q); g.els.forEach((e, n) => { if (src[n] && e.textContent !== src[n].textContent) e.textContent = src[n].textContent; }); } }
+      };
+      const pr = { p: from };
+      tl.fromTo(pr, { p: from }, { p: to, duration: t1 - t0, ease, onUpdate: () => at(pr.p) }, t0);
+      at(from);
+      return { at: (p) => { last.sw = null; at(p); } };
+    }
+    return { names, docs, lerp };
+  }
+
   const images = () => [...new Set(Object.values(window.SCREENS_META || {}).flatMap((m) => [...(m.canvas || []).flat(), ...(m.record?.frames || []).map((f) => f.src)]))]; // for Film({ images })
 
-  return { app, check, shot, stack, pick, swap, measure, frames, frameSync, frameSeq, recording, images, spin };
+  return { app, check, shot, stack, pick, swap, measure, states, frames, frameSync, frameSeq, recording, images, spin };
 })();

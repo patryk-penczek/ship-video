@@ -9,7 +9,7 @@ Film({
   fonts: ["800 40px 'Inter Variable'", "500 20px 'Inter Variable'", "500 20px 'JetBrains Mono Variable'"],
   images: [],
 
-  build({ tl, $, $$, NI, scene, wrap, splitChars, type, count, rect, target, autoCam, flash, press, burst, rings, cursor, caption, push, land, show, css }) {
+  build({ tl, $, $$, NI, scene, wrap, splitChars, type, count, rect, target, autoCam, toCard, flash, press, burst, rings, cursor, caption, push, land, show, css }) {
     // 0–2 · hook: the word is sharp on frame 1, the app rises over it, a slow push never stops
     const s0 = scene(`<div style="position:absolute;left:0;right:0;top:40px;text-align:center;font:800 400px/.85 var(--f-font-display);letter-spacing:-.05em;color:var(--f-accent)" class="kw">Ship it.</div>${UI.app()}`, 0, 2);
     const c0 = wrap(s0);
@@ -66,7 +66,7 @@ Film({
     // 8–10 · payoff on the big hit: flash on a type-only frame, rings, a counter that starts at a real number, a caption in the margin
     const s3 = scene(`<div class="center"><div style="display:flex;flex-direction:column;align-items:center;gap:20px">
         <div class="display n3" style="font-size:300px"><span class="num">24</span><span class="gtext" style="font-size:.5em;padding-left:.1em">fps</span></div>
-        <div class="eyebrow s3e">every frame rendered on purpose</div></div></div>`, 8, 10);
+        <div class="eyebrow s3e">every frame rendered on purpose</div></div></div>`, 8, 10.6); // runs 0.6 s under the end card: toCard joins them without a cut
     const c3 = wrap(s3);
     flash(8, 0.5, 0.35);
     rings(s3, 8);
@@ -77,14 +77,16 @@ Film({
     caption(s3, "Frame-exact.", 8);
     push(c3, 8, 10, 1, 1.05);
 
-    // 10–12 · end card: letters rise from an offset (sharp, opaque), the line is complete 1.2 s before the end, the push eases to rest, a short fade lands the film
-    const s4 = scene(`<div class="center"><div style="display:flex;flex-direction:column;align-items:center;gap:36px">
-        <div class="display s4t" style="font-size:180px;white-space:nowrap">Your film here.</div>
-        <div class="eyebrow"><span class="s4e"></span><span class="caret"></span></div></div></div>`, 10, null);
+    // 10–12 · end card, joined to the payoff without a hard cut: toCard() grows the card's colour from the number while the camera pulls back (0.6 s overlap: the payoff scene above runs to 10.6),
+    // then the letters rise from an offset (sharp, opaque), the line is complete 1.2 s before the end, the push eases to rest, a short fade lands the film
+    const s4 = scene(`<div style="position:absolute;inset:0;background:var(--f-accent)"></div><div class="center"><div style="display:flex;flex-direction:column;align-items:center;gap:36px">
+        <div class="display s4t" style="font-size:180px;white-space:nowrap;color:#111">Your film here.</div>
+        <div class="eyebrow" style="color:#111"><span class="s4e"></span><span class="caret" style="background:#111"></span></div></div></div>`, 10, null);
     const c4 = wrap(s4);
-    flash(10, 0.3, 0.35, css("--f-accent"));
-    tl.fromTo(splitChars($(s4, ".s4t")), { y: 60, scale: 1.1 }, { y: 0, scale: 1, duration: 0.6, stagger: 0.02 }, 10);
-    type($(s4, ".s4e"), "ship-video · claude code", 10.2, 10.8);
+    toCard(c3, s4, 10, { from: $(s3, ".n3"), dur: 0.6 });
+    show($(s4, ".center"), 10.3); // the words wait until the colour has grown past the middle
+    tl.fromTo(splitChars($(s4, ".s4t")), { y: 60, scale: 1.1 }, { y: 0, scale: 1, duration: 0.6, stagger: 0.02 }, 10.3);
+    type($(s4, ".s4e"), "ship-video · claude code", 10.3, 10.75);
     push(c4, 10, 11.6, 1, 1.06); // out-ease: at rest before the fade
     land(11.6, 0.4);
   },
