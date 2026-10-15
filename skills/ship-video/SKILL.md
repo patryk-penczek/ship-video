@@ -94,7 +94,7 @@ Create the folder: `node $S/new-film.mjs <film>` (outside the product repo unles
 
 ## 1b. Discovery
 
-Know the whole product before writing about it. A film made from the README shows features; one made from the whole product shows a payoff. Read `references/direction.md` (coverage, story) first.
+Know the whole product before writing about it. A film made from the README shows features; one made from the whole product shows a payoff. Read `references/direction.md` (coverage, story) first. If you can run subagents, split this step into three parallel ones (code map, product research, capture) as `references/subagents.md` describes, and merge their reports into PRODUCT.md.
 1. **Inventory** from the router and components: every route (including the 404), every view, empty/error/loading states, modals and palettes, theme and unit toggles, and everything animated or live (charts, maps, canvas, transitions).
 2. **See each one.** If the app runs (reuse its server, see *Sharing the machine*): `node $S/capture.mjs <url> <film> --discover [--routes /,/radar] [--depth 2]` writes a full-page screenshot per route to `<film>/review/discovery/*.png` plus `inventory.json` (heights, scroll containers, canvases, buttons, links) and probes an unknown route so the 404 counts as a view. It can't reach interaction-only states (dialogs, palettes, toasts, hover): list those from the code and capture them with a `states.json` (`capture.mjs <url> <states.json> <film>`; step 5 reuses the result). Read the PNGs. Not running: use the app's own screenshots or docs and say so. **Capturing here is research, not building:** the gate below doesn't apply to it.
 3. **Find the 3–5 wow moments:** what moves, what's unique to this product, what a user would show a friend. Not the longest feature list.
@@ -189,7 +189,7 @@ node $S/shots.mjs <film>/index.html <film>/review/stills <t1> <t2> … --label
 ```
 Use a 0.25 s step for kinetic type and 0.5 s (or `--cols 4`) for acts with app UI, whose text is unreadable in small tiles; at most ~24 tiles per sheet, one sheet per act. `shots.mjs` names files like `008.00.png`.
 
-Read every PNG yourself, then **critique it as a director**, not only as a QA check: is something changing every beat? is the story readable without sound (problem → hero → action → payoff)? does the drop carry the climax, and is the payoff the tightest, biggest, longest shot? is the camera close to what matters (the target fills 40–70% of the frame, exceptions in `direction.md`; no empty chrome, text ≥ 28 px)? is every view in PRODUCT.md there? are cut frames sharp and opaque? is half the film not dark? Run the rubric at the end of `references/scenario-template.md` on the stills and fix every "no".
+Read every PNG yourself, then **critique it as a director**, not only as a QA check: is something changing every beat? is the story readable without sound (problem → hero → action → payoff)? does the drop carry the climax, and is the payoff the tightest, biggest, longest shot? is the camera close to what matters (the target fills 40–70% of the frame, exceptions in `direction.md`; no empty chrome, text ≥ 28 px)? is every view in PRODUCT.md there? are cut frames sharp and opaque? is half the film not dark? Run the rubric at the end of `references/scenario-template.md` on the stills and fix every "no". Then get a second opinion from a fresh critic subagent that sees only the frames, PRODUCT.md and SCENARIO.md (`references/subagents.md`); fix what holds up.
 
 Then, before asking, fill **Changes vs scenario** in SCENARIO.md: every place the film departs from it (a time moved, an effect changed, a different framing), one line each. The user approved the scenario, so a silent change is a broken promise. Give the paths to the contact sheets and to full-resolution stills of each hit, each resting frame and the end card, and ask with AskUserQuestion: *Approve, render it* / *Fix something* (they describe it in Other) / *Show me more frames*. When they approve, write `<film>/review/APPROVED`.
 
@@ -242,6 +242,7 @@ Read `references/render.md`. In short:
 | `references/music-map.md` | steps 2C and 3 |
 | `references/scenario-template.md` | step 4, and the rubric again in step 7 |
 | `references/film-api.md` | before writing `film.js` |
+| `references/subagents.md` | step 1b and step 7, if you can run subagents |
 | `references/qa-checklist.md` | step 8 |
 | `references/render.md` | step 9 |
 | `references/sharing.md` | before starting a dev server or a render |
