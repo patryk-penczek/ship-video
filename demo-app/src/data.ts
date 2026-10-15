@@ -1,7 +1,6 @@
-// Static forecast data: the demo app has no API, so every render is the same.
 export type Condition = "sun" | "partly" | "cloud" | "rain" | "storm";
 
-export type Hour = { time: string; temp: number; condition: Condition; rain: number };
+type Hour = { time: string; temp: number; condition: Condition; rain: number };
 export type Day = { day: string; condition: Condition; low: number; high: number; rain: number };
 export type City = {
   id: string;
@@ -33,7 +32,7 @@ export const CITIES: City[] = [
     temp: 21, feelsLike: 22, condition: "partly", summary: "Partly cloudy",
     high: 24, low: 16, wind: 14, humidity: 58, uv: 6, sunrise: "07:31", sunset: "19:02",
     alert: { title: "Thunderstorms on Sunday", body: "Heavy rain and gusts up to 70 km/h expected from 14:00. Thursday looks clear for outdoor plans." },
-    hours: hours(10, [21, 22, 23, 24, 24, 23, 22, 21, 19, 18, 17, 17], ["partly", "sun", "sun", "sun", "partly", "partly", "cloud", "cloud"], [0, 0, 0, 5, 10, 10, 20, 15]),
+    hours: hours(10, [21, 22, 23, 24, 24, 23, 22, 21, 19, 18, 17, 17], ["partly", "rain", "partly", "sun", "partly", "partly", "cloud", "cloud"], [5, 35, 10, 5, 10, 10, 20, 15]),
     days: [
       { day: "Today", condition: "partly", low: 16, high: 24, rain: 10 },
       { day: "Wed", condition: "sun", low: 17, high: 26, rain: 0 },
@@ -94,7 +93,6 @@ export const CITIES: City[] = [
 
 export const toF = (c: number) => Math.round((c * 9) / 5 + 32);
 
-// Places you can add from "Add a place". Generated from a few numbers so the list stays short.
 const CONDS: Condition[] = ["sun", "partly", "cloud", "rain", "storm"];
 const SUMMARY: Record<Condition, string> = { sun: "Clear", partly: "Partly cloudy", cloud: "Overcast", rain: "Light rain", storm: "Thunderstorms" };
 const DAY_NAMES = ["Today", "Wed", "Thu", "Fri", "Sat", "Sun", "Mon"];
@@ -132,3 +130,102 @@ export const MORE_CITIES: City[] = [
   makeCity("vancouver", "Vancouver", "Canada", "Tue 02:24", 9, "rain", 9),
   makeCity("warsaw", "Warsaw", "Poland", "Tue 11:24", 10, "cloud", 10),
 ];
+
+export function seedOf(id: string) {
+  let h = 7;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 9973;
+  return h;
+}
+
+export const mins = (time: string) => {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+};
+export const clock = (c: City) => c.localTime.slice(4);
+export const isNightAt = (c: City, time: string) => mins(time) < mins(c.sunrise) || mins(time) >= mins(c.sunset);
+export const isNight = (c: City) => isNightAt(c, clock(c));
+
+export const MOON = { phase: 0.62, name: "Waxing gibbous", illumination: 82 };
+
+export type ActivityId = "run" | "cycle" | "picnic" | "stargaze";
+type Activity = { id: ActivityId; name: string; score: number; day: string; time: string; note: string };
+
+type Extras = {
+  aqi: number;
+  aqiLabel: string;
+  pollutants: { name: string; value: number; max: number }[];
+  windDir: number;
+  gust: number;
+  beaufort: string;
+  pressure: number;
+  visibility: number;
+  dewPoint: number;
+  nowcast: number[];
+  nowcastText: string;
+  activities: Activity[];
+};
+
+const AQI_LABELS: [number, string][] = [[50, "Good"], [100, "Moderate"], [150, "Unhealthy for some"], [999, "Unhealthy"]];
+const BEAUFORT: [number, string][] = [[2, "Calm"], [12, "Light breeze"], [20, "Gentle breeze"], [29, "Moderate breeze"], [39, "Fresh breeze"], [50, "Strong breeze"], [999, "Gale"]];
+const WETNESS: Record<Condition, number> = { sun: 0, partly: 0.1, cloud: 0.2, rain: 0.6, storm: 0.9 };
+const NOTES: Record<Condition, string> = { sun: "Clear and dry", partly: "Bright spells", cloud: "Dry under cloud", rain: "Between showers", storm: "Storms around" };
+
+const avg = (d: Day) => (d.low + d.high) / 2;
+
+const ACTIVITIES: { id: ActivityId; name: string; time: string; score: (d: Day, c: City) => number }[] = [
+  { id: "run", name: "Running", time: "07:00", score: (d, c) => 100 - Math.abs(avg(d) - 12) * 4 - d.rain * 0.8 - Math.max(0, c.wind - 20) * 1.5 },
+  { id: "cycle", name: "Cycling", time: "17:30", score: (d, c) => 100 - Math.abs(d.high - 20) * 4 - d.rain * 0.9 - c.wind * 0.6 },
+  { id: "picnic", name: "Picnic", time: "13:00", score: (d) => 100 - Math.abs(d.high - 25) * 4.5 - d.rain - (d.condition === "cloud" ? 15 : 0) },
+  { id: "stargaze", name: "Stargazing", time: "22:30", score: (d) => ({ sun: 96, partly: 62, cloud: 22, rain: 8, storm: 4 })[d.condition] - d.rain * 0.2 },
+];
+
+export function extras(c: City): Extras {
+  const seed = seedOf(c.id);
+  const wet = WETNESS[c.condition];
+  const aqi = Math.round(18 + (seed % 60) + (1 - wet) * 30);
+
+  const next = c.hours[1]?.rain ?? 0;
+  let start = 999;
+  let end = 999;
+  let peak = 0;
+  if (c.condition === "rain" || c.condition === "storm") {
+    start = -15;
+    end = 22 + (seed % 30);
+    peak = c.condition === "storm" ? 0.95 : 0.6;
+  } else if (next >= 25) {
+    start = 10 + (seed % 15);
+    end = start + 22 + (seed % 12);
+    peak = next / 100 + 0.2;
+  }
+  const nowcast = Array.from({ length: 60 }, (_, m) => {
+    if (m < start || m > end) return 0;
+    const p = (m - start) / (end - start);
+    return Math.max(0.05, peak * Math.pow(Math.sin(Math.PI * p), 0.7) * (0.82 + 0.18 * Math.sin(m * 1.3 + seed)));
+  });
+  const nowcastText = !peak ? "No rain for the next hour" : start <= 0 ? `Rain stopping in ${end} min` : `Rain starting in ${start} min`;
+
+  const activities = ACTIVITIES.map(({ id, name, time, score }) => {
+    const best = c.days.reduce((b, d) => (score(d, c) > score(b, c) ? d : b), c.days[0]);
+    return { id, name, time, day: best.day, note: NOTES[best.condition], score: Math.round(Math.min(99, Math.max(5, score(best, c)))) };
+  });
+
+  return {
+    aqi,
+    aqiLabel: AQI_LABELS.find(([max]) => aqi <= max)![1],
+    pollutants: [
+      { name: "PM2.5", value: Math.round(aqi * 0.28), max: 75 },
+      { name: "PM10", value: Math.round(aqi * 0.45), max: 150 },
+      { name: "O₃", value: 30 + (seed % 60), max: 180 },
+      { name: "NO₂", value: 10 + ((seed * 3) % 50), max: 200 },
+    ],
+    windDir: (seed * 47) % 360,
+    gust: c.wind + 6 + (seed % 9),
+    beaufort: BEAUFORT.find(([max]) => c.wind <= max)![1],
+    pressure: 1004 + (seed % 24) - Math.round(wet * 14),
+    visibility: Math.round(24 - wet * 18 + (seed % 6)),
+    dewPoint: c.temp - Math.round((100 - c.humidity) / 5),
+    nowcast,
+    nowcastText,
+    activities,
+  };
+}

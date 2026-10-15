@@ -12,7 +12,6 @@
   font-display: swap;
 }
 
-/* Breeze design tokens */
 :root {
   --bg: #070b18;
   --bg-2: #101833;
@@ -21,16 +20,24 @@
   --border: rgb(255 255 255 / 0.08);
   --border-strong: rgb(255 255 255 / 0.16);
   --fg: #eef2ff;
-  --fg-muted: #8f9bbf;
-  --fg-subtle: #5d6990;
+  --fg-muted: #a3aed0;
+  --fg-subtle: #828eb4;
 
   --sun: #ffc857;
   --sky: #6ad1ff;
   --rain: #7b8cff;
   --warm: #ff8a5b;
+  --sun-ink: var(--sun);
+  --rain-ink: #9aa7ff;
+  --sky-ink: var(--sky);
+  --warm-ink: var(--warm);
+  --moon: #e3e8ff;
+  --cloud-1: #c9d3f0;
+  --cloud-2: #aab6da;
+  --cloud-3: #8f9bc7;
   --temp-gradient: linear-gradient(90deg, var(--sky), var(--sun) 60%, var(--warm));
-  --hero-gradient: radial-gradient(900px 600px at 85% -10%, rgb(255 200 87 / 0.22), transparent 60%),
-    radial-gradient(800px 600px at 0% 110%, rgb(106 209 255 / 0.16), transparent 60%);
+  --glass: rgb(16 24 51 / 0.55);
+  --shadow: 0 30px 80px -30px rgb(0 0 0 / 0.6);
 
   --radius-sm: 10px;
   --radius: 16px;
@@ -48,11 +55,19 @@
   --border: rgb(15 23 42 / 0.08);
   --border-strong: rgb(15 23 42 / 0.16);
   --fg: #0f172a;
-  --fg-muted: #55627f;
-  --fg-subtle: #8a96b0;
+  --fg-muted: #3f4a63;
+  --fg-subtle: #56627d;
   --sun: #f5a300;
   --sky: #2aa8e0;
   --rain: #4f5fe0;
-  --hero-gradient: radial-gradient(900px 600px at 85% -10%, rgb(255 200 87 / 0.35), transparent 60%),
-    radial-gradient(800px 600px at 0% 110%, rgb(106 209 255 / 0.3), transparent 60%);
+  --sun-ink: #8a5a00;
+  --rain-ink: #3646c4;
+  --sky-ink: #0a6690;
+  --warm-ink: #b23c0a;
+  --moon: #7c86b8;
+  --cloud-1: #b7c3e3;
+  --cloud-2: #93a1c9;
+  --cloud-3: #7887b5;
+  --glass: rgb(255 255 255 / 0.6);
+  --shadow: 0 30px 80px -30px rgb(30 50 110 / 0.3);
 }

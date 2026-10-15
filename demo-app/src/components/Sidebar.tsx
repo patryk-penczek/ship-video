@@ -1,26 +1,36 @@
 import { useState } from "react";
-import type { City } from "../data";
+import { isNight, type City } from "../data";
 import { Glyph, WeatherIcon } from "./Icon";
+import { Temp } from "./Temp";
 
 type Props = {
   cities: City[];
   selected: string;
   onSelect: (id: string) => void;
-  onAdd: () => void;
+  onOpenPalette: () => void;
   onRemove: (id: string) => void;
-  format: (c: number) => string;
+  onHome: () => void;
 };
 
-export function Sidebar({ cities, selected, onSelect, onAdd, onRemove, format }: Props) {
+export function Sidebar({ cities, selected, onSelect, onOpenPalette, onRemove, onHome }: Props) {
   const [query, setQuery] = useState("");
+  const [leaving, setLeaving] = useState<string[]>([]);
   const shown = cities.filter((c) => c.name.toLowerCase().includes(query.trim().toLowerCase()));
+
+  function remove(id: string) {
+    setLeaving((l) => [...l, id]);
+    setTimeout(() => {
+      setLeaving((l) => l.filter((x) => x !== id));
+      onRemove(id);
+    }, 280);
+  }
 
   return (
     <aside className="sidebar">
-      <div className="brand">
+      <button className="brand" onClick={onHome}>
         <span className="brand-mark" />
         Breeze
-      </div>
+      </button>
 
       <label className="search">
         <Glyph name="search" />
@@ -37,7 +47,7 @@ export function Sidebar({ cities, selected, onSelect, onAdd, onRemove, format }:
       </div>
       <ul className="city-list">
         {shown.map((c) => (
-          <li key={c.id} className="city-row">
+          <li key={c.id} className={`city-row ${leaving.includes(c.id) ? "is-leaving" : ""}`}>
             <button className={`city ${c.id === selected ? "is-active" : ""}`} onClick={() => onSelect(c.id)}>
               <span className="city-main">
                 <span className="city-name">
@@ -48,11 +58,11 @@ export function Sidebar({ cities, selected, onSelect, onAdd, onRemove, format }:
                   {c.localTime} · {c.summary}
                 </span>
               </span>
-              <WeatherIcon condition={c.condition} size={26} />
-              <span className="city-temp">{format(c.temp)}</span>
+              <WeatherIcon condition={c.condition} night={isNight(c)} size={28} />
+              <Temp c={c.temp} className="city-temp" />
             </button>
             {cities.length > 1 && (
-              <button className="city-remove" onClick={() => onRemove(c.id)} aria-label={`Remove ${c.name}`}>
+              <button className="city-remove" onClick={() => remove(c.id)} aria-label={`Remove ${c.name}`}>
                 <Glyph name="close" size={12} />
               </button>
             )}
@@ -61,7 +71,7 @@ export function Sidebar({ cities, selected, onSelect, onAdd, onRemove, format }:
         {!shown.length && <li className="empty">No saved places match “{query}”</li>}
       </ul>
 
-      <button className="add-city" onClick={onAdd}>
+      <button className="add-city" onClick={onOpenPalette}>
         <Glyph name="plus" size={16} />
         Add a place
         <kbd>⌘K</kbd>
