@@ -7,15 +7,42 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const W = 1920, H = 1080;
 
-// A selector for the app's root element: first child of #root/#app/#__next…, else the first real child of <body>.
+// A selector for the app's root element. Default: the app container (#root/#app/#__next...): its single child when that is the whole app,
+// the container itself when it has several element children (toasts and portals are siblings of the app). When visible elements sit
+// outside the container (portals mounted on <body>), or there is no container (a static page), the root is body.
 export const detectRoot = (page) => page.evaluate(() => {
+  const SKIP = /^(SCRIPT|STYLE|LINK|META|NOSCRIPT|TEMPLATE)$/;
+  const shows = (e) => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e); return cs.display !== "none" && cs.visibility !== "hidden" && (r.width > 0 && r.height > 0 || cs.position === "fixed") && (e.textContent.trim() || e.querySelector("img,svg,canvas,video")); };
+  const kids = (e) => [...e.children].filter((c) => !SKIP.test(c.tagName));
   for (const c of ["#root", "#app", "#__next", "#svelte", "#app-root", "main#main"]) {
     const e = document.querySelector(c);
-    if (e?.firstElementChild) return `${c} > :nth-child(${[...e.children].indexOf(e.firstElementChild) + 1})`;
+    if (!e?.firstElementChild) continue;
+    const outside = kids(document.body).filter((x) => x !== e && !x.contains(e) && shows(x));
+    if (outside.length) return "body";
+    const k = kids(e);
+    if (k.length > 1) return c;
+    return `${c} > :nth-child(${[...e.children].indexOf(k[0] ?? e.firstElementChild) + 1})`;
   }
-  const k = [...document.body.children].findIndex((e) => !/^(SCRIPT|STYLE|LINK|NOSCRIPT)$/.test(e.tagName));
-  return k < 0 ? "body" : `body > :nth-child(${k + 1})`;
+  return "body"; // no app container: a static page. body keeps every section, header and footer
 });
+
+// Visible elements next to the chosen root (siblings of it and of its ancestors): toasts, portals, cookie banners that it does not contain.
+export const outsideRoot = (page, sel) => page.evaluate((sel) => {
+  const SKIP = /^(SCRIPT|STYLE|LINK|META|NOSCRIPT|TEMPLATE)$/, root = document.querySelector(sel);
+  if (!root || root === document.body) return { out: [], over: [], rootH: root?.getBoundingClientRect().height ?? 0, pageH: document.documentElement.scrollHeight };
+  const name = (e) => `${e.id ? "#" + e.id : e.tagName.toLowerCase() + (e.classList.length ? "." + [...e.classList].slice(0, 2).join(".") : "")}${(e.textContent || "").trim() ? ` "${e.textContent.trim().replace(/\s+/g, " ").slice(0, 30)}"` : ""}`;
+  const out = [], over = [];
+  for (let p = root.parentElement; p; p = p.parentElement) {
+    for (const x of p.children) {
+      if (SKIP.test(x.tagName) || x === root || x.contains(root)) continue;
+      const r = x.getBoundingClientRect(), cs = getComputedStyle(x);
+      if (cs.display === "none" || cs.visibility === "hidden") continue;
+      if ((r.width > 0 && r.height > 0 || cs.position === "fixed") && (x.textContent.trim() || x.querySelector("img,svg,canvas,video"))) { out.push(name(x)); if (/^(fixed|absolute|sticky)$/.test(cs.position)) over.push(name(x)); }
+    }
+    if (p === document.body) break;
+  }
+  return { out, over, rootH: root.getBoundingClientRect().height, pageH: document.documentElement.scrollHeight };
+}, sel);
 
 // What the CSS rewrite needs to know about the live page.
 export const pageInfo = (page, rootSel) => page.evaluate((sel) => {
@@ -31,6 +58,14 @@ export const pageInfo = (page, rootSel) => page.evaluate((sel) => {
     attrs: merged,
     container: p && p.id ? `#${CSS.escape(p.id)}` : null,
     rootPos: root ? getComputedStyle(root).position : "static",
+    rootW: root ? root.getBoundingClientRect().width : innerWidth, viewW: innerWidth,
+    scheme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
+    // a fingerprint of the theme: every custom property on :root plus the theme attributes. Apps inject ONE theme block at a time, so a run that
+    // switches themes would otherwise keep only the last theme's variables. Colour variables only: sizes and Tailwind's per-element --tw-* change from state to state
+    sig: (() => { const c = getComputedStyle(de), v = []; for (const n of c) { const x = c.getPropertyValue(n).trim(); if (n.startsWith("--") && !/^--(tw|radix|rdp|framer|sv)-/.test(n) && /^(#[0-9a-f]{3,8}|rgba?\(|hsla?\(|oklch\(|oklab\(|lab\(|lch\(|color\()/i.test(x)) v.push(`${n}:${x}`); } return `${v.join(";")}|${de.getAttribute("data-theme") ?? ""}|${de.className}|${b.className}`; })(),
+    lum: (() => { // luminance 0..1 of the page background, whatever colour syntax it uses (oklch, rgb, hex)
+      try { const c = document.createElement("canvas"); c.width = c.height = 1; const x = c.getContext("2d", { willReadFrequently: true }); x.fillStyle = "#fff"; x.fillStyle = bg || "#fff"; x.fillRect(0, 0, 1, 1); const [r, g, b] = x.getImageData(0, 0, 1, 1).data; return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; } catch { return 1; }
+    })(),
     rootFont: parseFloat(getComputedStyle(de).fontSize),
     base: { color: cs.color, fontFamily: cs.fontFamily, fontSize: cs.fontSize, lineHeight: cs.lineHeight, fontWeight: cs.fontWeight, background: bg },
   };
@@ -64,11 +99,12 @@ export async function collectSheets(page) {
 export const sheetsFromFiles = (files) => files.map((f) => ({ base: pathToFileURL(path.resolve(f)).href, text: readFileSync(f, "utf8") }));
 
 // Runs in a blank page at 1920x1080 so @media/@supports resolve for the film's viewport.
-function transform({ sheets, info, W, H }) {
-  const SC = ".app-shot", esc = (s) => s.replace(/[^\w-]/g, "\\$&");
+function transform({ sheets, info, W, H, SC, tail: withTail }) {
+  const esc = (s) => s.replace(/[^\w-]/g, "\\$&");
   const attrNames = Object.keys(info.attrs).filter((a) => a !== "class" && a !== "style");
   const classes = (info.attrs.class ?? "").split(/\s+/).filter(Boolean);
   const out = [], fonts = [], stats = { keyframes: 0, media: 0, fixed: 0 };
+  let keyframes = null; const uses = [];
   const split = (s) => { const r = []; let d = 0, q = null, cur = ""; for (const c of s) { if (q) { cur += c; if (c === q) q = null; continue; } if (c === '"' || c === "'") { q = c; cur += c; continue; } if ("([".includes(c)) d++; if (")]".includes(c)) d--; if (c === "," && !d) { r.push(cur.trim()); cur = ""; continue; } cur += c; } if (cur.trim()) r.push(cur.trim()); return r; };
   const unit = { vh: H, vw: W, vmin: Math.min(W, H), vmax: Math.max(W, H) };
   const val = (s, base) => s
@@ -104,6 +140,8 @@ function transform({ sheets, info, W, H }) {
     for (const { prelude, body } of nodes) {
       if (body == null) continue; // @import, @charset, @namespace, @layer a, b;
       if (!prelude.startsWith("@")) {
+        const am = body.match(/(?:^|[;{\s])animation(?:-name)?\s*:\s*([^;}]+)/);
+        if (am) uses.push([prelude.slice(0, 60), am[1].split(/[\s,]+/).filter((t) => /^[a-zA-Z_][\w-]*$/.test(t))]);
         const sels = [...new Set(split(prelude).map(scope).filter(Boolean))];
         if (sels.length) out.push(`${sels.join(", ")} ${val(body, base)}`);
         continue;
@@ -112,7 +150,7 @@ function transform({ sheets, info, W, H }) {
       if (name === "media") { let ok = false; try { ok = matchMedia(cond).matches; } catch {} if (ok) walk(parse(body.slice(1, -1)), base); else stats.media++; }
       else if (name === "supports") { let ok = true; try { ok = CSS.supports(cond); } catch {} if (ok) walk(parse(body.slice(1, -1)), base); }
       else if (name === "font-face") fonts.push(val(`@font-face ${body}`, base));
-      else if (name === "keyframes") stats.keyframes++;
+      else if (name === "keyframes") { stats.keyframes++; (keyframes ??= []).push(cond.trim()); }
       else if (name === "property") out.push(`${prelude} ${body}`);
       else if (["layer", "container", "scope"].includes(name)) walk(parse(body.slice(1, -1)), base); // contents kept; layer order is lost
     }
@@ -125,9 +163,13 @@ function transform({ sheets, info, W, H }) {
 :where(${SC}) :where(h4) { margin: 1.33em 0; font-weight: 700; } :where(${SC}) :where(h5) { margin: 1.67em 0; font-size: .83em; font-weight: 700; } :where(${SC}) :where(h6) { margin: 2.33em 0; font-size: .67em; font-weight: 700; }
 :where(${SC}) :where(p, dl, pre) { margin: 1em 0; } :where(${SC}) :where(ul, ol) { margin: 1em 0; padding-inline-start: 40px; } :where(${SC}) :where(blockquote, figure) { margin: 1em 40px; } :where(${SC}) :where(dd) { margin-inline-start: 40px; }
 :where(${SC}) :where(ul) { list-style: disc; } :where(${SC}) :where(ol) { list-style: decimal; } :where(${SC}) :where(b, strong) { font-weight: bolder; } :where(${SC}) :where(code, pre, kbd, samp) { font-family: monospace; } :where(${SC}) :where(a) { color: -webkit-link; text-decoration: underline; }`;
-  const tail = `/* film adaptations */
-${SC} { position: absolute; left: 0; top: 0; width: ${W}px; height: ${H}px; margin: 0; overflow: hidden; box-sizing: border-box; }${info.rootPos === "relative" ? `\n${SC} > :first-child { position: static; } /* fixed overlays anchor to the ${W}x${H} wrapper */` : ""}`;
-  return { css: `${head}\n${out.join("\n")}\n${tail}\n`, fonts, stats };
+  // The wrapper is the capture viewport (1920x1080 unless --viewport), centred on the 1920x1080 stage. A root that spans the whole viewport
+  // becomes static so fixed overlays (turned absolute) anchor to the wrapper; a narrower root (a centred column) keeps its position:
+  // making it static would stretch its tab bar / FAB / toast to the wrapper width.
+  const full = info.rootW >= info.viewW - 1;
+  const tail = withTail ? `/* film adaptations */
+.app-shot { isolation: isolate; position: absolute; left: ${(1920 - W) / 2}px; top: ${(1080 - H) / 2}px; width: ${W}px; height: ${H}px; margin: 0; overflow: hidden; box-sizing: border-box; }${info.rootPos === "relative" && full ? `\n.app-shot > :first-child { position: static; } /* fixed overlays anchor to the ${W}x${H} wrapper */` : ""}` : "";
+  return { css: `${head}\n${out.join("\n")}\n${tail}\n`, rules: out, fonts, stats, keyframes: keyframes ?? [], animations: uses.flatMap(([sel, toks]) => toks.filter((t) => (keyframes ?? []).includes(t)).map((t) => `${t} on ${sel}`)) };
 }
 
 // Copies every url("http…"/"file:…") in `css` into <film>/fonts or <film>/img and points the css at the copy.
@@ -160,12 +202,20 @@ export async function localize(css, film, { quiet = false } = {}) {
 }
 
 // Main entry: sheets → <film>/app.css. Returns a summary and the font faces to list in film.js `fonts:`.
-export async function portCss(browser, sheets, info, film, out = path.join(film, "app.css")) {
-  const page = await browser.newPage({ viewport: { width: W, height: H }, reducedMotion: "reduce" });
-  let r;
-  try { await page.setContent("<!doctype html><html><head></head><body></body></html>"); r = await page.evaluate(transform, { sheets, info, W, H }); }
-  finally { await page.close(); }
-  const faces = r.fonts.map((f) => f.replace(/\s+/g, " "));
+// extra = [{ sheets, info, key }]: the app in another theme (colour scheme, or a JS-switched variable set). Only the rules that differ from the base
+// are kept, scoped under .app-shot[data-tk="<key>"] (UI.shot sets the attribute), so a theme reveal can show both. viewport = [w, h] of the capture (the wrapper gets that size).
+export async function portCss(browser, sheets, info, film, out = path.join(film, "app.css"), { viewport = [W, H], extra = [], faces: jsFaces = [] } = {}) {
+  const [vw, vh] = viewport, run = async (sh, inf, SC, tail) => {
+    const page = await browser.newPage({ viewport: { width: vw, height: vh }, reducedMotion: "reduce", colorScheme: inf.scheme });
+    try { await page.setContent("<!doctype html><html><head></head><body></body></html>"); return await page.evaluate(transform, { sheets: sh, info: inf, W: vw, H: vh, SC, tail }); }
+    finally { await page.close(); }
+  };
+  const r = await run(sheets, info, ".app-shot", true);
+  const baseRules = new Set(r.rules);
+  for (const x of extra) { const e = await run(x.sheets, x.info, ".app-shot", false), keep = e.rules.filter((q) => !baseRules.has(q)).map((q) => q.replace(/\.app-shot(?![\w-])/g, `.app-shot[data-tk="${x.key}"]`)); r.css += `\n/* theme ${x.key} (${keep.length} rules differ) */\n${keep.join("\n")}\n`; r.fonts.push(...e.fonts); r.stats.keyframes += e.stats.keyframes; r.keyframes.push(...e.keyframes); r.animations.push(...e.animations); }
+  // @font-face rules for fonts the page registered through the FontFace API (capture.mjs collects them); skipped when the CSS already has the file
+  for (const f of jsFaces) { const u = f.match(/url\("([^"]+)"\)/)?.[1]; if (!u || !r.css.includes(u) && !r.fonts.some((x) => x.includes(u))) r.fonts.push(f); }
+  const faces = [...new Set(r.fonts.map((f) => f.replace(/\s+/g, " ")))];
   const loc = await localize(`${faces.join("\n")}\n${r.css}`, film);
   mkdirSync(path.dirname(out), { recursive: true });
   writeFileSync(out, `/* Ported from the running app by scripts/port-css.mjs: scoped under .app-shot, ${W}x${H} viewport units. Regenerate, don't hand-edit. */\n${loc.css}`);
@@ -178,5 +228,5 @@ export async function portCss(browser, sheets, info, film, out = path.join(film,
     return fam && `${ws.at(-1)} 40px '${fam}'`;
   }).filter(Boolean);
   if (loc.failed.length) console.error(`port-css: ${loc.failed.length} file(s) could not be copied; app.css still points at them (absolute URLs): fix the paths, the film would not render offline`);
-  return { out, rules: r.css.split("\n").length, fontFaces: faces.length, copied: loc.copied, stats: r.stats, fonts: [...new Set(fontList)], variable: [...new Set(ranges)], failed: loc.failed };
+  return { out, rules: r.css.split("\n").length, fontFaces: faces.length, copied: loc.copied, stats: r.stats, keyframes: [...new Set(r.keyframes)], animations: [...new Set(r.animations)], fonts: [...new Set(fontList)], variable: [...new Set(ranges)], failed: loc.failed };
 }

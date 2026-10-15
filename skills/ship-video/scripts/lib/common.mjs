@@ -57,7 +57,7 @@ export function args(argv = process.argv.slice(2), bools = BOOLS) {
 }
 
 // Opens <film>/index.html?render=1 and waits for window.__ready. scale = deviceScaleFactor (2 → 3840×2160).
-export async function openFilm(html, { scale = 1 } = {}) {
+export async function openFilm(html, { scale = 1, logs = false } = {}) {
   mustExist(path.resolve(html), "film");
   if (!/\.html?$/i.test(html)) die(`${html} is not an HTML file (expected <film>/index.html)`);
   const { chromium } = load("playwright");
@@ -65,7 +65,7 @@ export async function openFilm(html, { scale = 1 } = {}) {
   try {
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: scale });
     let loadError = null;
-    page.on("console", (m) => m.type() === "error" && console.error("[page]", m.text()));
+    page.on("console", (m) => { if (m.type() === "error") console.error("[page]", m.text()); else if (logs) console.error(`[console.${m.type()}]`, m.text()); }); // logs: a film's own console.log (debug prints) shows up
     page.on("pageerror", (e) => { loadError ??= e.message; console.error("[pageerror]", e.message); });
     await page.goto(`${pathToFileURL(path.resolve(html)).href}?render=1`);
     let iv;

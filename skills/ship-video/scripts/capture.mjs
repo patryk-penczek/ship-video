@@ -1,31 +1,62 @@
 // Capture the running app into a film: one outerHTML per state → <film>/screens.js, a screenshot per state →
 // <film>/review/discovery/<state>.png, and (--css) the app's stylesheets ported to <film>/app.css.
 // usage: node capture.mjs <app-url> <states.json> <film> [--css] [--root "#root > .app"] [--full] [--only a,b] [--dpr 2]
-//   --dpr N  device pixel ratio for states with a canvas (default 2): the canvas PNGs are N× sharper; place them at CSS size (ui.js does)
-//        node capture.mjs <app-url> <film> --discover [--routes /,/radar,/compare] [--depth 2]
+//          [--viewport 390x844] [--touch] [--scheme light|dark] [--storage "token=abc;user={\"id\":1}"]
+//   --dpr N  device pixel ratio (default: 2 for states with a canvas, 1 otherwise; given explicitly it applies to every state)
+//   --viewport WxH  browser size (default 1920x1080). A phone app: 390x844; the replica wrapper .app-shot gets that size, centred on the stage
+//   --motion  keep prefers-reduced-motion off: pages that disable their CSS animations under "reduce" play them, and the freeze rule lands each on its end state (draw-on lines, fade-ins)
+//   --touch  mobile emulation (isMobile + touch): tap/swipe send real touch events, the app sees (pointer: coarse)
+//   --scheme light|dark  prefers-color-scheme for every state (a state's own "scheme" wins). Capture both and --css ports both themes
+//   --storage-state file.json  a Playwright storage state (cookies, localStorage, IndexedDB) used by every state: log in / onboard once, reuse it
+//   --seed N  seeded Math.random for every page (and "init": { "seed": N, "date": "2026-01-15T10:00:00Z" } in states.json: a fixed clock);
+//   --init-script file.js  JS run before any app script (stub random data, feature flags). Apps with random demo data differ at every load:
+//   capture ALL states in one run (never mix runs: the numbers would disagree) and treat compare.mjs as layout-only (--no-text)
+//   --storage k=v;k2=v2  localStorage seeded before the first navigation (once per tab): log in without a login state. Same as "init" in states.json
+//   Default root: the app container's only child; the container itself (#root) when it has siblings inside (toasts); body when
+//   visible elements sit outside it (portals) or the page has no container (static sites). A warning names what a root leaves out.
+//        node capture.mjs <app-url> <film> --discover [--probe-404] [--routes /,/radar,/compare] [--depth 2]
 // states.json (same file compare.mjs reads): [{ "name": "palette", "path": "/", "actions": [{ "press": "Control+k" }, { "type": "Rey" }, { "wait": 200 }] }]
 //   state keys: name · path · actions · continue (keep the previous state's page, no reload) · capture:false (drive only)
+//     · scheme ("light"|"dark") · storage {k: v} (seed localStorage) · reveal: true (scroll through the page first: scroll-reveal / IntersectionObserver)
+//   the file may be { "init": { "storage": {…}, "sessionStorage": {…}, "cookies": [{ "name", "value" }], "scheme", "seed", "date", "script" },
+//     "setup": { "path": "/", "actions": [{ "click": "text=Try the demo" }, { "waitFor": ".budget" }] }, "states": [...] }
+//   setup runs once before all states (onboarding, login form); its storage is reused by every state, and compare.mjs replays the same setup
+//   state keys for hard layouts: "image": true (store a screenshot of the root as the state: JS-measured grids / chart containers that break in a
+//   replica; text is no longer live) · "pin": true | "<selector>" (inline the resolved width/height of grid children, absolutely positioned
+//   boxes and svg in the live page before capturing: freezes container-query / ResponsiveContainer layouts; it edits the live page, so keep such a state last)
 //     · root (selector for this state) · full (full-page screenshot) · canvas { frames: N, every: ms, steps: [[actions], …] }
 //     · before: true (also capture <name>-before, the page right before the last action, so a click has its before and after)
 //   actions: click <sel> · dblclick <sel> · fill [<sel>, <text>] · type <text> · press <key> · hover <sel> · select [<sel>, <v>]
 //     · check <sel> · set [<sel>, <v>] (range inputs) · scroll <y>|[<sel>, <y>] · waitFor <sel> · wait <ms> · goto <path> · eval <js>
+//     · tap <sel> · swipe [<sel>, dx, dy, {steps, hold}] · drag [<from>, <to>, {steps, hold}] · mouse "down"|"up"|["move", <sel>|[x, y]]
 //   Use `fill`, not Control+A + type: on macOS Control+A moves the caret to the line start. `wait` covers timers (a 4 s toast).
 // Per state it bakes input/textarea values and checked state into attributes, strips scripts and on* handlers, turns every <canvas>
 //   into an <img> (img/<state>-c<k>-<n>.png; canvas.frames grabs N frames over time, data-frames lists them), makes SVG ids unique
 //   per state (url(#id) rewritten), and copies images into <film>/img. Output: window.SCREENS (html) + window.SCREENS_META (theme
-//   attributes, page height, canvas frames) for ui.js shot()/stack(). --discover only inventories views: every route fully
+//   attributes, page height, scheme, canvas frames) for ui.js shot()/stack(). --discover only inventories views: every route fully
 //   screenshotted into review/discovery/ plus inventory.json (heights, scroll containers, canvases, buttons, links).
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { help, args, load, die, mustExist, known, num } from "./lib/common.mjs";
-import { drive, readStates, runActions, freezePage } from "./lib/drive.mjs";
-import { detectRoot, pageInfo, collectSheets, portCss } from "./lib/port.mjs";
+import { createHash } from "node:crypto";
+import { drive, readStates, runActions, freezePage, envOptions, makeContext, scrollThrough, hiddenContent, gotoPage } from "./lib/drive.mjs";
+import { existsSync, readFileSync } from "node:fs";
+import { detectRoot, outsideRoot, pageInfo, collectSheets, portCss } from "./lib/port.mjs";
 help(import.meta.url);
 
-const a = args(undefined, ["css", "full", "discover", "help"]);
-known(a, ["css", "full", "discover", "root", "only", "routes", "depth", "dpr"]);
+const a = args(undefined, ["css", "full", "discover", "touch", "motion", "probe-404", "help"]);
+known(a, ["css", "full", "discover", "root", "only", "routes", "depth", "dpr", "viewport", "touch", "scheme", "storage", "motion", "storage-state", "seed", "init-script", "probe-404"]);
 for (const k of ["root", "only", "routes"]) if (a[k] === true) die(`--${k} needs a value`);
-const url = a._[0], W = 1920, H = 1080, DPR = num(a, "dpr", 2, { min: 1, max: 3, int: true }); // device pixel ratio for states with a canvas
+const env = envOptions(a);
+const url = a._[0], W = env.width, H = env.height, DPR = num(a, "dpr", 2, { min: 1, max: 4 }); // device pixel ratio: canvas states always, every state when --dpr is given
+const sha = (b) => createHash("sha1").update(b).digest("hex").slice(0, 12);
+const hashRoute = (u) => (/^#!?\//.test(u.hash) ? u.hash : ""); // hash routers: /#/notes is a view, /#section is an anchor
+// the same screenshot under several names: the app showed one page (login, error page, redirect) for different routes
+function warnIdentical(rows) {
+  const by = new Map();
+  for (const r of rows) if (r.hash) (by.get(r.hash) ?? by.set(r.hash, []).get(r.hash)).push(r);
+  for (const g of by.values()) { const names = g.map((r) => r.name); if (g.length > 1 && new Set(g.map((r) => r.path ?? r.name)).size > 1) console.error(`WARNING identical screenshots: ${names.join(", ")}. Most likely every one redirected to a login or error page: seed auth with --storage k=v or "init" in states.json (see replicas.md), then capture again.`); }
+}
 const { chromium } = load("playwright");
 
 async function discover(film) {
@@ -44,30 +75,36 @@ async function discover(film) {
     while (queue.length && rows.length < 40) {
       const route = queue.shift();
       if (seen.has(route)) continue; seen.add(route);
-      const page = await browser.newPage({ viewport: { width: W, height: H }, reducedMotion: "reduce" });
+      const page = await (await makeContext(browser, url, env, {}, {})).newPage();
       page.on("pageerror", (e) => errors.push(`[${route}] ${e.message}`));
-      const res = await page.goto(new URL(route, url).href, { waitUntil: "networkidle" }).catch((e) => (errors.push(`[${route}] ${e.message.split("\n")[0]}`), null));
+      const res = await gotoPage(page, new URL(route, url).href).catch((e) => (errors.push(`[${route}] ${e.message.split("\n")[0]}`), null));
       if (!res) { await page.close(); continue; }
       await freezePage(page);
       await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(300);
+      await scrollThrough(page); // scroll-reveal / IntersectionObserver content appears only once it has been in view
+      const hidden = await hiddenContent(page);
+      if (hidden.length) console.error(`WARNING [${route}] ${hidden.length} element(s) still invisible (opacity 0) after scrolling the page: ${[...new Set(hidden)].slice(0, 5).join(", ")}. The screenshot has blank bands there; reveal them in a state ("reveal": true, or scrollIntoView + wait) before trusting it.`);
       const info = await page.evaluate(() => {
         const vis = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
         const sel = (e) => e.id ? `#${e.id}` : `${e.tagName.toLowerCase()}${e.classList.length ? "." + [...e.classList].slice(0, 2).join(".") : ""}`;
         const scrollers = [...document.querySelectorAll("*")].filter((e) => e !== document.body && e !== document.documentElement && /(auto|scroll)/.test(getComputedStyle(e).overflowY) && e.scrollHeight > e.clientHeight + 20).map((e) => `${sel(e)} ${e.clientHeight}→${e.scrollHeight}`);
         const text = (e) => (e.getAttribute("aria-label") || e.textContent || "").trim().replace(/\s+/g, " ").slice(0, 28);
         return {
-          title: document.title, h1: document.querySelector("h1")?.textContent.trim().slice(0, 60) ?? "", height: document.documentElement.scrollHeight, scrollers,
-          canvases: document.querySelectorAll("canvas").length, dialogs: document.querySelectorAll("dialog[open], [role=dialog]").length, inputs: document.querySelectorAll("input, textarea, select").length,
+          title: document.title, h1: document.querySelector("h1")?.innerText.trim().replace(/\s+/g, " ").slice(0, 60) ?? "", height: document.documentElement.scrollHeight, scrollers,
+          text: document.body.innerText.trim().slice(0, 4000), canvases: document.querySelectorAll("canvas").length, dialogs: document.querySelectorAll("dialog[open], [role=dialog]").length, inputs: document.querySelectorAll("input, textarea, select").length,
           buttons: [...new Set([...document.querySelectorAll("button, [role=tab], [role=button]")].filter(vis).map(text).filter(Boolean))].slice(0, 30),
-          links: [...new Set([...document.querySelectorAll("a[href]")].map((l) => l.getAttribute("href")))].slice(0, 40),
+          links: [...new Set([...document.querySelectorAll("a[href]")].map((l) => l.getAttribute("href")))].filter((h) => !/^#(?!!?\/)/.test(h)).slice(0, 40),
         };
       });
-      const name = (route.replace(/^\/+|\/+$/g, "").replace(/[^\w.-]+/g, "-") || "home");
-      await page.screenshot({ path: path.join(dir, `${name}.png`), fullPage: true });
-      rows.push({ route, status: res.status(), file: `${name}.png`, ...info });
+      const name = (route.replace(/^\/+|\/+$/g, "").replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "") || "home");
+      const shot = await page.screenshot({ path: path.join(dir, `${name}.png`), fullPage: true });
+      const here = new URL(page.url()), landed = norm(here.pathname) + here.search + hashRoute(here);
+      const row = { route, status: res.status(), file: `${name}.png`, hash: sha(shot), ...info };
+      if (landed !== route && landed !== norm(new URL(route, url).pathname) + new URL(route, url).search + hashRoute(new URL(route, url))) { row.redirectedTo = landed; console.error(`${/login|sign-?in|auth|session/i.test(landed) ? "WARNING " : "note: "}${route} ended up on ${landed}${/login|sign-?in|auth|session/i.test(landed) ? " (a login: seed auth with --storage k=v or \"init\" in states.json)" : " (redirect)"}`); }
+      rows.push(row);
       for (const l of info.links) {
         let u; try { u = new URL(l, new URL(route, url)); } catch { continue; }
-        const r = norm(u.pathname) + u.search;
+        const r = norm(u.pathname) + u.search + hashRoute(u);
         if (u.origin === origin && !seen.has(r) && !level.has(r) && (level.get(route) ?? 0) < depth && !/\.\w{2,5}$/.test(u.pathname)) { level.set(r, (level.get(route) ?? 0) + 1); queue.push(r); }
       }
       // SPA tabs are often buttons, not links: click each nav/tab control and note where the URL goes
@@ -75,26 +112,69 @@ async function discover(film) {
       for (let i = 0, n = Math.min(await nav.count(), 12); i < n && (level.get(route) ?? 0) < depth; i++) {
         try {
           await nav.nth(i).click({ timeout: 1500 }); await page.waitForTimeout(400);
-          const r = new URL(page.url()).pathname;
+          const nu = new URL(page.url()), r = norm(nu.pathname) + nu.search + hashRoute(nu);
           if (r !== route && !seen.has(r) && !level.has(r)) { level.set(r, (level.get(route) ?? 0) + 1); queue.push(r); }
-          if (r !== route) await page.goto(new URL(route, url).href, { waitUntil: "networkidle" });
+          if (r !== route) await gotoPage(page, new URL(route, url).href);
         } catch {}
       }
       await page.close();
     }
-    if (!a.routes || !a.routes.split(",").some((r) => /404|nope|missing/.test(r))) { // an unknown route is a view too
-      const probe = "/__no-such-page__", page = await browser.newPage({ viewport: { width: W, height: H }, reducedMotion: "reduce" });
-      const res = await page.goto(new URL(probe, url).href, { waitUntil: "networkidle" }).catch(() => null);
-      if (res) { await freezePage(page); await page.waitForTimeout(300); await page.screenshot({ path: path.join(dir, "not-found.png"), fullPage: true }); rows.push({ route: probe, status: res.status(), file: "not-found.png", title: await page.title(), height: await page.evaluate(() => document.documentElement.scrollHeight), note: "unknown route" }); }
+    if (a["probe-404"]) { // opt-in: also screenshot what the app shows for an unknown route
+      // hash-routed SPA (links like #/notes): probe /#/unknown-xyz, a path probe would just return the home page
+      const hashApp = rows.some((r) => /#!?\//.test(r.route) || r.links?.some((l) => /^#!?\//.test(l)));
+      const probe = hashApp ? "/#/__no-such-page__" : "/__no-such-page__", page = await (await makeContext(browser, url, env, {}, {})).newPage();
+      const res = await gotoPage(page, new URL(probe, url).href).catch(() => null);
+      if (res) {
+        await freezePage(page); await page.waitForTimeout(300);
+        const text = await page.evaluate(() => document.body.innerText.trim().slice(0, 4000)), home = rows.find((r) => r.route === "/");
+        if (home && home.text === text && res.status() < 400) console.error(`note: ${probe} returns the same page as / (SPA fallback with no not-found view): not listed as a view`);
+        else { const shot = await page.screenshot({ path: path.join(dir, "not-found.png"), fullPage: true }); rows.push({ route: probe, status: res.status(), file: "not-found.png", hash: sha(shot), title: await page.title(), height: await page.evaluate(() => document.documentElement.scrollHeight), note: "unknown route" }); }
+      }
       await page.close();
     }
   } finally { await browser.close(); }
   if (!rows.length) { console.error(errors.join("\n")); die(`nothing could be loaded from ${url}: is the app running?`); }
+  warnIdentical(rows.map((r) => ({ name: r.route, path: r.route, hash: r.redirectedTo && rows.some((x) => x.route === r.redirectedTo) ? undefined : r.hash }))); // a plain redirect to another listed route is not a login wall
+  for (const r of rows) delete r.text;
   writeFileSync(path.join(dir, "inventory.json"), JSON.stringify(rows, null, 1));
   for (const r of rows) console.log(`${r.route.padEnd(22)} ${r.status}  h=${String(r.height).padEnd(5)} ${r.file.padEnd(16)} ${r.h1 ?? ""}${r.scrollers?.length ? `  scroll:${r.scrollers.join(", ")}` : ""}${r.canvases ? `  canvas:${r.canvases}` : ""}`);
   console.log(`inventory → ${path.join(dir, "inventory.json")}  (buttons/links per route are in the json; states that need clicks are not crawled)`);
   if (errors.length) { console.error(errors.join("\n")); process.exit(1); }
 }
+
+// Page-side helpers (installed per state): canvas layers of one root that sit on top of each other (a static + an interactive + an overlay
+// canvas) are ONE picture. groups() numbers them; composite() draws every layer of a group (or, with g === null, all canvases) into one PNG
+// with transparency kept, optionally cropped to [x, y, w, h] css px relative to the root. "" when the composite is fully transparent.
+const CANVAS_SRC = `window.__svCanvas = {
+  groups(root) {
+    const cs = [...root.querySelectorAll("canvas")], bx = cs.map((c) => c.getBoundingClientRect()), res = [];
+    let n = 0;
+    cs.forEach((c, i) => {
+      const a = bx[i].width * bx[i].height; let hit = -1;
+      if (a > 0) for (let j = 0; j < i && hit < 0; j++) {
+        if (!res[j].lead) continue;
+        const b = bx[j], w = Math.min(b.right, bx[i].right) - Math.max(b.left, bx[i].left), h = Math.min(b.bottom, bx[i].bottom) - Math.max(b.top, bx[i].top);
+        if (w > 0 && h > 0 && w * h >= 0.9 * Math.min(a, b.width * b.height)) hit = j;
+      }
+      res.push(hit < 0 ? { g: n++, lead: true } : { g: res[hit].g, lead: false });
+    });
+    return res;
+  },
+  composite(root, g, crop) {
+    try {
+      const cs = [...root.querySelectorAll("canvas")], gr = g == null ? null : this.groups(root);
+      const mem = cs.filter((c, i) => (g == null || gr[i].g === g) && c.getBoundingClientRect().width > 0);
+      if (!mem.length) return "";
+      const o = g == null ? root.getBoundingClientRect() : mem[0].getBoundingClientRect(), k = Math.max(...mem.map((c) => c.width / c.getBoundingClientRect().width)) || 1;
+      const [cx, cy, cw, ch] = crop || [0, 0, o.width, o.height], out = document.createElement("canvas");
+      out.width = Math.max(1, Math.round(cw * k)); out.height = Math.max(1, Math.round(ch * k));
+      const x = out.getContext("2d");
+      for (const c of mem) { const r = c.getBoundingClientRect(); x.drawImage(c, (r.left - o.left - cx) * k, (r.top - o.top - cy) * k, r.width * k, r.height * k); }
+      const t = document.createElement("canvas"); t.width = t.height = 48; const tx = t.getContext("2d"); tx.drawImage(out, 0, 0, 48, 48);
+      return tx.getImageData(0, 0, 48, 48).data.some((v, i) => i % 4 === 3 && v) ? out.toDataURL("image/png") : "";
+    } catch { return ""; }
+  },
+};`;
 
 // Runs in the page: serialises the app root without scripts, with form state and canvases baked in.
 function snapshot({ sel, key, canvasSrc, frameSrc }) {
@@ -103,6 +183,7 @@ function snapshot({ sel, key, canvasSrc, frameSrc }) {
   const live = [root, ...root.querySelectorAll("*")], clone = root.cloneNode(true), cl = [clone, ...clone.querySelectorAll("*")];
   const assets = new Set(), abs = (u) => { try { const x = new URL(u, document.baseURI); if (/^https?:|^file:/.test(x.protocol)) { assets.add(x.href); return x.href; } } catch {} return u; };
   let ci = 0;
+  const cg = window.__svCanvas.groups(root); // stacked canvas layers share one picture: the lowest layer carries it, the others are dropped
   live.forEach((l, i) => {
     const c = cl[i];
     if (l instanceof HTMLInputElement) {
@@ -111,11 +192,13 @@ function snapshot({ sel, key, canvasSrc, frameSrc }) {
     } else if (l instanceof HTMLTextAreaElement) c.textContent = l.value;
     else if (l instanceof HTMLSelectElement) [...c.options].forEach((o, j) => l.options[j].selected ? o.setAttribute("selected", "") : o.removeAttribute("selected"));
     else if (l instanceof HTMLCanvasElement) {
+      const m = cg[ci];
+      if (!m.lead) { c.remove(); ci++; return; }
       const img = document.createElement("img");
       for (const at of c.attributes) img.setAttribute(at.name, at.value);
       if (l.clientWidth && l.clientHeight) { img.setAttribute("width", l.clientWidth); img.setAttribute("height", l.clientHeight); } // CSS size, not the (dpr-scaled) backing store
-      img.setAttribute("src", canvasSrc[ci] ?? ""); img.setAttribute("alt", "");
-      if (frameSrc[ci]?.length > 1) img.setAttribute("data-frames", frameSrc[ci].join(","));
+      img.setAttribute("src", canvasSrc[m.g] ?? ""); img.setAttribute("alt", "");
+      if (frameSrc[m.g]?.length > 1) img.setAttribute("data-frames", frameSrc[m.g].join(","));
       c.replaceWith(img); ci++;
     } else if (l instanceof HTMLImageElement) { c.setAttribute("src", abs(l.currentSrc || l.src)); c.removeAttribute("srcset"); c.removeAttribute("loading"); }
     else if (l instanceof HTMLVideoElement && l.poster) c.setAttribute("poster", abs(l.poster));
@@ -125,6 +208,20 @@ function snapshot({ sel, key, canvasSrc, frameSrc }) {
       else if (at.name === "style" && /url\(/.test(at.value)) c.setAttribute("style", at.value.replace(/url\(\s*(["']?)([^"')]+)\1\s*\)/g, (m, q, u) => /^data:/.test(u) ? m : `url("${abs(u)}")`));
     }
   });
+  // CSS animations are not ported (films animate on the timeline). One that ends in a held state (animation-fill-mode forwards/both:
+  // a path drawing itself, a card fading in) would be captured in its START state: bake the end state into inline style.
+  const kebab = (k) => k.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase()), nm = (e) => e.id ? `#${e.id}` : `${e.tagName.toLowerCase()}${e.classList.length ? "." + [...e.classList].slice(0, 2).join(".") : ""}`;
+  const baked = [];
+  for (const an of document.getAnimations()) {
+    const tg = an.effect?.target, i = tg instanceof Element ? live.indexOf(tg) : -1;
+    if (i < 0 || an.animationName === undefined) continue;
+    const fill = an.effect.getTiming().fill;
+    if (fill !== "forwards" && fill !== "both") continue;
+    const cs = getComputedStyle(tg);
+    for (const kf of an.effect.getKeyframes()) for (const k of Object.keys(kf)) if (!["offset", "easing", "composite", "computedOffset"].includes(k)) cl[i].style.setProperty(kebab(k), cs.getPropertyValue(kebab(k)));
+    baked.push(`${an.animationName} on ${nm(tg)}`);
+  }
+  const animated = live.filter((e) => getComputedStyle(e).animationName !== "none").map((e) => `${getComputedStyle(e).animationName.split(",")[0].trim()} on ${nm(e)}`);
   clone.querySelectorAll("script, noscript").forEach((s) => s.remove());
   let html = clone.outerHTML;
   // SVG ids repeat across states (gradients, clip paths): a stacked copy would paint with another copy's defs. Suffix per state.
@@ -137,7 +234,7 @@ function snapshot({ sel, key, canvasSrc, frameSrc }) {
       .replace(new RegExp(`((?:xlink:)?href=")#${e}(")`, "g"), `$1#${n}$2`)
       .replace(new RegExp(`(\\s(?:aria-labelledby|aria-describedby|for)=")${e}(")`, "g"), `$1${n}$2`);
   }
-  return { html, assets: [...assets], height: document.documentElement.scrollHeight };
+  return { html, assets: [...assets], height: document.documentElement.scrollHeight, baked: [...new Set(baked)], animated: [...new Set(animated)] };
 }
 
 async function save(url, dir, film, used) { // downloads one asset into <film>/img, returns the film-relative path
@@ -150,6 +247,45 @@ async function save(url, dir, film, used) { // downloads one asset into <film>/i
   return `${dir}/${name}`;
 }
 
+// record mode (canvas-first products: drawing, maps, games): runs state.record.steps one action at a time with the REAL mouse and grabs one frame
+// of the root's canvases per step (composited, optionally cropped), plus the pointer position after it. Frames are written to img/<state>-r<n>.png
+// at the capture dpr. A step is an action ({ mouse: { move: [x, y], steps: 1 } }, { click: [x, y] }, ...) or { stroke: [[x, y], ...], px: 24 }:
+// move to the first point, press, one frame every `px` px along the polyline, release. Frame times are n * dt (default 1/13 s) unless a step has "t".
+async function recordFrames(page, st, film, sel, allImages) {
+  const r = st.record, root = r.root ?? sel, dt = r.dt ?? 1 / 13, crop = r.crop ?? null, out = [];
+  if (!(await page.$(root))) throw new Error(`state ${st.name}: record root "${root}" matches nothing`);
+  await page.evaluate(CANVAS_SRC);
+  const o = await page.evaluate((s) => { const b = document.querySelector(s).getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; }, root);
+  const steps = (r.steps ?? []).flatMap((s) => {
+    if (!s.stroke) return [s];
+    const pts = s.stroke, px = s.px ?? 24, acts = [{ mouse: { move: pts[0], steps: 1 } }, { mouse: { down: true } }];
+    for (let i = 1; i < pts.length; i++) {
+      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / px));
+      for (let k = 1; k <= n; k++) acts.push({ mouse: { move: [x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n], steps: 1 } });
+    }
+    acts.push({ mouse: { up: true } });
+    return acts;
+  });
+  if (!steps.length) throw new Error(`state ${st.name}: record.steps is empty`);
+  let size = null, prev = null;
+  for (const [n, act] of steps.entries()) {
+    await runActions(page, [act], { name: st.name, base: url });
+    await page.evaluate(() => new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)))); // two frames: the canvas has repainted
+    if (r.every) await page.waitForTimeout(r.every);
+    const d = await page.evaluate(([s, c]) => window.__svCanvas.composite(document.querySelector(s), null, c), [root, crop]);
+    if (!d) { if (prev) { out.push({ ...prev, t: act.t ?? n * dt }); continue; } throw new Error(`state ${st.name}: record frame ${n} is blank (are there canvases in "${root}"? WebGL needs preserveDrawingBuffer: true)`); }
+    const rel = `img/${st.name}-r${String(n).padStart(3, "0")}.png`;
+    writeFileSync(path.join(film, rel), Buffer.from(d.split(",")[1], "base64")); allImages.push(rel);
+    const m = page.mouseAt ?? { x: 0, y: 0 };
+    prev = { t: +(act.t ?? n * dt).toFixed(4), src: rel, x: +(m.x - o[0] - (crop?.[0] ?? 0)).toFixed(1), y: +(m.y - o[1] - (crop?.[1] ?? 0)).toFixed(1) };
+    out.push(prev);
+    size ??= crop ? [crop[2], crop[3]] : [o[2], o[3]];
+  }
+  if (out.length > 150) console.error(`note [${st.name}] ${out.length} record frames: every one is a full-size PNG in Film({ images }); crop to the active region ("crop": [x, y, w, h]) or lower the frame count if the render runs out of memory`);
+  console.log(`${st.name.padEnd(18)} recorded ${out.length} frames (${Math.round(out.at(-1).t * 100) / 100} s at ${Math.round(1 / dt)} fps) at dpr ${DPR}`);
+  return { frames: out, dt, size, crop, root };
+}
+
 async function main(statesFile, film) {
   const states = readStates(statesFile);
   const only = a.only ? new Set(String(a.only).split(",")) : null;
@@ -158,26 +294,36 @@ async function main(statesFile, film) {
   mkdirSync(disc, { recursive: true });
   const SCREENS = Object.create(null), META = Object.create(null), errors = [], usedImg = new Set(), allImages = [];
   const browser = await chromium.launch();
-  let cssSummary = null, cssIn = null;
+  let cssSummary = null;
+  const tks = new Map(), tall = [], META_REC = Object.create(null), jsFonts = new Map(), cssBy = new Map(), shots = [], warned = new Set(), animSeen = new Map(), bakedAll = new Set();
+  const warnOnce = (msg) => { if (!warned.has(msg)) { warned.add(msg); console.error(msg); } };
   try {
-    await drive(browser, url, states, { width: W, height: H, errors, dpr: DPR }, async (page, st) => {
+    await drive(browser, url, states, { width: W, height: H, errors, dpr: DPR, dprAll: !!env.dprGiven, touch: env.touch, motion: env.motion, scheme: env.scheme, storage: env.storage, init: states.init, setup: states.setup, seed: env.seed, initScript: env.initScript, storageState: env.storageState }, async (page, st) => {
       if (st.capture === false || (only && !only.has(st.name) && !only.has(st.name.replace(/-before$/, "")))) return;
       const sel = st.root ?? a.root ?? await detectRoot(page);
       if (!(await page.$(sel))) throw new Error(`state ${st.name}: root "${sel}" matches nothing on ${page.url()} (set "root" in the state or --root)`);
+      { // what the root leaves out: toasts, portals, sibling sections; a root far shorter than the page
+        const o = await outsideRoot(page, sel);
+        const left = st.root || a.root ? o.over : o.out; // an explicit root is a choice: only overlays (toasts, banners) are worth a warning
+        if (left.length) warnOnce(`WARNING [${st.name}] root "${sel}" leaves out ${left.length} visible element(s): ${left.slice(0, 4).join(" | ")}. They are NOT in the replica: use --root body (or the container, e.g. "#root"), or "root" on the state.`);
+        else if (sel !== "body" && o.pageH > H * 1.5 && o.rootH < o.pageH * 0.5) warnOnce(`WARNING [${st.name}] root "${sel}" is ${Math.round(o.rootH)} px tall, the page ${o.pageH} px: did you mean --root body?`);
+        if (!st.root && !a.root) warnOnce(`root: ${sel}${sel === "body" ? "  (static page or portals outside the app container)" : ""}`);
+        if (o.pageH > H * 1.3) {
+          const hid = await hiddenContent(page, sel);
+          if (hid.length) warnOnce(`WARNING [${st.name}] ${hid.length} element(s) invisible (opacity 0) in a ${o.pageH} px page: ${[...new Set(hid)].slice(0, 5).join(", ")}. Scroll-reveal content is captured blank: set "reveal": true on the state (or scrollIntoView + wait).`);
+        }
+      }
       const key = st.name.replace(/[^\w]+/g, "-");
       // canvases: N frames over time (or one frame per step), saved as PNGs
       const cv = st.canvas ?? {}, nFrames = Math.max(1, cv.steps?.length ?? cv.frames ?? 1);
-      // a WebGL canvas without preserveDrawingBuffer exports fully transparent PNGs: report those as blank too
-      const grab = () => page.evaluate((s) => [...document.querySelector(s).querySelectorAll("canvas")].map((c) => {
-        try {
-          const d = c.toDataURL("image/png"), t = document.createElement("canvas"); t.width = t.height = 32;
-          const x = t.getContext("2d"); x.drawImage(c, 0, 0, 32, 32);
-          return x.getImageData(0, 0, 32, 32).data.some((v, i) => i % 4 === 3 && v) ? d : "";
-        } catch { return ""; }
-      }), sel);
+      // one picture per group of stacked canvases; a WebGL canvas without preserveDrawingBuffer exports fully transparent PNGs: blank too.
+      // A transparent overlay layer is not an error as long as its group (the composite) has content.
+      await page.evaluate(CANVAS_SRC);
+      const grab = () => page.evaluate((s) => { const r = document.querySelector(s), gr = window.__svCanvas.groups(r), n = gr.reduce((m, x) => Math.max(m, x.g + 1), 0); return Array.from({ length: n }, (_, g) => window.__svCanvas.composite(r, g)); }, sel);
+      if (st.record) META_REC[st.name] = await recordFrames(page, st, film, sel, allImages);
       const frames = [];
       for (let f = 0; f < nFrames; f++) {
-        if (cv.steps) { await runActions(page, cv.steps[f], { name: st.name, base: url }); await page.waitForTimeout(cv.every ?? 150); }
+        if (cv.steps) { await runActions(page, cv.steps[f], { name: st.name, base: url }); await (page.clocked ? page.clock.runFor(cv.every ?? 150) : page.waitForTimeout(cv.every ?? 150)); } // fake clock: advance it, or rAF canvases never repaint
         else if (f > 0) await (page.clocked ? page.clock.runFor(cv.every ?? 250) : page.waitForTimeout(cv.every ?? 250)); // fake clock: rAF advances exactly `every` ms
         (await grab()).forEach((d, k) => { (frames[k] ??= []).push(d); });
       }
@@ -194,9 +340,34 @@ async function main(statesFile, film) {
         return rel;
       }));
       const info = await pageInfo(page, sel);
-      await page.screenshot({ path: path.join(disc, `${st.name}.png`), fullPage: !!(st.full ?? a.full), scale: "css" });
+      const shotBuf = await page.screenshot({ path: path.join(disc, `${st.name}.png`), fullPage: !!(st.full ?? a.full), scale: "css" });
+      if (!/-before$/.test(st.name)) {
+        shots.push({ name: st.name, hash: sha(shotBuf), path: st.path, url: page.url() });
+        if (st.path && !st.continue) { const want = new URL(st.path, url), got = new URL(page.url()); if (want.pathname.replace(/\/$/, "") !== got.pathname.replace(/\/$/, "") && hashRoute(want) === hashRoute(got)) warnOnce(`WARNING [${st.name}] asked for ${st.path} but the page is at ${got.pathname}${got.search}: redirected (login?). Seed auth with --storage k=v or "init" in states.json.`); }
+      }
+      if (st.pin) {
+        const n = await page.evaluate(({ sel, pin }) => {
+          const root = document.querySelector(sel), els = pin === true
+            ? [...root.querySelectorAll("*")].filter((e) => { const cs = getComputedStyle(e), p = e.parentElement; return cs.position === "absolute" || e instanceof SVGSVGElement || (p && /grid/.test(getComputedStyle(p).display)); })
+            : [...root.querySelectorAll(pin)];
+          for (const e of els.slice(0, 4000)) {
+            const cs = getComputedStyle(e);
+            if (cs.display === "none") continue;
+            e.style.width = cs.width; e.style.height = cs.height;
+            if (cs.position === "absolute") { e.style.left = cs.left; e.style.top = cs.top; e.style.right = "auto"; e.style.bottom = "auto"; }
+          }
+          return Math.min(els.length, 4000);
+        }, { sel, pin: st.pin });
+        console.log(`${st.name.padEnd(18)} pinned the resolved size of ${n} element(s)`);
+      }
       const snap = await page.evaluate(snapshot, { sel, key, canvasSrc: frameSrc.map((l) => l[0]), frameSrc });
       let html = snap.html;
+      if (st.image) { // the screenshot IS the state: for layouts that only work with the app's own JS
+        const loc = page.locator(sel).first(), box = await loc.boundingBox(), rel = `img/${st.name}.png`;
+        await loc.screenshot({ path: path.join(film, rel) }); allImages.push(rel);
+        html = `<img src="${rel}" alt="" style="display:block;width:${Math.round(box.width)}px;height:${Math.round(box.height)}px">`; snap.assets = [];
+        console.log(`${st.name.padEnd(18)} stored as an image (${Math.round(box.width)}x${Math.round(box.height)} css px at dpr ${DPR}): text and counters are not live`);
+      }
       for (const u of [...snap.assets].sort((x, y) => y.length - x.length)) { // longest first: ?id=12 before ?id=1
         try {
           const rel = await save(u, "img", film, usedImg);
@@ -206,15 +377,50 @@ async function main(statesFile, film) {
         catch (e) { errors.push(`[${st.name}] asset ${u}: ${e.message}`); }
       }
       SCREENS[st.name] = html;
-      META[st.name] = { attrs: info.attrs, height: snap.height, root: sel, ...(frameSrc.length ? { canvas: frameSrc } : {}) };
+      META[st.name] = { attrs: info.attrs, height: snap.height, root: sel, scheme: info.scheme, viewport: [W, H], bg: info.base.background, lum: +info.lum.toFixed(3), ...(frameSrc.length ? { canvas: frameSrc } : {}), ...(META_REC[st.name] ? { record: META_REC[st.name] } : {}) };
+      { // FontFace-API fonts: keep the faces the browser actually loaded (an app may register a hundred unicode-range shards)
+        const got = await page.evaluate(() => ({ made: window.__svFonts || [], loaded: [...document.fonts].filter((f) => f.status === "loaded").map((f) => `${f.family.replace(/^["']|["']$/g, "")}|${f.unicodeRange}|${f.style}`) }));
+        const norm = (v) => (v || "U+0-10FFFF").replace(/\s+/g, "");
+        for (const f of got.made) if (f.source && got.loaded.some((k) => { const [fam, ur, sty] = k.split("|"); return fam === f.family.replace(/^["']|["']$/g, "") && norm(ur) === norm(f.desc.unicodeRange) && sty === (f.desc.style || "normal"); })) jsFonts.set(`${f.family}|${f.source}|${JSON.stringify(f.desc)}`, { ...f, base: page.url() });
+      }
+      for (const n of snap.animated) { const [k, ...r] = n.split(" on "); (animSeen.get(k) ?? animSeen.set(k, new Set()).get(k)).add(r.join(" on ")); }
+      snap.baked.forEach((b) => bakedAll.add(b));
+      if (snap.height > H * 1.1) tall.push(st.name);
       console.log(`${st.name.padEnd(18)} ${String(html.length).padStart(7)} chars  page height ${snap.height}  → ${path.join(disc, `${st.name}.png`)}`);
-      if (a.css) cssIn = { sheets: await collectSheets(page), info }; // the last captured state wins: rules injected by earlier views are in its CSSOM
+      { // theme fingerprint (colour scheme + every :root custom property): apps inject one theme block at a time, a run that switches themes needs a block per theme
+        const sg = sha(info.sig); if (!tks.has(sg)) tks.set(sg, `t${tks.size}`);
+        if (process.env.DEBUG) console.error(`[${st.name}] theme signature ${tks.get(sg)}: ${info.sig.slice(-160)}`);
+        META[st.name].tk = tks.get(sg);
+        if (a.css) cssBy.set(sg, { sheets: await collectSheets(page), info, key: tks.get(sg) }); // the last captured state per theme wins: rules injected by earlier views are in its CSSOM
+      }
     });
-    if (a.css && cssIn) cssSummary = await portCss(browser, cssIn.sheets, cssIn.info, film);
+    if (a.css && cssBy.size) {
+      const base = [...cssBy.values()].find((x) => x.key === "t0") ?? [...cssBy.values()][0], extra = [...cssBy.values()].filter((x) => x !== base);
+      const faces = [...jsFonts.values()].map((f) => {
+        const src = f.source.replace(/url\(\s*(["']?)([^"')]+)\1\s*\)/g, (m, q, u) => { try { return /^data:/.test(u) ? m : `url("${new URL(u, f.base).href}")`; } catch { return m; } });
+        const d = f.desc, e = (v) => v == null ? "" : `${v}`;
+        return `@font-face { font-family: "${f.family}"; src: ${src}; ${d.weight ? `font-weight: ${e(d.weight)}; ` : ""}${d.style ? `font-style: ${e(d.style)}; ` : ""}${d.unicodeRange ? `unicode-range: ${e(d.unicodeRange)}; ` : ""}}`;
+      });
+      if (faces.length) console.log(`fonts registered with the FontFace API: ${faces.length} face(s) ported to app.css`);
+      cssSummary = await portCss(browser, base.sheets, base.info, film, undefined, { viewport: [W, H], extra, faces });
+      if (extra.length) console.error(`WARNING the theme changed during the run (${extra.length + 1} variants: ${[...cssBy.values()].map((x) => `${x.key}=${x.info.scheme}${x.info.attrs["data-theme"] ? "/" + x.info.attrs["data-theme"] : ""}`).join(", ")}): app.css holds the ${base.key} rules plus a block per other theme, scoped under .app-shot[data-tk="tN"] (UI.shot() sets the attribute from the state's theme). Check one state of each theme in the stills.`);
+    }
     if (a.css && !cssSummary && !errors.length) errors.push("--css: no state was captured, so there is nothing to read the CSS from");
   } finally { await browser.close(); }
+  warnIdentical(shots);
+  if (tall.length) console.log(`note: ${tall.join(", ")} scroll as a document taller than ${H} px: build them with UI.shot(name, { tall: true }) so the camera can reach below it`);
+  for (const x of cssSummary?.animations ?? []) { const [k, ...r] = x.split(" on "); (animSeen.get(k) ?? animSeen.set(k, new Set()).get(k)).add(r.join(" on ")); }
+  if (animSeen.size) console.error(`WARNING CSS animations on the page are not in the replica (${animSeen.size} @keyframes): ${[...animSeen].slice(0, 8).map(([k, v]) => `${k} on ${[...v].slice(0, 3).join(", ")}`).join("; ")}. Recreate them on the film timeline.${bakedAll.size ? ` Held end states were baked into style: ${[...bakedAll].slice(0, 6).join("; ")}.` : " If the page switches animations off under prefers-reduced-motion, fill-forwards end states (draw-on lines, fade-ins) were captured at their START: capture with --motion."}`);
   const names = Object.keys(SCREENS);
+  if (names.length) { const { bg, lum } = META[names[0]]; console.log(`app background ${bg} (luminance ${lum}): the film theme is ${lum > 0.6 ? "light" : "dark"}  (starter: <html data-theme="auto"> follows it; or new-film.mjs --theme light|dark)`); }
   if (!names.length) { console.error(errors.join("\n")); die(only ? `no state captured: --only ${a.only} matches none, or it failed` : "no state captured"); }
+  if (only && existsSync(path.join(film, "screens.js"))) { // --only: keep the states of earlier runs
+    try {
+      const w = {}; new Function("window", readFileSync(path.join(film, "screens.js"), "utf8"))(w);
+      for (const [k, v] of Object.entries(w.SCREENS ?? {})) if (!(k in SCREENS)) { SCREENS[k] = v; META[k] = w.SCREENS_META?.[k] ?? {}; }
+      console.error(`note: --only merged into the existing screens.js. Apps with random demo data differ at every load: states from different runs disagree (numbers, order); capture all states in one run for the final film.`);
+    } catch (e) { console.error(`note: could not merge the old screens.js (${e.message.split("\n")[0]})`); }
+  }
   writeFileSync(path.join(film, "screens.js"), `// generated by scripts/capture.mjs: regenerate, don't hand-edit\nwindow.SCREENS = ${JSON.stringify(SCREENS)};\nwindow.SCREENS_META = ${JSON.stringify(META)};\n`);
   console.log(`screens → ${path.join(film, "screens.js")} (${names.length} states)`);
   if (allImages.length) console.log(`images (list in film.js "images:"): ${JSON.stringify([...new Set(allImages)])}`);
