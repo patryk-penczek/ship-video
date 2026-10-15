@@ -41,7 +41,7 @@ export const mustExist = (p, what) => { if (!existsSync(p)) die(`${what} not fou
 
 // node x.mjs a b --fps 60 --label  ->  { _: ["a", "b"], fps: "60", label: true }   (also --fps=60)
 // Boolean flags never take the next argument, so `--label t1 t2` keeps both times.
-export const BOOLS = ["label", "no-crop", "summary", "force", "demucs", "pulse", "help", "css", "full", "discover"];
+export const BOOLS = ["label", "no-crop", "summary", "force", "demucs", "pulse", "help", "css", "full", "discover", "no-lint", "no-determinism", "no-contrast", "no-pii", "lint-only", "app-text", "strict", "no-motion", "app-clip", "redact"];
 export function args(argv = process.argv.slice(2), bools = BOOLS) {
   const out = { _: [] };
   for (let i = 0; i < argv.length; i++) {

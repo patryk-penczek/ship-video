@@ -1,5 +1,17 @@
-// Scans the film every 1/8 s and reports visible text that is clipped by the frame or by an overflow:hidden ancestor.
-// usage: node audit.mjs <film/index.html> [--step 0.125] [--no-crop] [--summary]
+// Scans the film every 1/8 s and reports visible text that is clipped by the frame or by an overflow:hidden ancestor, then runs the quality checks below.
+// usage: node audit.mjs <film/index.html> [--step 0.125] [--no-crop] [--summary] [--strict]
+// Quality checks (each line is "<kind> <where> <what> fix: <how>"; none of them is a deliberate-transition candidate: fix or justify in SCENARIO.md):
+//   lint         (first, static, no browser) film.js / ui.js / data.js: Math.random, Date.now / new Date(), performance.now, setTimeout / setInterval / requestAnimationFrame,
+//                repeat: -1, a tweened `display`, measuring (getBoundingClientRect / center() / rect()) inside a tween callback, a timeline built outside Film() or with `fonts:` empty
+//                while build() measures text; CSS animation / transition left in film.css / app.css (a note when base.css freezes it anyway); emails and API keys left in the sources.
+//   determinism  renders 12 times twice, after scrubbing backwards and on a fresh page load, and pixel-compares: any difference = something reads a clock, random, a timer or layout.
+//   contrast     samples every 0.5 s and at every cut: text of the FILM (not the captured app, see --app-text) below WCAG AA (4.5:1, 3:1 for large text) for >= 0.5 s. The background is read from a
+//                screenshot with the text hidden, so images and gradients count. Faded frames (opacity < 0.9) are skipped. data-contrast-ok on the element or an ancestor opts out.
+//   privacy      emails, phone numbers, API keys / tokens (and names given with --pii-names) in the rendered DOM text and in value/title/alt/placeholder/aria-label/mailto:/tel:. data-pii-ok opts out.
+//   --no-lint  --no-determinism  --no-contrast  --no-pii   skip one check · --lint-only  static lint only (instant, no browser)
+//   --app-text  include text inside the captured app (.app-shot) in the contrast check (default: skipped, it is the app's own design)
+//   --contrast-step S  seconds between contrast samples (default 0.5) · --pii-names "Jane Doe,Sam" · --pii-allow "support@acme.com,..."
+//   --strict  exit code 1 when any line is printed (CI)
 // data-clip-ok on any ancestor of a text OR of a click target (deliberate crops, also a control at a window edge under camera zoom: rotating words, camera pans, a blurred backdrop; set it on the scene or on
 // the .app-shot wrapper via pick(scene, name).setAttribute("data-clip-ok", "")) silences its subtree, frame-crop lines included; overflow auto/scroll
 // (scrolling lists) don't count. Text entirely outside a box or the frame is hidden, not cut, and is ignored.
@@ -17,15 +29,26 @@
 //   cause is a later entrance written tl.fromTo(el, {y:50}, {y:0, ...NI}, t): the element sits at rest from the scene start, then jumps to
 //   its `from` offset at t. Use enter(el, from, t, dur) (hidden until t, plain fromTo) or start the tween at the scene start.
 // Output: "<first>–<last> (<n>x)  <issue>". Fix every hit that isn't a deliberate transition.
-import { help, args, openFilm, die, num, known } from "./lib/common.mjs";
+import path from "node:path";
+import { help, args, openFilm, die, num, known, mustExist } from "./lib/common.mjs";
+import { lintFilm, fmt } from "./lib/lint.mjs";
+import { determinism, contrast, piiScan } from "./lib/qa.mjs";
 help(import.meta.url);
 
 const a = args();
-known(a, ["step", "no-crop", "summary", "no-motion", "app-clip"]);
+known(a, ["step", "no-crop", "summary", "no-motion", "app-clip", "no-lint", "no-determinism", "no-contrast", "no-pii", "lint-only", "app-text", "contrast-step", "pii-names", "pii-allow", "strict"]);
+for (const k of ["pii-names", "pii-allow"]) if (a[k] === true) die(`--${k} needs a value`);
 const [html] = a._;
 if (!html) die("usage: node audit.mjs <film/index.html> [--step 0.125] [--no-crop] [--summary]");
 const step = num(a, "step", 0.125, { min: 0.01 });
-const noCrop = !!a["no-crop"], appClip = !!a["app-clip"];
+const noCrop = !!a["no-crop"], appClip = !!a["app-clip"], cstep = num(a, "contrast-step", 0.5, { min: 0.1 });
+const quality = []; // lines of the quality checks, counted for --strict
+mustExist(path.resolve(html), "film");
+if (!a["no-lint"] || a["lint-only"]) {
+  const found = lintFilm(path.dirname(path.resolve(html)));
+  for (const f of found) { console.log(fmt(f)); if (f.kind !== "note") quality.push(f); }
+  if (a["lint-only"]) { if (!found.length) console.log("lint: clean"); process.exit(a.strict && quality.length ? 1 : 0); }
+}
 const { browser, page, duration } = await openFilm(html);
 if (!(await page.$("#scenes"))) { await browser.close(); die("the page has no #scenes element (is this a film built from the starter?)"); }
 const seen = new Map();
@@ -176,6 +199,12 @@ const endWarn = await page.evaluate((D) => {
   return out;
 }, duration);
 for (const w of endWarn) console.log(`WARNING ${w}`);
+const qa = [];
+if (!a["no-determinism"]) qa.push(...await determinism(html, page, duration));
+if (!a["no-contrast"]) qa.push(...await contrast(page, duration, { step: cstep, appText: !!a["app-text"] }));
+if (!a["no-pii"]) qa.push(...await piiScan(page, duration, { allow: String(a["pii-allow"] ?? "").split(",").map((s) => s.trim()).filter(Boolean), names: String(a["pii-names"] ?? "").split(",").map((s) => s.trim()).filter(Boolean) }));
+for (const q of qa) console.log(q);
+quality.push(...qa);
 await browser.close();
 for (const j of jumps) console.log(j);
 for (const w of clickWarn) console.log(w);
@@ -190,3 +219,5 @@ else if (a.summary) {
   }
   for (const [box, b] of boxes) console.log(`${Number(b.from).toFixed(3)}–${Number(b.to).toFixed(3)}  ${box}  (${b.texts} texts)`);
 } else for (const [k, ts] of seen) console.log(`${ts[0]}–${ts.at(-1)} (${ts.length}x)  ${k}`);
+
+if (a.strict && (quality.length || jumps.length || clickWarn.length || seen.size)) process.exit(1);
