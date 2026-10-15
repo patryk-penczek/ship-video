@@ -63,7 +63,7 @@ Show this at the first reply, at each gate and at the end, not after every step:
 - [ ] 0 Setup: deps ready
 - [ ] 1 Brief: product, audience, goal, length, repo, real assets, optional reference film
 - [ ] 1b Discovery: PRODUCT.md (every view, wow moments, promise) shown to the user
-- [ ] 2 Music: file / Suno / none chosen, track in <film>
+- [ ] 2 Music: file / Suno / generated beat / none chosen, track in <film>
 - [ ] 3 Analysis: MUSIC.md (env.js only if the film has music)
 - [ ] 4 Scenario: SCENARIO.md approved by the user
 - [ ] 5 Replicas: screens built from real components, audited
@@ -81,8 +81,8 @@ Run `node $S/lib/check.mjs`. It answers instantly once setup has succeeded. Only
 
 Find what you can yourself first (README, package.json, routes, components, existing assets). Then ask what's left in one AskUserQuestion call, typically:
 - goal: launch / one feature / how-to;
-- length: 15–20 s / 20–30 s / 30–45 s, and *Match the music* (first, recommended) **only if the user stated no length**, a track exists or will come from Suno, and it is under ~60 s; the film's `duration` is then the track's length;
-- music: own file / Suno / none (step 2). If they pick their own file and you can already see a candidate (the newest audio file in `~/Downloads`), ask step 2's "Where will this film be shown?" in the same call;
+- length: 15–20 s / 20–30 s / 30–45 s, and *Match the music* (first, recommended) **only if the user stated no length**, a track exists or will come from Suno or the generated beat, and it is under ~60 s; the film's `duration` is then the track's length;
+- music: own file / Suno / generated beat (free, ours) / none (step 2). If they pick their own file and you can already see a candidate (the newest audio file in `~/Downloads`), ask step 2's "Where will this film be shown?" in the same call;
 - real assets to use, if you found candidates (screenshots, GIFs, avatars, logo). Real beats invented every time;
 - **a reference film (optional):** "Is there a film whose feel you want?" If so, follow *Reference film* in `references/direction.md`: borrow techniques, never content.
 
@@ -107,13 +107,14 @@ Know the whole product before writing about it. A film made from the README show
 
 ## 2. Music
 
-If the brief didn't settle it, ask with AskUserQuestion: own file / Suno / no music.
+If the brief didn't settle it, ask with AskUserQuestion: own file / Suno / generated beat / no music.
 - **A. Own file.** If they just downloaded it, take the newest audio file in `~/Downloads` and confirm the name. Copy it to `<film>/track.<ext>`.
 - **B. Suno.** Read `references/suno-prompt.md`. First ask the rights question below, before anything is generated. Then pick a BPM so whole bars fill the length the user chose (25 s: 96 BPM, 2.5 s bars; 20–24 s: 120 BPM) and give them the Styles line, the Lyrics structure and the Suno settings (Advanced mode, Duration slider, model v6 or v6-mini). They make 4–6 takes and download the best. Suno rarely hits an exact length and treats bar counts as hints: expect to crop the take or cut it (Analysis step).
   **Don't wait idle.** Write `MUSIC.md` from the grid with `GRID DRAFT` on its first line, draft `SCENARIO.md` against it and ask the copy questions. Only the approval waits for the real take; then re-time (`references/music-map.md`).
+- **D. Generated beat.** Read `references/synth.md`. Pick a round BPM so whole bars fill the length, write `<film>/beat.json` from the planned acts (sections as bars, the drop on the climax, `hits` for extra accents), then `node $S/music.mjs synth --plan <film>/beat.json --out <film>/track.wav` (`.mp3` and `.m4a` work too). Step 3 analyzes it like any track. The track is ours: no rights check, free to publish. It is a functional score, not a song: say so, and offer Suno for a richer final (re-time after).
 - **C. None.** Pick a BPM (default 120). Cuts snap to the grid, the preview plays a metronome, and music can be added later by re-timing. If the film stays silent (a muted autoplay, a WebP), follow *Silent films* in `references/direction.md`: no fake beat, `hits: []`, `env.js` stays `window.ENV = null;`.
 
-**Rights (paths A and B).** Ask where the film will be shown, not which license the track has, and ask it **before Suno generates**; the rules (and what blocks publishing) are in `references/music-map.md`, *Rights*. Free plan or "somewhere else" isn't publishable. *Not decided yet* = draft: ask again before step 9.
+**Rights (paths A and B; D needs none).** Ask where the film will be shown, not which license the track has, and ask it **before Suno generates**; the rules (and what blocks publishing) are in `references/music-map.md`, *Rights*. Free plan or "somewhere else" isn't publishable. *Not decided yet* = draft: ask again before step 9.
 
 If `<film>` is inside a git repo, add `track.*` to its `.gitignore` unless the track's license allows sharing the file itself (own work, CC0, CC BY).
 
@@ -242,6 +243,7 @@ Read `references/render.md`. In short:
 | `references/replicas.md` | step 5 |
 | `references/suno-prompt.md` | step 2, path B |
 | `references/music-map.md` | steps 2C and 3 |
+| `references/synth.md` | step 2, path D (generated beat) |
 | `references/scenario-template.md` | step 4, and the rubric again in step 7 |
 | `references/film-api.md` | before writing `film.js` |
 | `references/subagents.md` | step 1b and step 7, if you can run subagents |

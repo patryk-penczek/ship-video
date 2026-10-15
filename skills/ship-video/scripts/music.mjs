@@ -5,6 +5,7 @@
 //   plot     <track> <out.png> [stems_dir] [--bpm N]  spectrogram with beat and bar lines; Read the PNG
 //   stems    <demucs_out_dir>                        per-stem energy + onsets (needs setup.sh --demucs)
 //   separate <track> <out_dir>                       run demucs htdemucs_6s (needs setup.sh --demucs)
+//   synth    --plan <film>/beat.json --out <film>/track.wav|mp3|m4a  generated beat from a bar plan (own, free to publish; presets pulse punchy calm cinematic)
 //   grid     --bpm 120 --duration 20 [--out env.js [--pulse]]  no-music path: beat/bar times; --out writes window.ENV = null, --pulse a synthetic beat envelope
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -15,11 +16,11 @@ import { HOME_DIR, help, die } from "./lib/common.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const [cmd, ...rest] = process.argv.slice(2);
-const PY_SCRIPTS = { analyze: "analyze.py", envelope: "envelope.py", plot: "plot.py", stems: "stems.py" };
+const PY_SCRIPTS = { analyze: "analyze.py", envelope: "envelope.py", plot: "plot.py", synth: "synth.py", stems: "stems.py" };
 
 if (!cmd) console.error("music.mjs needs a command:");
 if (!cmd || cmd === "--help" || cmd === "-h") {
-  const text = readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").filter((l, i) => i < 20 && l.startsWith("//")).map((l) => l.slice(3));
+  const text = readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").filter((l, i) => i < 21 && l.startsWith("//")).map((l) => l.slice(3));
   (cmd ? console.log : console.error)(text.join("\n"));
   process.exit(cmd ? 0 : 1);
 }
@@ -47,11 +48,11 @@ if (cmd === "separate") {
   if (rest.includes("--help") || rest.includes("-h")) help(import.meta.url, file);
   argv = ["-I", file, ...rest];
 } else {
-  die(`unknown command "${cmd}". Commands: analyze, envelope, plot, stems, separate, grid`);
+  die(`unknown command "${cmd}". Commands: analyze, envelope, plot, synth, stems, separate, grid`);
 }
 // librosa/soundfile cannot read .m4a/.aac (render accepts them as a track): decode those to a temp wav first
 let tmpDir = null;
-if (PY_SCRIPTS[cmd] && cmd !== "stems") {
+if (PY_SCRIPTS[cmd] && cmd !== "stems" && cmd !== "synth") {
   const i = argv.findIndex((x, k) => k >= 2 && !x.startsWith("-"));
   const track = argv[i];
   if (track && existsSync(track) && !/\.(wav|mp3|flac|ogg|opus)$/i.test(track)) {
