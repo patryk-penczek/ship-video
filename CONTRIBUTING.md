@@ -15,6 +15,19 @@ Don't attach music or app screenshots you can't share publicly.
 
 `skills/ship-video/references/direction.md` holds what makes a film land. If a film taught you something, propose the general principle and the reason behind it, not a fix for that one film: a rule like "frame the control before the click, because a click at the edge can't be followed" helps every product; "move the radar toggle 40 px left" helps none. Verdicts on real films go in its *What has worked* tables.
 
+## Repository layout
+
+```
+skills/ship-video/
+├─ SKILL.md         the workflow: steps, the scenario gate, limits, resume table
+├─ references/      read on demand: direction, scenario template, music, Suno prompt, replicas, film API, shots, subagents, render
+├─ scripts/         capture, compare, render, stills, audit, hit and motion checks, music analysis (all take --help)
+├─ agents/          Codex metadata (openai.yaml)
+└─ assets/starter/  the film template
+evals/              test prompts for the skill
+docs/               the guide and the README hero's source
+```
+
 ## Change the code
 
 1. Install once: `bash skills/ship-video/scripts/setup.sh`.
