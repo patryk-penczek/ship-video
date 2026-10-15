@@ -83,7 +83,7 @@ Run `node $S/lib/check.mjs`. It answers instantly once setup has succeeded. Only
 Find what you can yourself first (README, package.json, routes, components, existing assets). Then ask what is still missing in one AskUserQuestion call, at most four questions:
 1. **Goal and film type**: launch / one feature or pricing teaser / how-to / landing page (`film-types.md`).
 2. **Who watches, what they already know, and where it is shown**: a feed (text 56 px, post the MP4), a website hero (muted, loop?), a README, a help center.
-3. **Length**: 15–20 / 20–30 / 30–45 s, with *Match the music* (recommended) only if the user stated no length, a track exists or will come from Suno or the generated beat, and it is under ~60 s; the film's `duration` is then the track's length.
+3. **Length**: 10–15 / 15–20 / 20–30 / 30–45 s (propose the shortest that shows the product's one change, `film-types.md`, *What has worked*), with *Match the music* (recommended) only if the user stated no length, a track exists or will come from Suno or the generated beat, and it is under ~60 s; the film's `duration` is then the track's length.
 4. **Music**: own file / Suno / generated beat (free, ours) / none. If you already see a candidate file (the newest audio file in `~/Downloads`), add step 2's "Where will this film be shown?" to this call.
 
 Real assets you found (screenshots, GIFs, avatars, logo) are used without asking. A film whose feel the user wants: *Reference film* in `film-types.md` (borrow techniques, never content). Copy, a storyboard or brand rules from the user are the scenario's starting point.

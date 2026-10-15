@@ -6,6 +6,7 @@ Read at the Brief (step 1), Discovery (1b) and before writing the scenario (step
 - Identity first: decide by who watches
 - Film types: how-to, one-feature teaser, landing page, phone and narrow apps, dense UI, canvas-first
 - Story
+- What has worked, and what hasn't (owner verdicts)
 - Coverage rule
 - Reference film
 
@@ -65,11 +66,33 @@ The canvas is the product, so it has to move for real.
 
 ## Story
 
-Every film is one story: **problem → hero → action in the app → payoff that closes the problem.** One concrete case carries it (a person, a city, a file, a number in a real situation); features appear only as steps of that case. PRODUCT.md (Discovery) supplies the case and the promise.
+Every film is one story: **problem → hero → action in the app → payoff that closes the problem.** One concrete case carries it (a person, a city, a file, a number in a real situation); features appear only as steps of that case. PRODUCT.md (Discovery) supplies the case and the promise. The payoff lands on the drop (silent: the strongest bar, 60–75% in; a personal site pays off with its closing ask, see *Landing page*).
 
-**Simplest wins.** The films that land best show one mechanic or one transformation, plainly and with real data: a file drops from megabytes to kilobytes, tiles slide and merge into a bigger number, a diagram draws itself and its arrows follow a dragged box. Pick the one change that is the product, show it happening, and stop when it has been understood: a 12 s film that shows that change clearly beats a 30 s tour. Add views only when they serve that change. The payoff lands on the drop (silent: the strongest bar, 60–75% in; a personal site pays off with its closing ask, see *Landing page*).
+**Simplest wins.** The films that land best show one mechanic or one transformation, plainly and with real data: a file drops from megabytes to kilobytes, tiles slide and merge into a bigger number, a diagram draws itself and its arrows follow a dragged box. Pick the one change that is the product, show it happening, and stop when it has been understood: a 12 s film that shows that change clearly beats a 30 s tour. Add views only when they serve that change.
 
 **The thread is set up before the payoff**: the hero and the problem appear in the first act (a line of copy, the hero's name or city in the hook, a glimpse of the situation), not only in the payoff caption. A payoff that meets its hero for the first time has nothing to close. Test: tell the film in three sentences without naming a feature. Type and camera techniques for each beat are in `motion-vocabulary.md`.
+
+## What has worked, and what hasn't
+
+Owner verdicts across many test films, on very different products. Use them as taste, not rules.
+
+| landed well | why |
+|---|---|
+| 12 s clip of a puzzle game | one mechanic (slide, merge, score climbs) driven by the game's own logic; words in the margins; ends the moment it's understood |
+| 15 s teaser of an image tool | one transformation with real numbers (2.79 MB → 276 kB) landing on the drop, a before/after slider as proof |
+| 20 s teaser of a whiteboard | the product drawing itself with its real renderer and fonts, one delightful interaction (arrows follow a dragged box) |
+| 20 s launch of a notes app | a verb rhythm (*Type it. Save it. Swipe it away. Find it.*) beside a phone-sized UI |
+
+| fell flat | why |
+|---|---|
+| a pricing teaser | never said what the product is |
+| a tour of static zooms | the camera lands on empty chrome, nothing moves |
+| clicks on controls already active, at the frame edge, or under a popover | the viewer can't follow cause and effect, and it looks fake |
+| a live element frozen (a radar, a chart) | the product looks broken |
+| dense tables shown as tables | lift the number that changes out of them instead |
+| a detour to an error page, extra captions, a 4–5 s static end card | time spent on nothing |
+
+**Choosing the film is half the result.** Before writing the scenario, find the one change that is the product and propose the type and length that show it best, even if it is shorter than asked ("this reads best as a 12–15 s clip"). Tell the director, and the critic, what the intended viewer must come away with: that bar matters more than any technique.
 
 ## Coverage rule
 
