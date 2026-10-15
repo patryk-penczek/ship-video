@@ -56,9 +56,10 @@
 .stamp { position: absolute; left: 50%; top: 50%; padding: 18px 60px; border: 14px solid var(--ok); border-radius: 30px; color: var(--ok); font: 900 200px var(--font-display); letter-spacing: -0.02em; background: rgb(11 11 12 / .85); white-space: nowrap; }
 .tick { width: 230px; height: 230px; border-radius: 99px; background: var(--ok); color: #0b0b0c; display: grid; place-items: center; font: 900 150px var(--font-display); font-style: normal; flex: none; }
 .frames { margin-top: 24px; text-align: center; font: 700 90px var(--font-mono); color: #0b0b0c; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.frames .cn { color: var(--accent); }
+.frames .cn, .frames .vn { color: var(--accent); }
+.tick.play { background: var(--accent); font-size: 110px; }
+.tick.loop { background: #0b0b0c; color: var(--fg); }
 .hear { position: absolute; left: 0; right: 0; top: 150px; text-align: center; font: 900 200px var(--font-display); letter-spacing: -0.06em; }
-.ship { font: 900 400px var(--font-display); letter-spacing: -0.07em; line-height: 1.05; padding-bottom: .1em; }
 
 /* Build.: ground line and blocks */
 .bwrap { display: flex; flex-direction: column; align-items: center; }
