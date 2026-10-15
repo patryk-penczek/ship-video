@@ -39,9 +39,11 @@ body { font-family: var(--font-body); color: var(--fg); -webkit-font-smoothing: 
 .display { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.045em; line-height: .92; }
 .mono { font-family: var(--font-mono); }
 .word, .ch { display: inline-block; white-space: pre; }
-/* gradient text: background-clip only paints inside the box, so give descenders (g, y, p) room */
+/* gradient text: background-clip only paints inside the box, so give descenders (g, y, p) room below,
+   and the last glyph room on the right (negative letter-spacing pushes it past the box) */
 .gtext { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
-  padding-bottom: .18em; margin-bottom: -.18em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  padding-bottom: .18em; margin-bottom: -.18em; padding-right: .08em; margin-right: -.08em;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone; }
 .caret { display: inline-block; width: 3px; height: 1em; background: var(--accent); margin-left: 2px; vertical-align: -0.12em; border-radius: 2px; }
 .particle { position: absolute; opacity: 0; width: 8px; height: 8px; border-radius: 99px; background: var(--accent); margin: -4px; }
 .rings { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
