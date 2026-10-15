@@ -123,10 +123,10 @@ Film({
 
     // ================= END 11.5–14 =================
     const s5 = scene(`<div class="center"><div style="display:flex;flex-direction:column;align-items:center;gap:36px">
-        <div class="wordmark"><span class="e1">ship</span><span class="e2 gtext">-video</span></div>
+        <div class="wordmark"><span class="e0 sl">/</span><span class="e1">ship</span><span class="e2 gtext">-video</span></div>
         <div class="tagline e3">Launch films for your app, cut to the beat.</div>
         <div class="install e4"><b>/plugin install</b> ship-video@ship-video</div></div></div>`, 11.5, null);
-    tl.fromTo([$(s5, ".e1"), $(s5, ".e2")], { y: 50, scale: 1.08, opacity: 0.45, filter: "blur(8px)" }, { y: 0, scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.4, stagger: 0.08 }, 11.5);
+    tl.fromTo([$(s5, ".e0"), $(s5, ".e1"), $(s5, ".e2")], { y: 50, scale: 1.08, opacity: 0.45, filter: "blur(8px)" }, { y: 0, scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.4, stagger: 0.08 }, 11.5);
     tl.fromTo($(s5, ".e3"), { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.35 }, 11.8);
     tl.fromTo($(s5, ".e4"), { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.35 }, 12.0);
     tl.to($(s5, ".center"), { opacity: 0, duration: 0.4, ease: "power2.in" }, 13.55);

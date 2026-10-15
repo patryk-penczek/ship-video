@@ -43,6 +43,7 @@
 
 /* end */
 .wordmark { font: 800 210px var(--font-display); letter-spacing: -0.06em; line-height: .95; }
+.wordmark .sl { color: var(--accent); margin-right: .04em; }
 .tagline { font: 600 50px var(--font-display); letter-spacing: -0.03em; color: var(--muted); }
 .install { display: inline-flex; gap: 16px; padding: 20px 34px; border-radius: 18px; background: #17171a; border: 2px solid #2c2c31; font: 500 34px var(--font-mono); }
 .install b { color: var(--accent); font-weight: 600; }
