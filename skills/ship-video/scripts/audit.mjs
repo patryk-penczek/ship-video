@@ -1,6 +1,6 @@
 // Scans the film every 1/8 s and reports visible text that is clipped by the frame or by an overflow:hidden ancestor.
 // usage: node audit.mjs <film/index.html> [--step 0.125] [--no-crop] [--summary]
-// data-clip-ok on any ancestor of a text (deliberate crops: rotating words, camera pans, a blurred backdrop; set it on the scene or on
+// data-clip-ok on any ancestor of a text OR of a click target (deliberate crops, also a control at a window edge under camera zoom: rotating words, camera pans, a blurred backdrop; set it on the scene or on
 // the .app-shot wrapper via pick(scene, name).setAttribute("data-clip-ok", "")) silences its subtree, frame-crop lines included; overflow auto/scroll
 // (scrolling lists) don't count. Text entirely outside a box or the frame is hidden, not cut, and is ignored.
 //   --step      seconds between samples, >= 0.01 (default 0.125)
@@ -109,19 +109,25 @@ if (!a["no-motion"]) {
       const pt = (x, y) => { const q = inv.transformPoint(new DOMPoint(x / k - 960, y / k - 540)); return [q.x, q.y]; }; // stage px, camera shake and zoom removed
       const [x0, y0] = pt(r.left - sr.left, r.top - sr.top), [x1, y1] = pt(r.right - sr.left, r.bottom - sr.top);
       const own = e.closest("[class]"), lab = e.id ? "#" + e.id : e.classList[0] ? "." + e.classList[0] : own ? `${e.tagName.toLowerCase()} in .${own.classList[0]}` : e.tagName.toLowerCase();
-      out[window.__aid.get(e)] = { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0, txt: (e.textContent || "").length, lab };
+      out[window.__aid.get(e)] = { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0, txt: e.textContent || "", lab }; // the text itself: a counter 24 -> 60 changes glyph widths, not position
     }
-    return out;
+    const cl = [...document.querySelectorAll(".camlayer")].map((e) => { const m = new DOMMatrix(getComputedStyle(e).transform); return [m.e, m.f, m.a * 960, m.d * 540]; });
+    return { out, cl };
   }, t);
   const mv = (u, v) => Math.max(Math.abs(u.cx - v.cx), Math.abs(u.cy - v.cy), Math.abs(u.w - v.w), Math.abs(u.h - v.h));
   const S = new Map(); // frame -> sample
   for (const f of frames) S.set(f, await sample(f / fps));
+  const clMove = (f) => { const u = S.get(f)?.cl, v = S.get(f - 1)?.cl; return u && v && u.length === v.length ? Math.max(0, ...u.map((q, i) => Math.max(...q.map((x, j) => Math.abs(x - v[i][j]))))) : 0; }; // how far the camera layers moved in one frame
   const seenJ = new Set(), vec = (u, v) => [u.cx - v.cx, u.cy - v.cy, u.w - v.w, u.h - v.h];
   // A jump: the element rests, moves > 12 px in ONE frame, and then slides BACK (the next frames move against the jump). A fast ramp, a whip pan
   // or a cursor travelling carries on in its direction; a hard cut (appear / hide / swap) has no box in one of the two frames.
   for (const f of frames) {
-    const cur = S.get(f), prev = S.get(f - 1), prev2 = S.get(f - 2), n1 = S.get(f + 1), n2 = S.get(f + 2);
+    const cur = S.get(f)?.out, prev = S.get(f - 1)?.out, prev2 = S.get(f - 2)?.out, n1 = S.get(f + 1)?.out, n2 = S.get(f + 2)?.out;
     if (!prev) continue;
+    if (clMove(f) > 12 && clMove(f) > 3 * clMove(f - 1) + 4) continue; // an instantaneous camera-layer change is a hard cut, not an element teleport
+    // a cut: several elements shift by the same vector in the same frame (one camera / scene change moves them all)
+    const moved = Object.entries(cur).filter(([id, c]) => prev[id] && prev[id].txt === c.txt && Math.max(...vec(c, prev[id]).map(Math.abs)) > 12).map(([id, c]) => vec(c, prev[id]));
+    if (moved.length >= 3 && moved.filter((q) => moved.filter((r) => q.every((x, i) => Math.abs(x - r[i]) < 8)).length >= 3).length >= 3) continue;
     for (const [id, c] of Object.entries(cur)) {
       const b = prev[id]; if (!b || b.txt !== c.txt) continue; // appearing / hiding is a cut; changing text (counter, typing) is not motion
       const v = vec(c, b), m = Math.max(...v.map(Math.abs));
@@ -143,16 +149,16 @@ if (!a["no-motion"]) {
   const n = await page.evaluate(() => (window.__clicks || []).length);
   for (let i = 0; i < n; i++) {
     const r = await page.evaluate((i) => {
-      const c = window.__clicks[i]; window.__seek(c.t);
+      const c = window.__clicks[i]; window.__seek(Math.max(0, c.t - 1 / 30)); // BEFORE the press: the state swap at the click time moves / replaces the target
       const el = c.el, stage = document.getElementById("stage"), sr = stage.getBoundingClientRect(), k = sr.width / 1920, b = el.getBoundingClientRect();
       const fing = el.classList.contains("finger"), tx = fing ? b.left + b.width / 2 : b.left + b.width * 4 / 44, ty = fing ? b.top + b.height / 2 : b.top + b.height * 2 / 44;
       const x = (tx - sr.left) / k, y = (ty - sr.top) / k;
       const hit = document.elementsFromPoint(tx + (fing ? 0 : 3), ty + (fing ? 0 : 6)).find((e) => !e.closest("#flash, #vignette, #grain, .band, .cap, .cursor, .finger, .ripple"));
       const tgt = hit && (hit.closest("button, a, [role=button], [role=tab], input, select, textarea, summary, label, article, li, tr") || hit), tb = tgt?.getBoundingClientRect();
       const op = (() => { let o = 1; for (let p = el; p; p = p.parentElement) o *= Number(getComputedStyle(p).opacity); return o; })();
-      return { t: c.t, x, y, vis: op > 0.3, w: tb ? tb.width / k : null, h: tb ? tb.height / k : null, cropped: tb ? (tb.left < sr.left - 2 || tb.right > sr.right + 2 || tb.top < sr.top - 2 || tb.bottom > sr.bottom + 2) && tb.width < 600 : false, name: tgt ? (tgt.id ? "#" + tgt.id : tgt.classList[0] ? "." + tgt.classList[0] : tgt.tagName.toLowerCase()) : "" };
+      return { t: c.t, x, y, vis: op > 0.3, w: tb ? tb.width / k : null, h: tb ? tb.height / k : null, cropped: tb ? (tb.left < sr.left - 2 || tb.right > sr.right + 2 || tb.top < sr.top - 2 || tb.bottom > sr.bottom + 2) && tb.width < 600 : false, ok: !!tgt?.closest('[data-clip-ok]:not([data-clip-ok="box"])'), name: tgt ? (tgt.id ? "#" + tgt.id : tgt.classList[0] ? "." + tgt.classList[0] : tgt.tagName.toLowerCase()) : "" };
     }, i);
-    if (!r.vis) continue;
+    if (!r.vis || r.ok) continue; // data-clip-ok on the target or an ancestor: a deliberate crop (the control sits at the edge under camera zoom)
     const at = `click ${r.t.toFixed(2)} at (${Math.round(r.x)}, ${Math.round(r.y)})${r.name ? " on " + r.name : ""}`;
     if (r.x < 0 || r.x > 1920 || r.y < 0 || r.y > 1080) clickWarn.push(`${at} — off-screen; frame the control before the press`);
     else if (r.x < 384 || r.x > 1536 || r.y < 216 || r.y > 864) clickWarn.push(`${at} — edge of frame (outside the central 60 %); frame the control before the press`);
