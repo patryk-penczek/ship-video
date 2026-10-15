@@ -2,7 +2,8 @@
 // usage: node snap.mjs <page.html> <out.png>
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { load } from "./lib/common.mjs";
+import { help, load } from "./lib/common.mjs";
+help(import.meta.url);
 
 const [html, out] = process.argv.slice(2);
 if (!html || !out) { console.error("usage: node snap.mjs <page.html> <out.png>"); process.exit(1); }

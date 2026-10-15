@@ -1,5 +1,5 @@
 # Mel spectrogram of the mix (+ stems if given) with beat lines and bold bar lines. Look at it to find sections.
-# usage: python -I plot.py track.mp3 out.png [stems_dir] [--bpm 120]
+# usage: node music.mjs plot <track> <out.png> [stems_dir] [--bpm 120]
 import sys, os
 import numpy as np
 import librosa, librosa.display

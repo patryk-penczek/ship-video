@@ -1,15 +1,15 @@
 // Shared bits for the engine scripts: where the deps live, arg parsing, opening a film in render mode.
 import { createRequire } from "node:module";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const HOME_DIR = process.env.SHIP_VIDEO_HOME ?? path.join(os.homedir(), ".ship-video");
 
 function load(name) {
   if (!existsSync(path.join(HOME_DIR, "node_modules", name))) {
-    console.error(`ship-video: '${name}' is not installed in ${HOME_DIR}. Run engine/setup.sh first.`);
+    console.error(`ship-video: '${name}' is not installed in ${HOME_DIR}. Run scripts/setup.sh first.`);
     process.exit(1);
   }
   return createRequire(path.join(HOME_DIR, "package.json"))(name);
@@ -42,3 +42,13 @@ export async function openFilm(html, { scale = 1 } = {}) {
 }
 
 export { load };
+
+// --help / -h: print the comment block at the top of the calling script (or of `file`) and exit.
+export function help(metaUrl, file = fileURLToPath(metaUrl)) {
+  if (!process.argv.slice(2).some((a) => a === "--help" || a === "-h")) return;
+  const lines = readFileSync(file, "utf8").split("\n");
+  const out = [];
+  for (const l of lines) { const m = l.match(/^\s*(\/\/|#)\s?(.*)$/); if (!m) break; out.push(m[2]); }
+  console.log(out.join("\n"));
+  process.exit(0);
+}

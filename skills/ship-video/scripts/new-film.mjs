@@ -3,15 +3,16 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { HOME_DIR } from "./lib/common.mjs";
+import { help, HOME_DIR } from "./lib/common.mjs";
+help(import.meta.url);
 
 const dir = process.argv[2];
 if (!dir) { console.error("usage: node new-film.mjs <dir>"); process.exit(1); }
 if (existsSync(dir) && readdirSync(dir).length) { console.error(`${dir} exists and is not empty`); process.exit(1); }
 const nm = path.join(HOME_DIR, "node_modules");
-if (!existsSync(nm)) { console.error(`deps missing in ${HOME_DIR}. Run engine/setup.sh first.`); process.exit(1); }
+if (!existsSync(nm)) { console.error(`deps missing in ${HOME_DIR}. Run scripts/setup.sh first.`); process.exit(1); }
 
-const starter = path.join(path.dirname(fileURLToPath(import.meta.url)), "starter");
+const starter = path.join(path.dirname(fileURLToPath(import.meta.url)), "../assets/starter");
 mkdirSync(path.join(dir, "fonts"), { recursive: true });
 mkdirSync(path.join(dir, "img"), { recursive: true });
 cpSync(starter, dir, { recursive: true });

@@ -5,6 +5,8 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { help } from "./lib/common.mjs";
+help(import.meta.url);
 
 const [mp4, out, ...times] = process.argv.slice(2);
 if (!mp4 || !out || !times.length) { console.error("usage: node hits.mjs <film.mp4> <out.png> t1 t2 ..."); process.exit(1); }

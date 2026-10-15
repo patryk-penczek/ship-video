@@ -7,7 +7,8 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { HOME_DIR } from "./common.mjs";
+import { help, HOME_DIR } from "./common.mjs";
+help(import.meta.url);
 
 const MARKER = path.join(HOME_DIR, ".ready");
 const pkg = path.join(path.dirname(fileURLToPath(import.meta.url)), "../package.json");

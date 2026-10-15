@@ -2,7 +2,8 @@
 // usage: node shots.mjs <film/index.html> <outDir> t1 t2 ... [--label]   -> outDir/<t>.png  (--label stamps the time on each frame)
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { args, openFilm } from "./lib/common.mjs";
+import { help, args, openFilm } from "./lib/common.mjs";
+help(import.meta.url);
 
 const a = args();
 const [html, outDir, ...times] = a._;

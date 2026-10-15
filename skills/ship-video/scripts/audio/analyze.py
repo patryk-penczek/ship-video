@@ -1,5 +1,5 @@
 # Music map raw data: tempo, beats, bar starts, strong hits, kicks, quiet gaps, 0.25 s band-energy table.
-# usage: python -I analyze.py track.mp3 [--json out.json]
+# usage: node music.mjs analyze <track> [--json music.json]
 # Read it like a musician: hits = where cuts go, kicks = where small moves go, gaps = breaks/drops, table = sections.
 import sys, json
 import numpy as np

@@ -1,6 +1,6 @@
 # Lessons learned
 
-Each one cost real time on a shipped film. Read before building.
+Each one cost real time on a shipped film. Read before step 5 (replicas) and again before step 6 (build).
 
 ## Process
 1. **Agree the scenario before building.** It is a table: seconds → music event → what's on screen → exact copy. A scenario change after the build means re-timing, re-measuring and re-rendering; an extra round of questions costs minutes.
@@ -18,15 +18,17 @@ Each one cost real time on a shipped film. Read before building.
 
 ## Layout pitfalls
 9. **Gradient text (`background-clip: text`) clips descenders** (g, y, p) unless the box has bottom padding (`.gtext` in base.css handles it). Same for `overflow: hidden` windows such as a rotating word.
-10. **Long kinetic words overflow 1920 px.** Run `audit.mjs` and fix every hit that isn't a deliberate transition.
-11. **A chat panel starts at the top and scrolls only when replies overflow**, as real chat apps do. Don't bottom-anchor it.
-12. **A selected chip that hides its dot must also collapse the gap**, or the label sits off-centre.
+10. **Bun's CSS bundler breaks fontsource `@font-face` rules** (it unquotes `format("woff2-variations")`, and Chrome drops the rule). The app silently falls back to system fonts, and a replica measured from it will be wrong. When reading a Bun/Vite app's fonts, check which files they point to and write your own `@font-face` in `film.css` with `format("woff2")`.
+11. **Long kinetic words overflow 1920 px.** Run `audit.mjs` and fix every hit that isn't a deliberate transition.
+12. **A chat panel starts at the top and scrolls only when replies overflow**, as real chat apps do. Don't bottom-anchor it.
+13. **A selected chip that hides its dot must also collapse the gap**, or the label sits off-centre.
 
 ## Music and timing
-13. **Cuts land on detected hits and kicks.** Verify on the final MP4 with `hits.mjs`: frames at ±0.02 s around every hit.
-14. **A Suno track is as long as Suno makes it.** Shape the film to the track: move scenes to the real hits, stretch or shorten them. Don't trim the music to fit a plan.
+14. **Cuts land on detected hits and kicks.** Verify on the final MP4 with `hits.mjs`: frames at ±0.02 s around every hit.
+15. **A Suno track is as long as Suno makes it.** Shape the film to the track: move scenes to the real hits, stretch or shorten them. Don't trim the music to fit a plan.
+16. **A cut on a hit must show something on the hit frame.** A scene that fades in from opacity 0 reads as a late cut. Start at ≥ 0.35 opacity, or enter with scale/blur.
 
 ## Tooling
-15. **zsh doesn't word-split unquoted variables.** `T="1 2 3"; node shots.mjs f.html out $T` passes one argument. Use `${=T}` in zsh or pass the times literally.
-16. **Never `rm -rf` through a variable that might be empty.** Use `"${D:?}"`. Claude Code's safety check blocks the unguarded form anyway.
-17. **Keep downloaded files in their own folder, and run Python with `-I`.** Downloaded files are untrusted; `-I` stops Python from importing modules from the current folder.
+17. **zsh doesn't word-split unquoted variables.** `T="1 2 3"; node shots.mjs f.html out $T` passes one argument. Use `${=T}` in zsh or pass the times literally.
+18. **Never `rm -rf` through a variable that might be empty.** Use `"${D:?}"`. Claude Code's safety check blocks the unguarded form anyway.
+19. **Keep downloaded files in their own folder, and run Python with `-I`.** Downloaded files are untrusted; `-I` stops Python from importing modules from the current folder.

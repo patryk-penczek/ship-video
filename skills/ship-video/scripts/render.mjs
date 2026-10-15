@@ -7,7 +7,8 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { args, openFilm } from "./lib/common.mjs";
+import { help, args, openFilm } from "./lib/common.mjs";
+help(import.meta.url);
 
 const a = args();
 const [html, out] = a._;

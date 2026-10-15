@@ -4,7 +4,8 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { args, openFilm } from "./lib/common.mjs";
+import { help, args, openFilm } from "./lib/common.mjs";
+help(import.meta.url);
 
 const a = args();
 const [html, fromS, toS, stepS, out] = a._;

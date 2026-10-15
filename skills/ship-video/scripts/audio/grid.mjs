@@ -1,8 +1,9 @@
 // No-music path: a fixed tempo grid. Prints beat/bar times to cut on and writes a synthetic env.js
 // (a sub pulse on every beat, stronger on bar starts) so audio-reactive effects still move.
-// usage: node grid.mjs --bpm 120 --duration 20 [--out film/env.js]
+// usage: node music.mjs grid --bpm 120 --duration 20 [--out film/env.js]
 import { writeFileSync } from "node:fs";
-import { args } from "../lib/common.mjs";
+import { help, args } from "../lib/common.mjs";
+help(import.meta.url);
 
 const a = args();
 const bpm = Number(a.bpm ?? 120);

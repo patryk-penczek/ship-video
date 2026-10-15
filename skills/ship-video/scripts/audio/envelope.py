@@ -1,5 +1,5 @@
 # 60 fps audio envelope for audio-reactive effects: window.ENV = {fps, sub, mid, high, rms}, each normalised 0..1.
-# usage: python -I envelope.py track.mp3 film/env.js
+# usage: node music.mjs envelope <track> <film/env.js>
 import sys, json
 import numpy as np
 import librosa

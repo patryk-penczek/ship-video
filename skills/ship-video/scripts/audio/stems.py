@@ -1,6 +1,6 @@
 # Per-stem energy every 0.25 s + strong onsets per stem, from a demucs output folder (optional, needs setup.sh --demucs).
-# separate first:  python -I -m demucs -n htdemucs_6s -o stems track.mp3   → stems/htdemucs_6s/track/*.wav
-# usage: python -I stems.py stems/htdemucs_6s/track
+# separate first: node music.mjs separate <track> stems   → stems/htdemucs_6s/<track name>/*.wav
+# usage: node music.mjs stems stems/htdemucs_6s/<track name>
 import sys, os
 import numpy as np
 import librosa

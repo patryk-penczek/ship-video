@@ -2,7 +2,8 @@
 // usage: node audit.mjs <film/index.html> [--step 0.125]
 // Ancestors with class "scene" or attribute data-clip-ok (deliberate masks: rotating words, line clamps, tiles) are skipped.
 // Output: "<first>–<last> (<n>x)  <issue>". Fix every hit that isn't a deliberate transition.
-import { args, openFilm } from "./lib/common.mjs";
+import { help, args, openFilm } from "./lib/common.mjs";
+help(import.meta.url);
 
 const a = args();
 const [html] = a._;

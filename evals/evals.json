@@ -1,0 +1,44 @@
+{
+  "skill_name": "ship-video",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "hey, can you make a ~20 second launch video for the weather app in demo-app/? no music yet, I'll add some later",
+      "files": ["demo-app/"],
+      "expected_output": "A film folder with MUSIC.md from a tempo grid and a SCENARIO.md awaiting approval; nothing built yet.",
+      "expectations": [
+        "Runs scripts/lib/check.mjs before anything else and only runs setup.sh if it reports missing deps",
+        "Reads demo-app/src (components, tokens, copy) before asking questions",
+        "Chooses the no-music path and runs `music.mjs grid` with a BPM and a duration of about 20 s",
+        "Writes SCENARIO.md with exact seconds on bar starts, the camera, and word-for-word copy",
+        "Stops and asks for scenario approval; does not write ui.js or film.js scenes before approval"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I just downloaded a track from Suno to my Downloads, it's called Neon Lift.mp3. Scenario in film/SCENARIO.md is approved, the replicas are done. Re-time the film to this track and render it.",
+      "files": ["film/"],
+      "expected_output": "Track analysed, MUSIC.md updated, scenes moved to the real hits, stills shown before rendering.",
+      "expectations": [
+        "Resumes at the music/analysis steps instead of restarting the brief",
+        "Copies the track into the film folder and runs `music.mjs analyze` and `music.mjs envelope`",
+        "Updates MUSIC.md and shifts scene times in film.js to the detected strong hits",
+        "Shows contact sheets or stills and asks for approval before the full render, even though the user said 'render it'",
+        "After rendering, runs hits.mjs on the crisp MP4 and reports what it shows"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Make me a Suno prompt for a 25 second hype trailer for my CLI tool, I want a big drop around the middle",
+      "files": [],
+      "expected_output": "A Suno style line and bracketed structure whose sections land on round-second bars, plus licensing note.",
+      "expectations": [
+        "Picks a BPM whose bar length is a round number of seconds and states it",
+        "Maps sections to bars so the drop lands near 12–14 s",
+        "Gives a style line and a bracketed structure ready to paste, instrumental",
+        "Mentions that free-plan Suno songs can't be used commercially",
+        "Does not start building a film or installing dependencies"
+      ]
+    }
+  ]
+}

@@ -18,10 +18,10 @@ git clone https://github.com/patryk-penczek/ship-video.git
 cp -R ship-video/skills/ship-video ~/.claude/skills/
 ```
 
-Then install the engine's dependencies once (they go to `~/.ship-video`):
+Then install the engine's dependencies once. They go to `~/.ship-video`, so they survive skill updates; re-running setup skips whatever is already installed.
 ```bash
-bash ~/.claude/skills/ship-video/engine/setup.sh          # or ask Claude: "set up ship-video"
-bash ~/.claude/skills/ship-video/engine/setup.sh --demucs # optional stem separation (PyTorch, several GB)
+bash ~/.claude/skills/ship-video/scripts/setup.sh          # or ask Claude: "set up ship-video"
+bash ~/.claude/skills/ship-video/scripts/setup.sh --demucs # optional stem separation (PyTorch, several GB)
 ```
 
 ### Requirements
@@ -65,12 +65,15 @@ Songs made on Suno's **free plan can't be used commercially**. Songs made while 
 
 ```
 skills/ship-video/
-├─ SKILL.md            the guided flow
-├─ reference/          lessons learned, scenario template, Suno prompt template, QA checklist
-└─ engine/
-   ├─ render.mjs shots.mjs sheet.mjs audit.mjs hits.mjs snap.mjs new-film.mjs setup.sh
-   ├─ audio/           analyze.py envelope.py stems.py plot.py grid.mjs
-   └─ starter/         index.html engine.js base.css film.css ui.js film.js
+├─ SKILL.md            the guided flow: steps, approval gates, scripts, gotchas
+├─ references/         read on demand: lessons, film API, music map, scenario + Suno templates, QA checklist
+├─ scripts/            run, don't read (all take --help)
+│  ├─ setup.sh  lib/check.mjs  new-film.mjs  music.mjs
+│  ├─ render.mjs  shots.mjs  sheet.mjs  snap.mjs  audit.mjs  hits.mjs
+│  └─ audio/       analyze.py  envelope.py  plot.py  stems.py  grid.mjs
+└─ assets/starter/     index.html  engine.js  base.css  film.css  ui.js  film.js
+demo-app/              "Breeze", a small weather app (Bun + React) to film in the tutorial
+evals/                 test prompts for the skill
 ```
 
 ## Compared to HyperFrames

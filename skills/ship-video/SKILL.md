@@ -1,107 +1,195 @@
 ---
 name: ship-video
-description: Make a short, music-synced product video (launch film, feature teaser, how-to) for an app, rendered frame-exact from HTML with GSAP, Playwright and ffmpeg. Guides the user from brief → music (own file, Suno, or none) → beat analysis → approved scenario → app replicas → review stills → QA → MP4. Use when the user wants a product video, launch film, app trailer, promo clip, or "a video cut to music" for their app.
+description: Makes short, music-synced product videos for a user's app (launch films, feature teasers, app trailers, how-to clips) as code. Each film is one HTML page with a GSAP timeline that recreates the app's real UI, rendered frame-exact to a 1080p60 MP4 with every cut on a beat. Use when the user wants a video, film, trailer, promo, teaser or launch clip for their product or app, wants something cut to music or to a Suno track, or wants their app's screens animated into a clip, even if they don't mention GSAP, HTML or rendering. Not for editing existing footage or screen recordings.
+allowed-tools: Bash(node ${CLAUDE_SKILL_DIR}/scripts/*), Bash(bash ${CLAUDE_SKILL_DIR}/scripts/setup.sh*)
 ---
 
 # ship-video
 
-You are making a short product film as code: one HTML page, one paused GSAP timeline, every frame a pure function of time, rendered to MP4 with the music. The value is the process below. Follow it in order and **do not skip the approval gates** (marked ⛔): rebuilding after a late change costs far more than one more question.
+You are directing and building a 15–45 s product film. Everything on screen is code: one HTML page, one paused GSAP timeline at absolute seconds, app screens rebuilt from the product's real components, rendered frame by frame to MP4 with the music.
 
-Engine: `${CLAUDE_SKILL_DIR}/engine` (call it `$E` in commands you show the user; write the real path when running).
-Python: `~/.ship-video/.venv/bin/python -I` (call it `$PY`). Deps live in `~/.ship-video` (`$SHIP_VIDEO_HOME` overrides).
-Read `${CLAUDE_SKILL_DIR}/reference/lessons.md` before you start building. It lists mistakes that already cost hours.
+**Core principle: agree on paper, then build.** A table of seconds → music → picture → copy costs minutes to change; a built film costs hours. The two approval gates below exist because every skipped one has meant a rebuild.
 
-## 0. Setup check
+Scripts live in `${CLAUDE_SKILL_DIR}/scripts`. Run them; don't read their source. Every script takes `--help`. In this file `$S` means `${CLAUDE_SKILL_DIR}/scripts` and `<film>` means the film folder.
 
-Run `node $E/lib/check.mjs`. If it reports missing deps, run `bash $E/setup.sh` (add `--demucs` only if the user wants stem separation; it pulls in PyTorch, several GB). librosa alone is enough for hits and beats.
+## Start or resume
+
+Look in the film folder (ask for it if unclear) and start at the first step whose output is missing:
+
+| exists in `<film>` | done | start at |
+|---|---|---|
+| nothing | — | 0 Setup |
+| `index.html` | folder | 2 Music |
+| `MUSIC.md` + `env.js` | music map | 4 Scenario |
+| `SCENARIO.md` marked `Approved` | scenario | 5 Replicas |
+| `ui.js` with the scenario's screens | replicas | 6 Build |
+| `review/` with stills the user approved | review | 8 QA |
+| `out/*.mp4` | render | report, or iterate |
+
+The user can skip steps ("I have a scenario already", "no music", "just render it"). Skip what they name, say in one line what you're skipping, and keep the gates: approving a skipped gate needs their explicit words.
+
+## Progress checklist
+
+Copy into your first reply and update it as you go:
+
+```
+- [ ] 0 Setup: deps ready
+- [ ] 1 Brief: product, audience, goal, length, repo, real assets
+- [ ] 2 Music: file / Suno / none chosen, track in <film>
+- [ ] 3 Analysis: MUSIC.md + env.js
+- [ ] 4 Scenario: SCENARIO.md approved by the user
+- [ ] 5 Replicas: screens built from real components, audited
+- [ ] 6 Build: film.js follows the scenario
+- [ ] 7 Review: stills approved by the user
+- [ ] 8 QA: audit clean, hit check passed
+- [ ] 9 Render: crisp + motion blur, report sent
+```
+
+## 0. Setup
+
+Run `node $S/lib/check.mjs`. It answers instantly once setup has succeeded. Only if it reports something missing, run `bash $S/setup.sh` (installs into `~/.ship-video`, skips what's there). Add `--demucs` only if the user wants stem separation: it pulls in PyTorch, several GB, and librosa alone finds the hits.
 
 ## 1. Brief
 
-Ask, in one message, only what you can't find yourself:
-- What is the product, and who will watch the video?
-- Goal: launch, single feature, or how-to?
-- Rough length (15–45 s is the sweet spot) and format (1920×1080 default).
-- Is there a repo to read? Point at the UI source (components, tokens, fonts, icons).
-- Which **real assets** exist: screenshots, GIFs, avatars, emoji, logos, real copy. Real beats invented every time.
-- Music: their own file, a Suno track, or none (see 2).
+Find what you can yourself first (README, package.json, routes, components). Then ask only what's left, at most four short questions in one message:
+- product and audience; goal (launch, one feature, how-to); length (default 20–30 s, 1920×1080);
+- the UI source to recreate (repo path or screenshots);
+- real assets: screenshots, GIFs, avatars, emoji, logo, real copy. Real beats invented every time;
+- music path (step 2).
 
-Create the film folder: `node $E/new-film.mjs <dir>` (outside the product repo unless the user wants it inside). Keep downloaded assets in their own folder (`<dir>/img`, `<dir>/downloads`).
+Create the folder: `node $S/new-film.mjs <film>` (outside the product repo unless the user wants it inside). Put assets in `<film>/img`; keep downloads in their own folder.
 
-## 2. Music: three paths
+**Exit:** you can describe the film in two sentences and the user agrees. **Then:** step 2.
 
-Ask which one:
+## 2. Music
 
-**A. Own file.** Copy it to `<dir>/track.mp3` (any ffmpeg format works, name it `track.*`). Ask the user to confirm they may use it.
+Offer three paths, one line each:
+- **A. Own file.** Ask where it is; if they just downloaded it, take the newest audio file in `~/Downloads` and confirm the name. Copy it to `<film>/track.<ext>`. Ask them to confirm they have the rights.
+- **B. Suno.** Read `references/suno-prompt.md`, pick a BPM so a bar is a round number of seconds, map the planned acts to bars, and give the user the style line and the bracketed structure to paste. They generate 2–4 takes and download the best. **The track is as long as Suno makes it: shape the film to the track.** Free-plan songs can't be used commercially; paid-plan songs can.
+- **C. None.** Pick a BPM (default 120). Cuts snap to the grid, the preview plays a metronome, and music can be added later by re-timing.
 
-**B. Suno.** Fill `${CLAUDE_SKILL_DIR}/reference/suno-prompt.md` with the user: pick a BPM so that one bar is a round number of seconds (120 BPM → 2 s bars, 90 → 2.67 s), map the planned acts to bars, write the style line and the bracketed structure. The user generates a few takes in Suno and drops the best into `<dir>`. **The track is as long as Suno makes it. Shape the film to the track, not the track to the film.** Remind them: free-plan Suno songs can't be used commercially; paid-plan songs can.
+Set `track` and `duration` in `film.js`. **Exit:** a track in `<film>`, or a BPM. **Then:** step 3.
 
-**C. None.** Pick a BPM (default 120). Cuts snap to the tempo grid; the preview plays a metronome. Music can be added later: run 3 on the new track and re-time the scenes to its real hits.
+## 3. Analysis
 
-## 3. Analysis → music map
-
-With a track:
 ```
-$PY $E/audio/analyze.py <dir>/track.mp3 --json <dir>/music.json
-$PY $E/audio/envelope.py <dir>/track.mp3 <dir>/env.js
-$PY $E/audio/plot.py <dir>/track.mp3 <dir>/music.png         # look at it
+node $S/music.mjs analyze <film>/track.mp3 --json <film>/music.json
+node $S/music.mjs envelope <film>/track.mp3 <film>/env.js
+node $S/music.mjs plot <film>/track.mp3 <film>/review/music.png
 ```
-Optional stems: `$PY -m demucs -n htdemucs_6s -o <dir>/stems <dir>/track.mp3` then `$PY $E/audio/stems.py <dir>/stems/htdemucs_6s/track`.
+No track: `node $S/music.mjs grid --bpm 120 --duration 20 --out <film>/env.js`.
 
-Without a track: `node $E/audio/grid.mjs --bpm 120 --duration 30 --out <dir>/env.js`.
+Read `references/music-map.md`, Read the plot PNG, and write `<film>/MUSIC.md`: one row per event (intro, each strong hit, groove, break, drop, final hit). Show it to the user in a few lines.
 
-Write `<dir>/MUSIC.md`, a table of `t (s) | what happens in the music` (intro, hits, where the groove starts, breaks, the drop, the final hit). Use `hits` for cuts, `kicks` for small moves, `gaps` for breaks/drops, the energy table for sections. Detection is noisy: cross-check with the plot and with what you'd hear. Show the map to the user.
+**Exit:** MUSIC.md exists and the user has seen it. **Then:** step 4.
 
-## 4. Scenario ⛔
+## 4. Scenario
 
-Write `<dir>/SCENARIO.md` from `${CLAUDE_SKILL_DIR}/reference/scenario-template.md`: acts with **exact seconds**, the music event each one sits on, what is on screen, the camera, and the **final copy, word for word**. Every cut lands on a hit or a kick from the music map.
+Write `<film>/SCENARIO.md` from `references/scenario-template.md`: acts with exact seconds, the music event under each, what's on screen, the camera, and the **final copy word for word**. Every cut sits on a hit or kick from MUSIC.md. Give 2–3 variants wherever wording matters (headline, end card), and mark placeholder assets.
 
-- Offer 2–3 copy variants wherever wording matters (headline, end card).
-- Mark which assets are real and which are placeholders.
-- **Stop. Ask the user to approve the scenario before building anything.** Iterate on the table, not on code.
+<HARD-GATE>
+Nothing gets built until the user approves SCENARIO.md. Building means writing ui.js or film.js, copying app components, or rendering. Reading the product's code is fine.
+When they approve, add `Approved: <date>` at the top of SCENARIO.md.
+</HARD-GATE>
+
+**Then:** step 5.
 
 ## 5. Replicas
 
-For each app screen in the scenario, build a screen builder in `<dir>/ui.js` + styles in `film.css`:
-- Read the **real components** (structure, copy, sizes, tokens, fonts, icons). Copy tokens and SVG icons verbatim. Don't build from a description.
-- Copy the product's fonts into `<dir>/fonts` and list them in `fonts:` in `film.js`; list images in `images:` (layout is measured at build time, so everything must be loaded first).
-- Then run a **component-by-component audit** against the source: structure, copy, spacing, sizes, colours, icons, states. Fix every mismatch. The first pass always misses things.
-- Optional: a static gallery page with one `.frame` (1920×1080) per screen, captured with `node $E/snap.mjs gallery.html <dir>/review/replica.png`, to show the user before animating.
+Read `references/lessons.md` first. For each screen in the scenario:
+1. Read the real component: structure, copy, sizes, tokens, fonts, icons. Copy tokens and SVG icons verbatim into `film.css` / `ui.js`.
+2. Write a builder in `ui.js` that returns the screen's HTML.
+3. Compare against the source, component by component, and fix every mismatch. The first pass always misses things.
+
+Copy the product's font files to `<film>/fonts`, declare them in `film.css`, and list every face in `fonts:` and every image in `images:` in `film.js`. Layout is measured at build time, so anything still loading is measured wrong.
+
+Optional: a static gallery page with one `.frame` (1920×1080) per screen, captured with `node $S/snap.mjs gallery.html <film>/review/replica.png`, to show the user before animating.
+
+**Exit:** every scenario screen exists and the audit found nothing left to fix. **Then:** step 6.
 
 ## 6. Build
 
-Edit `<dir>/film.js` (starter shows the patterns). Rules:
-- One `scene(html, start, end)` per shot; absolute times from the scenario.
-- Camera: `wrap(scene)` then tween its `focus(point, scale)`. App UI is small at 1080p: zoom 1.4–2.3× on what matters.
-- Measure `center()` of everything **before** adding tweens that move it.
-- Use `NI` (`immediateRender: false`) on `fromTo`s in scenes that share elements, and give elements that appear later `opacity:0` in their HTML.
-- Never overlap two camera tweens on the same properties.
-- No `setTimeout`, CSS animations, `Date`, or `Math.random`; use `rnd()`, sprite sheets (`.sprite` with `data-n`/`data-fps`) for GIFs and animated emoji, and `hits` for shake.
-- Set `duration`, `bpm`, `track` and `hits` in the `Film({...})` config.
+Read `references/film-api.md`, then write the scenes in `film.js` in scenario order, at the scenario's times. The starter film shows each pattern. Preview by opening `<film>/index.html` (Space play, ←/→ 1 s, Alt+←/→ one beat, Shift+←/→ one frame, `?t=12.5`).
 
-Preview: open `<dir>/index.html` in a browser (Space, arrows, Alt+arrows = one beat, Shift+arrows = one frame, `?t=12.5`).
+**Exit:** every act exists and plays without console errors. **Then:** step 7.
 
-## 7. Review ⛔ (loop)
+## 7. Review
 
-Before every render, show stills:
+Look first, then show:
 ```
-node $E/sheet.mjs <dir>/index.html <from> <to> 0.25 <dir>/review/sheet-<act>.png
-node $E/shots.mjs <dir>/index.html <dir>/review/stills <t1> <t2> ... --label
+node $S/sheet.mjs <film>/index.html <from> <to> 0.25 <film>/review/sheet-<act>.png
+node $S/shots.mjs <film>/index.html <film>/review/stills <t1> <t2> … --label
 ```
-Look at them yourself first (Read the PNGs) and fix the obvious. Then show the user the contact sheet and full-resolution stills of the key moments (each hit, each resting frame, the end card). Collect feedback, fix, repeat until they approve. They will catch things you miss.
+Read every PNG yourself and fix what's obviously wrong. Then show the user the contact sheets and full-resolution stills of each hit, each resting frame and the end card, and ask what's wrong or missing.
+
+<HARD-GATE>
+No full render until the user approves the stills. After each round of fixes, show the changed frames again.
+</HARD-GATE>
+
+**Then:** step 8.
 
 ## 8. QA
 
-Run `${CLAUDE_SKILL_DIR}/reference/qa-checklist.md`. At minimum:
-- `node $E/audit.mjs <dir>/index.html`: fix every clipped-text hit that isn't a deliberate transition (mark intentional masks with `data-clip-ok`).
-- After the crisp render: `node $E/hits.mjs <dir>/out/film-crisp.mp4 <dir>/review/hits.png <hit times…>`. Each row is t−0.02 / t / t+0.02; the cut must change between the first and second frame.
-- Fonts and images preloaded (no fallback font in any still).
+Follow `references/qa-checklist.md`. The loop: run `node $S/audit.mjs <film>/index.html` → fix each clipped text that isn't a deliberate transition → re-run until clean.
 
 ## 9. Render and report
 
+Crisp first (≈4 s per second of film); motion blur takes ~6× longer, so run it in the background:
 ```
-node $E/render.mjs <dir>/index.html <dir>/out/film-crisp.mp4                         # 60 fps
-node $E/render.mjs <dir>/index.html <dir>/out/film-motionblur.mp4 --preset motionblur  # 240 fps → 60, ~6× slower
+node $S/render.mjs <film>/index.html <film>/out/film-crisp.mp4
+node $S/render.mjs <film>/index.html <film>/out/film-motionblur.mp4 --preset motionblur
 ```
-Use `--preset draft` or `--from/--to` for quick checks. Run the long renders in the background.
+Use `--preset draft` or `--from/--to` for quick checks while iterating.
 
-Report: the paths, durations and file sizes, how to preview, and **anything that couldn't match the real app** (missing assets, approximated components, placeholder copy).
+Before saying it's done, verify on the crisp MP4:
+```
+node $S/hits.mjs <film>/out/film-crisp.mp4 <film>/review/hits.png <hit times from MUSIC.md>
+```
+Read hits.png: in every row the cut falls between the first and second frame. Then report: paths, duration, file sizes, how to preview, and **what couldn't match the real app** (missing assets, approximated components, placeholder copy).
+
+## Scripts
+
+| command | does |
+|---|---|
+| `lib/check.mjs [--full]` | deps ready? (cached after setup) |
+| `setup.sh [--demucs] [--force]` | install into `~/.ship-video`; skips what's there |
+| `new-film.mjs <dir>` | new film folder from the starter |
+| `music.mjs analyze\|envelope\|plot\|grid\|stems\|separate` | music analysis; runs Python in the venv |
+| `sheet.mjs <html> <from> <to> <step> <out.png>` | time-stamped contact sheet |
+| `shots.mjs <html> <dir> t… [--label]` | full-resolution stills |
+| `snap.mjs <page.html> <out.png>` | screenshots of `.frame` elements (replica gallery) |
+| `audit.mjs <html>` | clipped-text scan every 1/8 s |
+| `render.mjs <html> <out.mp4> [--preset crisp\|motionblur\|draft]` | frame-exact MP4 with the track |
+| `hits.mjs <mp4> <out.png> t…` | frames at t−0.02 / t / t+0.02 per hit |
+
+## Gotchas
+
+The ones that cost the most; the full list is in `references/lessons.md`.
+- **`fromTo` paints its from-values at build time.** Without `NI` (`immediateRender: false`) every element of a shared scene shows at once.
+- **Measure `center()` before adding tweens** that move the element or its camera, or every focus point is off.
+- **Two camera tweens overlapping on the same properties** fight and the shot jitters.
+- **App UI is tiny at 1080p.** Zoom 1.4–2.3× on what matters.
+- **Anything time-based outside the timeline** (`setTimeout`, CSS animation, `Math.random`, `Date`) makes the render differ from the preview.
+- **Gradient text clips descenders** unless the box has bottom padding (`.gtext` handles it).
+
+## Red flags
+
+| thought | reality |
+|---|---|
+| "The scenario is obvious, I'll build and show the result" | Changes after the build cost hours. Get the table approved. |
+| "I'll invent plausible copy and fix it later" | Final copy is part of the scenario. Ask, or offer variants. |
+| "The replica looks close enough" | Viewers who use the app notice. Compare component by component. |
+| "Stills look fine to me, render straight away" | The user catches what you miss. Show them first. |
+| "The analysis says 22.0, ship it" | Verify on the MP4 with `hits.mjs`. |
+| "I'll trim the track to fit my plan" | Shape the film to the track. |
+
+## References
+
+| file | read when |
+|---|---|
+| `references/lessons.md` | before step 5, and before step 6 |
+| `references/suno-prompt.md` | step 2, path B |
+| `references/music-map.md` | step 3 |
+| `references/scenario-template.md` | step 4 |
+| `references/film-api.md` | before writing `film.js` |
+| `references/qa-checklist.md` | step 8 |
