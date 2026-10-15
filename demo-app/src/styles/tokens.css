@@ -1,0 +1,58 @@
+/* Own @font-face (latin only): Bun's CSS bundler unquotes format("woff2-variations"), which Chrome rejects. */
+@font-face {
+  font-family: "Plus Jakarta Sans Variable";
+  src: url("../../node_modules/@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono Variable";
+  src: url("../../node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2") format("woff2");
+  font-weight: 100 800;
+  font-display: swap;
+}
+
+/* Breeze design tokens */
+:root {
+  --bg: #070b18;
+  --bg-2: #101833;
+  --surface: rgb(255 255 255 / 0.04);
+  --surface-2: rgb(255 255 255 / 0.07);
+  --border: rgb(255 255 255 / 0.08);
+  --border-strong: rgb(255 255 255 / 0.16);
+  --fg: #eef2ff;
+  --fg-muted: #8f9bbf;
+  --fg-subtle: #5d6990;
+
+  --sun: #ffc857;
+  --sky: #6ad1ff;
+  --rain: #7b8cff;
+  --warm: #ff8a5b;
+  --temp-gradient: linear-gradient(90deg, var(--sky), var(--sun) 60%, var(--warm));
+  --hero-gradient: radial-gradient(900px 600px at 85% -10%, rgb(255 200 87 / 0.22), transparent 60%),
+    radial-gradient(800px 600px at 0% 110%, rgb(106 209 255 / 0.16), transparent 60%);
+
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 24px;
+
+  --font-sans: "Plus Jakarta Sans Variable", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+}
+
+[data-theme="light"] {
+  --bg: #eef3fb;
+  --bg-2: #ffffff;
+  --surface: rgb(15 23 42 / 0.035);
+  --surface-2: rgb(15 23 42 / 0.07);
+  --border: rgb(15 23 42 / 0.08);
+  --border-strong: rgb(15 23 42 / 0.16);
+  --fg: #0f172a;
+  --fg-muted: #55627f;
+  --fg-subtle: #8a96b0;
+  --sun: #f5a300;
+  --sky: #2aa8e0;
+  --rain: #4f5fe0;
+  --hero-gradient: radial-gradient(900px 600px at 85% -10%, rgb(255 200 87 / 0.35), transparent 60%),
+    radial-gradient(800px 600px at 0% 110%, rgb(106 209 255 / 0.3), transparent 60%);
+}
