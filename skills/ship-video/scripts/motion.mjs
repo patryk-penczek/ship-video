@@ -1,9 +1,12 @@
 // Static spans of a rendered film: every stretch where the picture barely changes for longer than --min seconds, with times, and a one-line
 // summary (% of the film that is static). Run it on the MP4 before delivering: a film that rests for 4-5 s on its end card reads as stalled.
-// usage: node motion.mjs <film.mp4> [--min 1.0] [--thresh 1.0] [--tail 1.5] [--json]
+// usage: node motion.mjs <film.mp4> [--min 1.0] [--thresh 1.0] [--level 12] [--region x,y,w,h] [--tail 1.5] [--json]
 //   --min N     report spans longer than N seconds (default 1.0)
 //   --thresh P  a frame counts as static when under P % of its pixels changed (by > 12/255) against the frame 0.1 s earlier (default 1.0).
 //               A slow push (scale 1 -> 1.06) moves text edges only: it still counts as static, which is the point
+//               Subtle data-viz changes (a recolour, a thin line) change few pixels by little: lower it (--thresh 0.05) and/or the per-pixel level
+//   --level L   a pixel counts as changed when it differs by more than L/255 (default 12; 3-4 sees a slow colour shift)
+//   --region x,y,w,h  only compare this part of the 1920x1080 frame (px): the chart that is supposed to move, so a moving cursor elsewhere does not hide a still chart. The % is of the region
 //   --tail S    the last S seconds (default 1.5) are the allowed ending rest: a static span reaching the end is split there and its
 //               tail part is reported as "ending rest", only the part before it counts as a problem
 //   --json      machine-readable output
@@ -14,12 +17,20 @@ import { help, args, die, num, known } from "./lib/common.mjs";
 help(import.meta.url);
 
 const a = args(undefined, ["json", "help"]);
-known(a, ["min", "thresh", "tail", "json"]);
+known(a, ["min", "thresh", "tail", "json", "level", "region"]);
 const [mp4] = a._;
 if (!mp4) die("usage: node motion.mjs <film.mp4> [--min 1.0] [--thresh 1.0] [--tail 1.5] [--json]");
 if (!existsSync(mp4)) die(`not found: ${mp4}`);
-const minLen = num(a, "min", 1.0, { min: 0.1 }), thresh = num(a, "thresh", 1.0, { min: 0, max: 100 }), tail = num(a, "tail", 1.5, { min: 0 });
+const minLen = num(a, "min", 1.0, { min: 0.1 }), thresh = num(a, "thresh", 1.0, { min: 0, max: 100 }), tail = num(a, "tail", 1.5, { min: 0 }), level = num(a, "level", 12, { min: 0, max: 254 });
 const FPS = 30, W = 320, H = 180, LAG = 3, N = W * H;
+let X0 = 0, Y0 = 0, X1 = W, Y1 = H; // --region in 1920x1080 px -> the 320x180 grid
+if (a.region !== undefined) {
+  const r = String(a.region).split(",").map(Number);
+  if (r.length !== 4 || r.some((v) => !Number.isFinite(v)) || r[2] <= 0 || r[3] <= 0) die('--region needs x,y,w,h in px of the 1920x1080 frame, e.g. --region 400,200,900,500');
+  X0 = Math.max(0, Math.floor(r[0] / 6)); Y0 = Math.max(0, Math.floor(r[1] / 6)); X1 = Math.min(W, Math.ceil((r[0] + r[2]) / 6)); Y1 = Math.min(H, Math.ceil((r[1] + r[3]) / 6));
+  if (X1 <= X0 || Y1 <= Y0) die("--region is outside the frame");
+}
+const AREA = (X1 - X0) * (Y1 - Y0);
 
 const ff = spawn("ffmpeg", ["-v", "error", "-i", mp4, "-vf", `fps=${FPS},scale=${W}:${H}:flags=area,format=gray`, "-f", "rawvideo", "-"], { stdio: ["ignore", "pipe", "pipe"] });
 let err = ""; ff.stderr.on("data", (d) => { err += d; });
@@ -36,8 +47,8 @@ const dur = frames.length / FPS, moving = [];
 for (let i = 0; i < frames.length; i++) {
   if (i < LAG) { moving.push(true); continue; } // the first frames have nothing to compare with: not static
   const x = frames[i], y = frames[i - LAG]; let c = 0;
-  for (let k = 0; k < N; k++) if (Math.abs(x[k] - y[k]) > 12) c++;
-  moving.push(c / N * 100 >= thresh);
+  for (let r = Y0; r < Y1; r++) for (let k = r * W + X0, e = r * W + X1; k < e; k++) if (Math.abs(x[k] - y[k]) > level) c++;
+  moving.push(c / AREA * 100 >= thresh);
 }
 // runs of static frames; a single moving frame inside a run (a flicker) does not break it
 const spans = []; let st = -1;
@@ -57,5 +68,5 @@ if (a.json) console.log(JSON.stringify({ duration: +dur.toFixed(2), static: repo
 else {
   for (const [s, e] of report) console.log(`static ${s.toFixed(2)}–${e.toFixed(2)} (${(e - s).toFixed(1)} s): the picture barely changes; add motion, a new beat, or cut the hold`);
   for (const [s, e] of rest) console.log(`ending rest ${s.toFixed(2)}–${e.toFixed(2)} (${(e - s).toFixed(1)} s): allowed${e - s > tail + 1 ? ", but long" : ""}`);
-  console.log(`${total.toFixed(1)} s of ${dur.toFixed(1)} s static (${(total / dur * 100).toFixed(0)} %)${report.length ? "" : ": clean"}  [min ${minLen} s, threshold ${thresh} % changed pixels]`);
+  console.log(`${total.toFixed(1)} s of ${dur.toFixed(1)} s static (${(total / dur * 100).toFixed(0)} %)${report.length ? "" : ": clean"}  [min ${minLen} s, threshold ${thresh} % changed pixels, level ${level}${a.region !== undefined ? `, region ${a.region}` : ""}]`);
 }

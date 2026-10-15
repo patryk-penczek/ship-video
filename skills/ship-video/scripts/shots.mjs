@@ -1,5 +1,5 @@
 // Full-resolution stills at given times.
-// usage: node shots.mjs <film/index.html> <outDir> t1 t2 ... [--label]   -> outDir/<t>.png  (--label stamps the time on each frame)
+// usage: node shots.mjs <film/index.html> <outDir> t1 t2 ... [--label] [--label-pos tl|tr|bl|br]   -> outDir/<t>.png  (--label stamps the time on each frame, top left by default; --label-pos moves it off the part you want to read)
 // File name = time in seconds, 2 decimals, zero-padded to 6 chars: t=1.5 -> 001.50.png, t=17 -> 017.00.png, t=102.5 -> 102.50.png.
 // Times must be numbers between 0 and the film length.
 import { mkdirSync } from "node:fs";
@@ -9,9 +9,11 @@ import { help, args, openFilm, die, known } from "./lib/common.mjs";
 help(import.meta.url);
 
 const a = args();
-known(a, ["label"]);
+known(a, ["label", "label-pos"]);
+const lp = a["label-pos"] ?? "tl";
+if (!/^(tl|tr|bl|br)$/.test(lp)) die("--label-pos must be tl, tr, bl or br");
 const [html, outDir, ...times] = a._;
-if (!html || !outDir || !times.length) die("usage: node shots.mjs <film/index.html> <outDir> t1 t2 ... [--label]");
+if (!html || !outDir || !times.length) die("usage: node shots.mjs <film/index.html> <outDir> t1 t2 ... [--label] [--label-pos tl|tr|bl|br]");
 const ts = times.map(Number);
 const names = ts.map((t) => `${t.toFixed(2).padStart(6, "0")}.png`), dupe = names.find((n, i) => names.indexOf(n) !== i);
 if (dupe) die(`two times map to the same file ${dupe} (names have 2 decimals); use times at least 0.01 s apart`);
@@ -24,11 +26,11 @@ if (late.length) { await browser.close(); die(`times past the end of the ${durat
 mkdirSync(outDir, { recursive: true });
 for (const t of ts) {
   await seek(t);
-  if (a.label) await page.evaluate((tt) => {
+  if (a.label || a["label-pos"]) await page.evaluate(([tt, pos]) => {
     let el = document.getElementById("__label");
-    if (!el) { el = document.createElement("div"); el.id = "__label"; el.style.cssText = "position:fixed;left:0;top:0;z-index:99;padding:6px 14px;background:#e11;color:#fff;font:700 40px monospace"; document.body.appendChild(el); }
+    if (!el) { el = document.createElement("div"); el.id = "__label"; el.style.cssText = `position:fixed;${pos[1] === "r" ? "right" : "left"}:0;${pos[0] === "b" ? "bottom" : "top"}:0;z-index:99;padding:6px 14px;background:#e11;color:#fff;font:700 40px monospace`; document.body.appendChild(el); }
     el.textContent = tt.toFixed(2);
-  }, t);
+  }, [t, lp]);
   await page.screenshot({ path: path.join(outDir, `${t.toFixed(2).padStart(6, "0")}.png`) });
 }
 await browser.close();
