@@ -13,6 +13,8 @@ An agent skill for **Claude Code** and **Codex**. It captures your real UI, cuts
 
 <sub>This film was made with ship-video itself: one HTML page on a 120 BPM grid. [View the source](docs/hero).</sub>
 
+<br>
+
 ## 📖 Contents
 
 - [✨ What you get](#-what-you-get)
@@ -27,6 +29,8 @@ An agent skill for **Claude Code** and **Codex**. It captures your real UI, cuts
 - [⭐ Like it?](#-like-it)
 - [🤝 Contributing](#-contributing)
 
+<br>
+
 ## ✨ What you get
 
 | | |
@@ -35,6 +39,8 @@ An agent skill for **Claude Code** and **Codex**. It captures your real UI, cuts
 | **🔍 Reads your app first.** It reads your repo and opens every view of your running app, then asks only what it can't find: who it's for, how long, which music. | **🥁 Cut to the beat.** It finds the tempo, hits and drop of your track, or writes a beat for you, and lands every cut on one. The payoff hits on the drop. |
 | ![An approved scenario scrolling like a document](docs/readme/plan.webp) | ![A film strip of app frames, 1920×1080 at 60 fps](docs/readme/real.webp) |
 | **📋 You approve the plan first.** A shot-by-shot scenario (seconds, music, picture, exact copy) comes before anything is built. Changing a table costs minutes; a film costs hours. | **🎯 Your real UI, frame-exact.** Your app's own DOM and CSS, captured and animated, never mockups. Rendered frame by frame to a 1080p60 MP4, plus a WebP for READMEs. |
+
+<br>
 
 ## 🚀 Quick start
 
@@ -74,6 +80,8 @@ git clone --depth 1 https://github.com/patryk-penczek/ship-video.git
 cp -R ship-video/skills/ship-video ~/.claude/skills/
 ```
 
+<br>
+
 ## 🎬 How it works
 
 ```mermaid
@@ -92,6 +100,8 @@ Everything on screen is code: one HTML page, one paused GSAP timeline, rendered 
 
 **Every step in detail: [the guide](docs/guide.md).**
 
+<br>
+
 ## 🔁 Iterate
 
 > [!TIP]
@@ -107,6 +117,8 @@ Specific notes work best:
 - *Hold the end card longer.*
 - *Make it 15 seconds.*
 
+<br>
+
 ## 🎥 What you can make
 
 | | film | length | for |
@@ -120,6 +132,8 @@ Specific notes work best:
 > [!TIP]
 > Shorter usually wins. A clear 12-second clip of the one thing your product changes beats a 30-second tour, and the skill tells you when your material would fit a shorter film.
 
+<br>
+
 ## 🎵 Music
 
 | | path | what you do |
@@ -132,6 +146,8 @@ Specific notes work best:
 > [!IMPORTANT]
 > **Suno licensing:** songs made on Suno's **free plan can't be used commercially**, and upgrading later doesn't change that. Generate on a paid plan for anything public, and check [Suno's terms](https://suno.com). The skill asks where the film will be shown before you generate anything.
 
+<br>
+
 ## 📏 Limits
 
 | | |
@@ -140,6 +156,8 @@ Specific notes work best:
 | **Length** | 10–45 s. Longer tracks are cut to a section. |
 | **Apps** | Web apps and sites, phone-sized PWAs included. A native app only from screenshots. |
 | **System** | macOS or Linux (Windows: WSL). Node 20+, ffmpeg, Python 3. |
+
+<br>
 
 ## ❓ FAQ
 
@@ -178,6 +196,8 @@ The skill is MIT and everything it installs is free. You pay only for the agent 
 
 </details>
 
+<br>
+
 ## 🩺 Troubleshooting
 
 <details>
@@ -201,15 +221,21 @@ Every font face must be listed in `fonts:` in `film.js` and declared with `@font
 
 </details>
 
+<br>
+
 ## ⭐ Like it?
 
 **Like the film you got?** Star the repo. It's the simplest way to help other people find ship-video.
 
 Made something you're proud of? Post it on X or LinkedIn with a link to the repo, so others can make theirs.
 
+<br>
+
 ## 🤝 Contributing
 
 The most useful contributions come from making a real film with it. [Open an issue](https://github.com/patryk-penczek/ship-video/issues/new/choose) with what you asked for and where it went wrong, or read [CONTRIBUTING.md](CONTRIBUTING.md) to change the code.
+
+<br>
 
 ---
 
