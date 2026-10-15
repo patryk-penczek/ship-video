@@ -1,0 +1,62 @@
+<!doctype html>
+<!-- GitHub social preview card (1280×640). Render: see docs/hero/README note in the commit; screenshot #card at 2× and scale to 1280×640. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ship-video · social preview</title>
+<style>
+  @font-face { font-family: "Inter Variable"; src: url(fonts/inter.woff2) format("woff2"); font-weight: 100 900; }
+  @font-face { font-family: "JetBrains Mono Variable"; src: url(fonts/mono.woff2) format("woff2"); font-weight: 100 800; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #000; }
+  #card { position: relative; width: 1280px; height: 640px; overflow: hidden; background: #0b0b0c; font-family: "Inter Variable", system-ui, sans-serif; color: #f4f4f6; }
+  /* soft light behind the wordmark: static PNG, so gradients are fine here */
+  .glow { position: absolute; inset: 0; background:
+    radial-gradient(620px 300px at 50% 36%, rgb(255 106 61 / .16), transparent 70%),
+    radial-gradient(520px 260px at 78% 30%, rgb(108 140 255 / .12), transparent 70%); }
+  .pill { position: absolute; top: 74px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 9px 20px 9px 16px; border-radius: 999px; border: 1.5px solid #2c2d33; background: #141418; font: 600 19px "JetBrains Mono Variable", monospace; color: #b9bcc6; letter-spacing: .02em; white-space: nowrap; }
+  .pill i { width: 10px; height: 10px; border-radius: 99px; background: #ff6a3d; box-shadow: 0 0 12px #ff6a3d; }
+  .wm { position: absolute; top: 132px; left: 0; right: 0; text-align: center; font-weight: 900; font-size: 150px; letter-spacing: -0.06em; line-height: 1.05; }
+  .wm .g { background: linear-gradient(100deg, #ff6a3d 5%, #ffb36b 45%, #6c8cff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; padding: 0 .08em .18em 0; }
+  .wm .sl { color: #ff6a3d; margin-right: .04em; }
+  .tag { position: absolute; top: 318px; left: 0; right: 0; text-align: center; font-weight: 650; font-size: 38px; letter-spacing: -0.025em; color: #a3a7b0; }
+  .tag b { color: #f4f4f6; font-weight: 750; }
+  /* the signature: a track with its hits marked */
+  .wave { position: absolute; left: 90px; right: 90px; bottom: 54px; height: 150px; }
+  .wave svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .hit { position: absolute; top: -14px; bottom: -6px; width: 3px; margin-left: -1.5px; border-radius: 2px; background: #ff6a3d; box-shadow: 0 0 16px #ff6a3d; }
+  .hit::before { content: ""; position: absolute; top: -9px; left: -6px; width: 15px; height: 15px; border-radius: 99px; background: #ff6a3d; box-shadow: 0 0 18px #ff6a3d; }
+</style>
+</head>
+<body>
+<div id="card">
+  <div class="glow"></div>
+  <div class="pill"><i></i>Claude Code skill</div>
+  <div class="wm"><span class="sl">/</span>ship<span class="g">-video</span></div>
+  <div class="tag">Launch films for your app, <b>cut to the beat.</b></div>
+  <div class="wave"><svg id="w" preserveAspectRatio="none"></svg></div>
+</div>
+<script>
+  // deterministic waveform: quiet intro, verse, groove, a break, then the drop; hits sit where the music changes
+  const W = 1100, H = 150, N = 110;
+  const hash = (n) => { const s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); };
+  const env = (t) => t < 0.1 ? 0.16 + t * 1.2 : t < 0.3 ? 0.42 : t < 0.6 ? 0.62 : t < 0.7 ? 0.13 : t < 0.95 ? 0.98 : 0.45;
+  const svg = document.getElementById("w");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  let html = "";
+  for (let i = 0; i < N; i++) {
+    const t = i / N, a = env(t) * (0.5 + 0.5 * hash(i * 3.7)) * (H / 2 - 4), x = t * W;
+    const hot = t >= 0.7 && t < 0.95;
+    html += `<rect x="${x.toFixed(1)}" y="${(H / 2 - a).toFixed(1)}" width="${(W / N - 3.5).toFixed(1)}" height="${(2 * a).toFixed(1)}" rx="2.5" fill="${hot ? "#e9e7e1" : "#55575f"}"/>`;
+  }
+  svg.innerHTML = html;
+  const wave = document.querySelector(".wave");
+  for (const t of [0.1, 0.3, 0.7, 0.95]) {
+    const m = document.createElement("i");
+    m.className = "hit";
+    m.style.left = `${t * 100}%`;
+    wave.appendChild(m);
+  }
+</script>
+</body>
+</html>
