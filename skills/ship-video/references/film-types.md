@@ -65,7 +65,9 @@ The canvas is the product, so it has to move for real.
 
 ## Story
 
-Every film is one story: **problem → hero → action in the app → payoff that closes the problem.** One concrete case carries it (a person, a city, a file, a number in a real situation); features appear only as steps of that case. PRODUCT.md (Discovery) supplies the case and the promise. The payoff lands on the drop (silent: the strongest bar, 60–75% in; a personal site pays off with its closing ask, see *Landing page*).
+Every film is one story: **problem → hero → action in the app → payoff that closes the problem.** One concrete case carries it (a person, a city, a file, a number in a real situation); features appear only as steps of that case. PRODUCT.md (Discovery) supplies the case and the promise.
+
+**Simplest wins.** The films that land best show one mechanic or one transformation, plainly and with real data: a file drops from megabytes to kilobytes, tiles slide and merge into a bigger number, a diagram draws itself and its arrows follow a dragged box. Pick the one change that is the product, show it happening, and stop when it has been understood: a 12 s film that shows that change clearly beats a 30 s tour. Add views only when they serve that change. The payoff lands on the drop (silent: the strongest bar, 60–75% in; a personal site pays off with its closing ask, see *Landing page*).
 
 **The thread is set up before the payoff**: the hero and the problem appear in the first act (a line of copy, the hero's name or city in the hook, a glimpse of the situation), not only in the payoff caption. A payoff that meets its hero for the first time has nothing to close. Test: tell the film in three sentences without naming a feature. Type and camera techniques for each beat are in `motion-vocabulary.md`.
 
