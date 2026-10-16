@@ -108,7 +108,7 @@ One contact sheet per act (0.25 s steps for type, 0.5 s for UI), full-resolution
 
 ## 8. Render and deliver
 
-Read `render.md`. Render crisp in the background, verify the cuts (`hits.mjs`) and stillness (`motion.mjs`) on it, fix and re-render if needed, then show the user the film and offer motion blur, a WebP, or changes. Say plainly that this is a first cut: good films usually take a few rounds of watching and tweaking, and specific notes ("the intro drags", "the drop needs more punch", "show the search earlier") get there fastest. Their feedback is the normal next round, not a failure.
+Read `render.md`: render crisp in the background, verify it (`hits.mjs`, `motion.mjs`), fix and re-render if needed, then deliver (*Deliver*: the folder opens, a first cut, one question).
 
 ## References
 

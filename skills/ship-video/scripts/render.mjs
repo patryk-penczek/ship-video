@@ -13,6 +13,7 @@
 // --from/--to are seconds of film (0 <= from < to); --fps 1..480 (above 60: multiple of 60); --scale 0.25..4; --stop needs the same <out.mp4> path as the render.
 // A browser that dies mid-render is relaunched and the render resumes at the failed frame (max 2 times); then it fails with "browser closed at frame N".
 // Exit code ≠ 0 on any failure; a failed or stopped render never leaves a file at <out>.
+// A draft or partial (--from/--to) render into a folder named out/ is refused: out/ holds only the finished film, checks go to review/.
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -72,6 +73,8 @@ const out = path.resolve(outArg);
 if (!/\.mp4$/i.test(out)) die(`output must end in .mp4, got ${outArg}`);
 if ([path.resolve(html), audio].includes(out)) die(`refusing to overwrite an input: ${out}`);
 if (existsSync(out) && statSync(out).isDirectory()) die(`${outArg} is a directory`);
+// out/ holds only deliverables: a 1 s check left there looks like a broken film to whoever opens the folder
+if (path.basename(path.dirname(out)) === "out" && (a.preset === "draft" || a.from !== undefined || a.to !== undefined)) die(`a draft or partial render does not go in out/ (out/ holds only the finished film): write it to review/, e.g. ${path.join(path.dirname(path.dirname(outArg)), "review", path.basename(outArg))}`);
 let audioLen = null;
 if (audio) {
   try { audioLen = Number(execFileSync("ffprobe", ["-v", "error", "-select_streams", "a:0", "-show_entries", "format=duration", "-of", "csv=p=0", audio], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim()); }

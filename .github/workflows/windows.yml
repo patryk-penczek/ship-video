@@ -42,7 +42,7 @@ jobs:
       - name: One-second draft render
         run: |
           node skills/ship-video/scripts/new-film.mjs "$env:RUNNER_TEMP\film" --silent
-          node skills/ship-video/scripts/render.mjs "$env:RUNNER_TEMP\film\index.html" "$env:RUNNER_TEMP\film\out\test.mp4" --preset draft --from 0 --to 1
+          node skills/ship-video/scripts/render.mjs "$env:RUNNER_TEMP\film\index.html" "$env:RUNNER_TEMP\film\review\test.mp4" --preset draft --from 0 --to 1
           node skills/ship-video/scripts/audit.mjs "$env:RUNNER_TEMP\film\index.html" --summary
 
       - name: Music grid
