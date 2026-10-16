@@ -47,9 +47,19 @@ An agent skill for **Claude Code** and **Codex**. It captures your real UI, cuts
 **1. Install** in Claude Code:
 
 ```
+/plugin install ship-video --marketplace patryk-penczek/ship-video
+```
+
+<details>
+<summary>Older Claude Code (before 2.1.275), or from a terminal</summary>
+
+From a terminal, Claude Code 2.1.292+: `claude plugin install ship-video --marketplace patryk-penczek/ship-video`. Older versions take two steps:
+
+```
 /plugin marketplace add patryk-penczek/ship-video
 /plugin install ship-video@ship-video
 ```
+</details>
 
 **2. Run it** in your app's repo:
 
