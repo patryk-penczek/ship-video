@@ -29,6 +29,7 @@
      bpm       tempo; drives the preview metronome when there is no track
      track     audio file next to index.html, or null (silent clock + metronome)
      hits      [[t, shakePx], …]: camera shake that decays within 0.6 s
+     pulse     0 (default) to 1: the whole frame scales and the glow brightens with the bass (env.js); off unless asked for
      fonts     CSS font shorthands to load before build, e.g. "800 40px 'Inter Variable'"
      images    image URLs to preload before build (layout is measured at build time); "auto" = every image of the captured states (screens.js) */
   // images: "auto": every file the captured markup points at (src, poster, canvas frames, recorded frames)
@@ -771,7 +772,7 @@
         const fr = Math.floor(t * Number(sp.dataset.fps || 15)) % n;
         sp.style.backgroundPosition = `${(fr / (n - 1)) * 100}% 0`;
       }
-      const sub = window.__measure ? 0 : env("sub", t);
+      const sub = window.__measure || !cfg.pulse ? 0 : env("sub", t) * cfg.pulse;
       cam.style.transform = `translate(${sx}px, ${sy}px) rotate(${sr}deg) scale(${1 + sub * 0.014})`;
       if (bgGlow) bgGlow.style.filter = `brightness(${0.75 + sub * 0.7})`;
       const g = Math.floor(t * 24);

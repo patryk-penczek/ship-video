@@ -1,4 +1,4 @@
-// Static checks on a film folder, run first by audit.mjs: determinism of film.js / ui.js / data.js (+ CSS) and personal data left in the sources.
+// Static checks on a film folder, run first by audit.mjs: determinism of film.js / ui.js / data.js (+ CSS), more than 2 camera shakes in `hits`, and personal data left in the sources.
 // Every finding is one line: "determinism film.js:42  Math.random()  fix: ...". Pure text analysis, no browser.
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -64,6 +64,9 @@ export function lintFilm(dir) {
       const measures = /\b(getBoundingClientRect|center|rect|splitChars)\s*\(/.test(code), fontsCfg = code.match(/\bfonts\s*:\s*\[([^\]]*)\]/);
       if (/\bgsap\.timeline\s*\(/.test(code) && !/\bFilm\s*\(/.test(code)) out.push({ kind: "determinism", file: f, line: lineOf(code, code.search(/\bgsap\.timeline\s*\(/)), what: "timeline built outside Film({ build })", fix: "build inside Film({ ..., build(ctx) { ... } }): the engine waits for fonts and images first" });
       else if (measures && /\bFilm\s*\(/.test(code) && !(fontsCfg && fontsCfg[1].trim())) out.push({ kind: "determinism", file: f, line: lineOf(code, code.search(/\bFilm\s*\(/)), what: "build() measures text but `fonts:` is empty", fix: "list every face in fonts: [\"800 40px 'Inter Variable'\"]: boxes are measured before the font loads otherwise (fallback metrics)" });
+      // camera shake belongs to the one breaking moment (music.md): a jolt on every hit makes the whole frame fight the UI motion
+      const hm = code.match(/\bhits\s*:\s*\[/);
+      if (hm) { const [a, e] = group(code, hm.index + hm[0].length - 1), n = (code.slice(a + 1, e).match(/\[/g) || []).length; if (n > 2) out.push({ kind: "motion", file: f, line: lineOf(code, hm.index), what: `${n} camera shakes in hits`, fix: "keep only the breaking moment (the drop under the payoff, 8–12 px), a second at most; cuts still land on the other hits without shaking" }); }
     }
   }
   // CSS that animates on its own (film.css / app.css): base.css normally freezes it (animation/transition: none !important)

@@ -5,7 +5,7 @@ Film({
   duration: 12,
   bpm: 120,
   track: null, // e.g. "track.mp3" next to index.html; null = silent clock + metronome in preview
-  hits: [[2, 6], [4, 4], [8, 14], [10, 6]], // [t, shake px]; a silent film uses []
+  hits: [[8, 12]], // [t, shake px]: only the breaking moment (the drop); a silent or calm film uses []
   fonts: ["800 40px 'Inter Variable'", "500 20px 'Inter Variable'", "500 20px 'JetBrains Mono Variable'"],
   images: [],
 

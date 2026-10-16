@@ -30,7 +30,8 @@ Film({
   duration: 20,                 // seconds
   track: "track.mp3",           // next to index.html, or null
   bpm: 120,                     // preview metronome when track is null
-  hits: [[1.92, 10], [5.76, 6]],// [time, shake px] camera shake; [] for a silent film
+  hits: [[21.12, 10]],          // [time, shake px] camera shake (music.md)
+  pulse: 0,                     // 0–1: the whole frame breathes with the bass (music.md)
   fonts: ["800 40px 'Inter Variable'"], // every face used: layout is measured after they load
   images: "auto",               // or a list; preloaded before build
   pointer: 1,                   // cursor/finger size multiplier (1.5–3 for feeds)

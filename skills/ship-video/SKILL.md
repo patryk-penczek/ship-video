@@ -93,9 +93,9 @@ Read `replicas.md`. With the app running, its own DOM and CSS are the replica: w
 
 ## 6. Build
 
-Read `film-api.md` and `shots.md`. Set `track`, `duration`, `hits` (cut times from MUSIC.md; `[]` when silent) and `fonts`/`images` from the capture output, then write the scenes in scenario order at the scenario's seconds. Tween the real elements inside the captured screens; a film of swapped static screens looks dead. Where you depart from the scenario, add a line to *Changes vs scenario*.
+Read `film-api.md` and `shots.md`. Set `track`, `duration`, `hits` (`music.md`) and `fonts`/`images` from the capture output, then write the scenes in scenario order at the scenario's seconds. Tween the real elements inside the captured screens (`direction.md`). Where you depart from the scenario, add a line to *Changes vs scenario*.
 
-Check as you go: `node $S/render.mjs <film>/index.html <film>/out/test.mp4 --preset draft --from 0 --to 1` catches a broken page in seconds; the user can open `<film>/index.html` to preview (Space plays, arrows step, `?t=12.5`).
+Check as you go: `node $S/render.mjs <film>/index.html <film>/review/test.mp4 --preset draft --from 0 --to 1` catches a broken page in seconds; the user can open `<film>/index.html` to preview (Space plays, arrows step, `?t=12.5`).
 
 ## 7. Review
 

@@ -147,5 +147,6 @@ Owner verdicts on test films of very different products. Taste, not rules.
 | a live radar shown frozen | the product looked broken |
 | a 34 s film with 15 s of material | half the film nothing new happened |
 | a detour to an error page, extra captions, a long static end card | time spent on nothing |
+| a calm generated beat with the whole frame shaking and pulsing on every hit | the screen fought the UI motion; one jolt on the drop is enough |
 
 Films cut to a real song (own track or Suno) consistently came out best; a generated beat is a good functional score.

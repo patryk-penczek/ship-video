@@ -47,7 +47,7 @@ One row per musical event, seconds to 2 decimals. First line: `# Track: <file> �
 ```
 The **role** column ties each section to the story, so the climax lands on the drop; a section with no role is one the film has no use for (cut it, or give it one). If a strong hit is 0.05–0.1 s off a bar line, use the detected time: that's where the sound is.
 
-In `film.js`, `hits` gets the cut times as `[t, shake px]` (strong 10–14, kick 3–6); replace the starter's sample values.
+Cuts land on the hits; the screen itself does not move to them. In `film.js`, `hits` (`[t, shake px]`, camera shake) holds only the film's one breaking moment, usually the drop under the payoff (8–12 px), a second at most for a real "it broke" beat; a calm track or a how-to gets `[]`. Shaking or pulsing the whole frame on every hit fights the UI motion and makes a calm track feel frantic. `pulse` (the whole frame breathing with the bass) stays off unless the user asks for it.
 
 ## Fitting the track to the film
 

@@ -3,7 +3,7 @@
 // Quality checks (each line is "<kind> <where> <what> fix: <how>"; none of them is a deliberate-transition candidate: fix or justify in SCENARIO.md):
 //   lint         (first, static, no browser) film.js / ui.js / data.js: Math.random, Date.now / new Date(), performance.now, setTimeout / setInterval / requestAnimationFrame,
 //                repeat: -1, a tweened `display`, measuring (getBoundingClientRect / center() / rect()) inside a tween callback, a timeline built outside Film() or with `fonts:` empty
-//                while build() measures text; CSS animation / transition left in film.css / app.css (a note when base.css freezes it anyway); emails and API keys left in the sources.
+//                while build() measures text, more than 2 camera shakes in `hits:`; CSS animation / transition left in film.css / app.css (a note when base.css freezes it anyway); emails and API keys left in the sources.
 //   determinism  renders 12 times twice, after scrubbing backwards and on a fresh page load, and pixel-compares: any difference = something reads a clock, random, a timer or layout.
 //   contrast     samples every 0.5 s and at every cut: text of the FILM (not the captured app, see --app-text) below WCAG AA (4.5:1, 3:1 for large text) for >= 0.5 s. The background is read from a
 //                screenshot with the text hidden, so images and gradients count. Faded frames (opacity < 0.9) are skipped. data-contrast-ok on the element or an ancestor opts out.
