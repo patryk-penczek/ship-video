@@ -93,8 +93,8 @@ Silent does not mean calm: without music, motion, cuts and easing are the whole 
 - No sound-coded effects: no shake, flashes, beat pulses, shockwave rings, stamps or glitches. They read as hits of a sound that isn't there.
 - Create the folder with `new-film.mjs <film> --silent` (no shake, no beat demo); remove any `flash` or `rings` left in your scenes.
 - Cuts stay on a bar grid (`music.md`, *No music*), so music can be added later by re-timing.
-- The biggest move of the film (a whip pan, a zoom-through) is the peak, 60–75% in, and the payoff lands on it.
-- A muted website hero may loop: ask, and match the last frame to the first if it does.
+- The biggest move of the film (a whip pan, a zoom-through) carries the payoff (*Payoff* above).
+- A muted website hero usually loops: match the last frame to the first, and say so in the scenario.
 
 ## Film types
 

@@ -58,9 +58,9 @@ Cuts land on the hits; the screen itself does not move to them. In `film.js`, `h
 
 ## No music (grid)
 
-`node $S/music.mjs grid --bpm <bpm> --duration <s>` prints bar and beat times (`--out <film>/env.js` writes `window.ENV = null;`). Pick a BPM whose beat is a whole number of frames and whose whole bars fill the film: 120 (0.5 s beat), 144, 90, 72. In code compute `t = n * 60 / bpm` rather than copying the rounded printout. MUSIC.md is then the bar grid with a role per bar: problem first, payoff on the strongest bar ~60–75% in, end card last.
+`node $S/music.mjs grid --bpm <bpm> --duration <s>` prints bar and beat times (`--out <film>/env.js` writes `window.ENV = null;`). Pick a BPM whose beat is a whole number of frames and whose whole bars fill the film: 120 (0.5 s beat), 144, 90, 72. In code compute `t = n * 60 / bpm` rather than copying the rounded printout. MUSIC.md is then the bar grid with a role per bar (`direction.md`, *Silent films*).
 
-While a Suno track is pending, the same grid with `GRID DRAFT` lets the scenario be written; when the take arrives, analyse it and move each cut to the nearest real hit.
+While a Suno track is pending, the same grid with `GRID DRAFT` lets the scenario be written; when the take arrives, analyse it and re-time (below).
 
 ## Generated beat
 
@@ -87,9 +87,7 @@ Re-run `analyze`, compare old and new MUSIC.md row by row, shift each scene and 
 
 ## Rights
 
-Ask where the film will be shown, not which licence the track has:
+Where the film will be shown decides, not which licence the track has. The Brief's place question usually answers it; ask only what it leaves open, inside the opening or the source question, never as a round of its own:
 - *Just me / a draft*: no check; the track stays local.
-- *Public or for a client*: where does the track come from? *Own or licensed* · *Suno, paid plan* · *Free library (CC0 / CC BY: credit line)* · *Somewhere else* (not publishable). For Suno the plan **at generation time** decides: songs made on the free plan stay non-commercial even after upgrading, so ask before they generate, and ask which account generates it (a company film needs the company's paid account). Keep the clip ID and date. AI music can draw automated claims on YouTube and Meta; say so once.
-- *Not decided*: treat as a draft, ask again before the final render.
-
-If the film folder is inside a git repo, add `track.*` to `.gitignore` unless the licence allows sharing the file.
+- *Public or for a client*: publishable are a generated beat, an own or licensed file, a free library track (CC0, or CC BY with a credit line) and Suno from a paid plan; anything else is not. For Suno the plan **at generation time** decides: songs made on the free plan stay non-commercial even after upgrading, so settle it before they generate; a company film needs the company's paid account, so say so in the option. Keep the clip ID and date. AI music can draw automated claims on YouTube and Meta; say so once.
+- *Not decided*: treat as a draft; it is asked again with the delivery question (`render.md`, *Deliver*).

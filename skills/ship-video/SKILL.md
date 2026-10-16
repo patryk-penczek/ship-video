@@ -13,7 +13,7 @@ You direct and build a 10–45 s film of the user's product. Everything on scree
 
 **Scripts** are in `scripts/` next to this file. In Claude Code that folder is `${CLAUDE_SKILL_DIR}/scripts`; elsewhere resolve it against this file's directory and call it by absolute path. Below, `$S` is that folder and `<film>` the film folder. Run scripts, don't read their source; each takes `--help`.
 
-**Asking.** Decide what you can from the product and the code, write it down, and ask only real decisions (viewer, length, music, the user's own wording). Use a structured question tool if your host has one (Claude Code: AskUserQuestion, at most 4 questions, 2–4 options each, your recommendation first), otherwise one short numbered list. A taste question you have a view on is not a question: pick, say why in a line, let them change it at the gate.
+**Asking.** Ask only real decisions (place, music, length, the user's own wording); decide the rest, say it in a line, let them change it at the gate. Ask at three moments only: the opening (step 1), the scenario gate, after the render; never stop mid-work. One shape fits every host: **at most 3 questions per round, 2–3 options each**, recommendation first, a 1–5 word label, one sentence on what it means for them, no "Other" (the host adds free text). Use the host's question tool (Claude Code: AskUserQuestion; Codex: `request_user_input`, Plan mode only), else a numbered list with lettered options ("1a 2b") ending "or tell me something else". More than 3 options is two questions, the deciding one first; when an earlier answer settles a question, fold it into the options.
 
 ## Limits
 
@@ -49,11 +49,12 @@ Show this checklist in the first reply and when you deliver:
 
 ## 1. Brief
 
-Look first: README, package.json, routes, components, the site, existing screenshots and logos (real assets are used without asking). Then ask what's still missing, in one round:
-1. **Who watches and where** (a feed, a website hero, a README, a help center) and what they already know. This sets the opening (`direction.md`, *The viewer test*) and the minimum text size.
-2. **Film type**: launch, one-feature teaser, how-to, landing page.
-3. **Length**: recommend the shortest that shows the product's one change; 10–15 s is often best. *Match the music* only when a track exists or is coming.
-4. **Music**: own file / Suno / generated beat (free, ours) / none. If a fresh audio file sits in `~/Downloads`, offer it.
+Look first: README, package.json, routes, components, the site, existing screenshots and logos (real assets are used without asking). Then ask what's still missing in two rounds back to back (the length depends on the music):
+1. **Where it plays**: the three likeliest places for this product (a social feed, the website, a README or docs, a help center), the one it points to first. It sets what the viewer knows, whether sound is on, the opening (`direction.md`, *The viewer test*) and the minimum text size.
+2. **Music**: yes or no; recommend *no* where that place plays muted, and on *yes* there say the music reaches only the MP4 (a README's WebP is silent).
+3. *Second round* · **Music source** (step 3's question, now, so a Suno track is generated while you work) and **length**: the shortest that shows the product's one change (10–15 s is often best), a longer one, and with music *Fit to the music* (the track sets it, cut on bars to what the material holds; recommended then).
+
+The **film type** (launch, one-feature teaser, how-to, landing page) usually follows from the request and the place: state it. Anything they already said answers its question.
 
 A film whose feel they want: break it into a contact sheet (`ffmpeg -i ref.mp4 -vf "fps=2,scale=480:-1,tile=6x5" <film>/review/reference.png`), list its techniques, borrow those, never its content.
 
@@ -65,23 +66,22 @@ A film made from the README shows features; one made from the whole product show
 1. **Inventory** every route and view from the router, with the states that matter (dialogs, palettes, toasts, empty states, themes) and everything live (charts, maps, canvases).
 2. **See each one**: with the app running (reuse its server, `render.md`, *Sharing the machine*) `node $S/capture.mjs <url> <film> --discover` writes a screenshot per route to `<film>/review/discovery/`; Read them. Logins, phones, landing pages: `replicas.md`, *Options*. Not running: use its screenshots and docs, and say so.
 3. **Find what's new and what's special**: the changelog, release notes, `gh pr list --state merged --limit 30` if available; the 3–5 moments a user would show a friend; the **one change that is the product**.
-4. **Write `<film>/PRODUCT.md`**: the promise in the product's own words, the viewer, views (core / aside / skip, with screenshot paths), wow moments, the one concrete case that could carry the film, what can't be shown. Show it in a few lines; the user corrects what you misread.
+4. **Write `<film>/PRODUCT.md`**: the promise in the product's own words, the viewer, views (core / aside / skip, with screenshot paths), wow moments, the one concrete case that could carry the film, what can't be shown. Show it in a few lines and carry on; corrections can come any time, the gate at the latest.
 
 ## 3. Music
 
-Read `music.md`.
+Read `music.md`. No music: a BPM grid; read `direction.md`, *Silent films*. The source question (asked in the opening) shows all three, one line each on what it costs them (a fresh file in `~/Downloads` goes in the own-file line):
+- **Generated beat**: free, licence-free, ready in seconds, a functional score rather than a song. Write `beat.json` from the planned acts and run `music.mjs synth`.
+- **Suno**: a real song shaped to the film's bars; needs a Suno account, about 10 minutes of their time, a paid plan for anything public, so for a public place label it *Suno (paid plan)* (`music.md`, *Rights*). Walk them through it (`suno-prompt.md`, *Walking the user through*). Don't wait idle: write MUSIC.md from a `GRID DRAFT` and draft the scenario while they generate.
 - **Own file**: copy it to `<film>/track.<ext>`.
-- **Suno**: ask the rights question first, then give the prompt from `suno-prompt.md`. Don't wait idle: write MUSIC.md from a `GRID DRAFT` and draft the scenario while they generate.
-- **Generated beat**: write `beat.json` from the planned acts and run `music.mjs synth`.
-- **None**: a BPM grid; read `direction.md`, *Silent films*.
 
-Analyse the track, read the plot, confirm the drop yourself, and write `<film>/MUSIC.md` with the story role of each section. If the track is longer than the material, propose cutting a section on bar lines.
+Analyse the track, read the plot, confirm the drop yourself, and write `<film>/MUSIC.md` with the story role of each section.
 
 ## 4. Scenario
 
 Read `direction.md` and write `<film>/SCENARIO.md` from `scenario-template.md`: the viewer, the story (problem → hero → action → payoff on the drop), every shot with its seconds, what moves and where the camera lands, the final copy word for word. Run the template's self-check and fix the "no"s first. **Tell the user if the length doesn't fit the material** and offer the better one.
 
-Then ask, in one round: variants only where the wording is theirs, and "Approve the scenario?" (*Approve* / *Change timing* / *Change scenes* / *Something else*) with the story in three lines and the shot table.
+Then ask, in one round: variants only where the wording is theirs, and "Approve the scenario?" (*Approve* / *Change timing* / *Change scenes*) with the story in three lines and the shot table.
 
 <HARD-GATE>
 Nothing is built until the user approves SCENARIO.md: no scenes in `film.js`, no replicas, no renders. Reading code, Discovery captures, PRODUCT.md, MUSIC.md and the `track`/`duration` lines of `film.js` are not building. On approval write the chosen variants in and add `Approved: <date>` at the top.

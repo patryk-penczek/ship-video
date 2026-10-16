@@ -66,8 +66,6 @@ Captured DOM often scores near 0%: the comparison then mostly proves nothing bro
 
 ## Pitfalls
 
-- **Measure stacked copies with `UI.measure`**: a hidden copy measures 0,0, and with all copies shown the page is several screens tall.
-- **Hide the covered copy.** After a swap or reveal, translucent `backdrop-filter` cards show the old state through the new one: `UI.swap` hides it; give dialogs and glass cards near-opaque backgrounds in `film.css`.
 - **A theme on `<html>`** is moved to the `.app-shot` wrapper, so tokens computed from tokens still resolve; check a still of each theme.
 - **Fonts**: list every face in `fonts:` or the first frames render in a fallback. A font can load and still lack glyphs (accents, CJK): check the copy in a full-resolution still. Some bundlers break `@font-face` (`format("woff2-variations")` unquoted): if the app itself renders in a system font, write your own `@font-face` in `film.css`.
 - **Real scroll** isn't a function of `t`: a click that scrolled the real page shows as a big diff; add a `scroll` action.

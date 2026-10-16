@@ -1,7 +1,7 @@
 # Scenario: <product> · <film type> · <length> s
 
 **Approved:** (date; set when the user approves)
-**Viewer:** who watches, where (feed, landing page, README, help center) and what they already know. **Min text:** 28 px (web, README) or 56 px (social feed).
+**Viewer:** who watches, where (feed, landing page, README, help center) and what they already know. **Min text:** <px> (`direction.md`, *Framing and text*).
 **Music:** <file> / Suno take / generated beat / silent at <BPM> BPM. Bar = <s> s. Duration <s> s.
 **Look:** palette, fonts and theme, from the product's own tokens. **Cursor:** yes / no / only in act II, and why.
 **Assets:** real ones used; placeholders to replace before the final render.

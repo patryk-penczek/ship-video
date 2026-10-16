@@ -25,9 +25,8 @@ node $S/render.mjs <film>/index.html <film>/out/film-motionblur.mp4 --preset mot
 - Within a minute read `<out>.progress` (`frame n/total, ETA`; `failed: …` means it stopped and why). Poll with short checks, never a long foreground sleep.
 - Timing on an idle machine: crisp ~2–3.5 s per film second, motion blur 3–4× that; 2–3× longer when other renders run. Quote a range.
 - A file at `<out>` is complete (the render writes `.part` and renames on success). Stop one with `node $S/render.mjs --stop <out.mp4>`.
-- **Motion blur** (240 fps blended 4:1) suits kinetic music films; it smears text, so **crisp** suits UI, how-to and silent films. `--preset selective` blurs only frames where something moves fast: the middle ground for UI films with fast camera moves. Offer the choice after the user has seen the crisp film.
+- **Motion blur** (240 fps blended 4:1) suits kinetic music films; it smears text, so **crisp** suits UI, how-to and silent films. `--preset selective` blurs only frames where something moves fast: the middle ground for UI films with fast camera moves.
 - A render dies with the session that started it: before a long motion-blur render, tell the user to keep the session open.
-- A quick check while building: `--preset draft --from 0 --to 1`.
 
 ## Verify
 
@@ -45,7 +44,7 @@ Stop the dev servers and processes you started; delete `review/test.mp4` and lef
 
 ## Changes after the render
 
-The user watches and says what to change; that is the normal path, not a failure. Edit, check the changed seconds in stills, re-render crisp, re-run `hits.mjs` if timing moved. A change to the story or the timing of whole acts: update SCENARIO.md and say what moved.
+The user watches and says what to change. Edit, check the changed seconds in stills, re-render crisp, re-run `hits.mjs` if timing moved. A change to the story or the timing of whole acts: update SCENARIO.md and say what moved.
 
 ## Sharing the machine
 

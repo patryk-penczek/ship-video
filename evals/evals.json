@@ -16,7 +16,7 @@
         "Writes SCENARIO.md with exact seconds on bar starts, the camera, and word-for-word copy",
         "Asks for scenario approval and copy choices with the AskUserQuestion tool (options + previews), not as questions in prose",
         "Stops and asks for scenario approval; does not write ui.js or film.js scenes before approval",
-        "Every AskUserQuestion call has at most four questions, and Brief questions cover only what the repo does not already say",
+        "Every question round has at most three questions with 2–3 options each and no Other option; the Brief is two rounds back to back (place and music yes/no, then the length), covering only what the repo and the request do not already say",
         "At most three captions in a 20 s film, each one justified (the picture cannot say it); the copy column is filled only where needed"
       ]
     },
@@ -283,7 +283,7 @@
         "Captures with --root body and makes hidden scroll-reveal sections visible (scroll to them and wait) instead of trusting blank --discover bands",
         "Coverage picks the 2-4 sections that carry the promise and names every skipped section with a reason",
         "Opens with full identity for strangers within about 3 s (name, promise, the page's core view moving)",
-        "Asks whether the hero plays muted and loops, and makes the story readable without sound with a last frame matching the first if it loops",
+        "Treats the hero as muted and looping without a separate question (says so in the scenario), makes the story readable without sound, and matches the last frame to the first",
         "Plans the tall page as a document-scroll shot (shots.md, Scroll a tall page), not a view-by-view tour"
       ]
     },
