@@ -44,8 +44,8 @@
       "expectations": [
         "Picks a BPM whose bar length is a round number of seconds that fits 25 s (for example 96 BPM, 2.5 s bars) and states it",
         "Maps sections to bars so the drop lands near 12–14 s, and says bar counts are only hints for Suno",
-        "Gives a Styles line and a bracketed Lyrics structure ready to paste, instrumental, with [Hit] cues inside sections and unwanted things for Exclude Styles",
-        "Tells the user to use Advanced mode, the Duration slider and model v6 or v6-mini (not v6-wild), and to make 4-6 takes",
+        "Gives a Styles line and a bracketed Lyrics structure ready to paste, instrumental, with [Hit] cues inside sections",
+        "Tells the user to use Advanced mode, model v6 or v6-mini (not v6-wild) and a Duration with headroom they adjust by ear, and leaves how many takes to generate to them",
         "Asks where the film will be shown and which Suno plan they will generate on BEFORE they generate, and says free-plan songs can't be used commercially and an upgrade later doesn't cover them",
         "Does not start building a film or installing dependencies"
       ]

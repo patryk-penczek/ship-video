@@ -28,7 +28,7 @@ Stopped halfway? It picks up from the files in the film folder. You can also tel
 | path | what you do | good for |
 |---|---|---|
 | **Your track** | drop in an audio file | music you made or licensed |
-| **Suno** | paste the style and structure the agent writes into [Suno](https://suno.com) (Advanced mode), download the best of 4–6 takes | a track shaped to your film's bars |
+| **Suno** | paste the style and structure the agent writes into [Suno](https://suno.com) (Advanced mode), generate until a take sounds right, download it as WAV or MP3 | a track shaped to your film's bars |
 | **Generated beat** | nothing | a free, license-free score built from the film's own bar plan: a functional beat, not a song |
 | **None** | nothing | drafts and silent films; cuts sit on a tempo grid, music can be added later |
 
