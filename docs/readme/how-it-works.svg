@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 432" width="960" height="432" role="img" aria-labelledby="how-it-works-dark-title how-it-works-dark-desc">
+<title id="how-it-works-dark-title">How ship-video makes a film</title>
+<desc id="how-it-works-dark-desc">Eight steps from a short brief to a rendered MP4. You decide at three points: the brief, the scenario approval (the one gate before anything is built) and after watching the render, when your notes go back to the build.</desc>
+<defs>
+<marker id="how-it-works-dark-a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill="#6b6f78"/></marker>
+<marker id="how-it-works-dark-acc" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill="#ff6a3d"/></marker>
+</defs>
+<rect width="960" height="432" rx="12" fill="#0b0b0c"/>
+<line x1="228" y1="88" x2="266" y2="88" stroke="#6b6f78" stroke-width="1.2" marker-end="url(#how-it-works-dark-a)"/>
+<line x1="460" y1="88" x2="498" y2="88" stroke="#6b6f78" stroke-width="1.2" marker-end="url(#how-it-works-dark-a)"/>
+<line x1="692" y1="88" x2="730" y2="88" stroke="#6b6f78" stroke-width="1.2" marker-end="url(#how-it-works-dark-a)"/>
+<line x1="228" y1="264" x2="266" y2="264" stroke="#6b6f78" stroke-width="1.2" marker-end="url(#how-it-works-dark-a)"/>
+<line x1="460" y1="264" x2="498" y2="264" stroke="#6b6f78" stroke-width="1.2" marker-end="url(#how-it-works-dark-a)"/>
+<line x1="692" y1="264" x2="730" y2="264" stroke="#6b6f78" stroke-width="1.2" marker-end="url(#how-it-works-dark-a)"/>
+<path d="M828 136 V168 A8 8 0 0 1 820 176 H140 A8 8 0 0 0 132 184 V214" fill="none" stroke="#ff6a3d" stroke-width="1.2" marker-end="url(#how-it-works-dark-acc)"/>
+<rect x="396" y="152" width="168" height="16" fill="#0b0b0c"/>
+<text x="480" y="164" fill="#ff6a3d" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">YOU APPROVE IT</text>
+<path d="M828 312 V344 A8 8 0 0 1 820 352 H372 A8 8 0 0 1 364 344 V314" fill="none" stroke="#6b6f78" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#how-it-works-dark-a)"/>
+<rect x="488" y="328" width="216" height="16" fill="#0b0b0c"/>
+<text x="596" y="340" fill="#a3a7b0" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">YOUR NOTES AFTER WATCHING</text>
+<style>.how-it-works-dark-c{fill:none;stroke-width:2;stroke-linecap:round;stroke-dasharray:14 200;stroke-dashoffset:14;opacity:0;animation:how-it-works-dark-run 8.4s linear infinite}@keyframes how-it-works-dark-run{0%{stroke-dashoffset:14;opacity:1}10.71%{stroke-dashoffset:-100;opacity:1}10.72%,100%{opacity:0}}@media (prefers-reduced-motion:reduce){.how-it-works-dark-c{display:none}}</style>
+<path class="how-it-works-dark-c" d="M228 88 H264" pathLength="100" stroke="#f4f4f6" style="animation-delay:0.0s"/>
+<path class="how-it-works-dark-c" d="M460 88 H496" pathLength="100" stroke="#f4f4f6" style="animation-delay:0.9s"/>
+<path class="how-it-works-dark-c" d="M692 88 H728" pathLength="100" stroke="#f4f4f6" style="animation-delay:1.8s"/>
+<path class="how-it-works-dark-c" d="M828 136 V168 A8 8 0 0 1 820 176 H140 A8 8 0 0 0 132 184 V212" pathLength="100" stroke="#f4f4f6" style="animation-delay:2.7s"/>
+<path class="how-it-works-dark-c" d="M228 264 H264" pathLength="100" stroke="#f4f4f6" style="animation-delay:3.6s"/>
+<path class="how-it-works-dark-c" d="M460 264 H496" pathLength="100" stroke="#f4f4f6" style="animation-delay:4.5s"/>
+<path class="how-it-works-dark-c" d="M692 264 H728" pathLength="100" stroke="#f4f4f6" style="animation-delay:5.4s"/>
+<path class="how-it-works-dark-c" d="M828 312 V344 A8 8 0 0 1 820 352 H372 A8 8 0 0 1 364 344 V316" pathLength="100" stroke="#f4f4f6" style="animation-delay:6.3s"/>
+<rect x="36" y="40" width="192" height="96" rx="6" fill="#0b0b0c"/>
+<rect x="36" y="40" width="192" height="96" rx="6" fill="#141519" stroke="#34363d" stroke-width="1"/>
+<text x="52" y="64" fill="#8b8f98" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" letter-spacing="0.08em">01</text>
+<rect x="176" y="52" width="40" height="16" rx="2" fill="none" stroke="#a3a7b0" stroke-width="0.8"/>
+<text x="196" y="64" fill="#a3a7b0" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">YOU</text>
+<text x="52" y="96" fill="#f4f4f6" font-size="20" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">Brief</text>
+<text x="52" y="120" fill="#a3a7b0" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">place · music · length</text>
+<rect x="268" y="40" width="192" height="96" rx="6" fill="#0b0b0c"/>
+<rect x="268" y="40" width="192" height="96" rx="6" fill="#141519" stroke="#34363d" stroke-width="1"/>
+<text x="284" y="64" fill="#8b8f98" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" letter-spacing="0.08em">02</text>
+<text x="284" y="96" fill="#f4f4f6" font-size="20" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">Discovery</text>
+<text x="284" y="120" fill="#a3a7b0" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">all views of your app</text>
+<rect x="500" y="40" width="192" height="96" rx="6" fill="#0b0b0c"/>
+<rect x="500" y="40" width="192" height="96" rx="6" fill="#141519" stroke="#34363d" stroke-width="1"/>
+<text x="516" y="64" fill="#8b8f98" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" letter-spacing="0.08em">03</text>
+<text x="516" y="96" fill="#f4f4f6" font-size="20" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">Music</text>
+<text x="516" y="120" fill="#a3a7b0" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">tempo · hits · drop</text>
+<rect x="732" y="40" width="192" height="96" rx="6" fill="#0b0b0c"/>
+<rect x="732" y="40" width="192" height="96" rx="6" fill="#2a1810" stroke="#ff6a3d" stroke-width="1"/>
+<text x="748" y="64" fill="#ff6a3d" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" letter-spacing="0.08em">04</text>
+<rect x="872" y="52" width="40" height="16" rx="2" fill="none" stroke="#ff6a3d" stroke-width="0.8"/>
+<text x="892" y="64" fill="#ff6a3d" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">YOU</text>
+<text x="748" y="96" fill="#f4f4f6" font-size="20" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">Scenario</text>
+<text x="748" y="120" fill="#a3a7b0" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">shot by shot</text>
+<rect x="36" y="216" width="192" height="96" rx="6" fill="#0b0b0c"/>
+<rect x="36" y="216" width="192" height="96" rx="6" fill="#141519" stroke="#34363d" stroke-width="1"/>
+<text x="52" y="240" fill="#8b8f98" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" letter-spacing="0.08em">05</text>
+<text x="52" y="272" fill="#f4f4f6" font-size="20" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">Replicas</text>
+<text x="52" y="296" fill="#a3a7b0" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">your real DOM + CSS</text>
+<rect x="268" y="216" width="192" height="96" rx="6" fill="#0b0b0c"/>
+<rect x="268" y="216" width="192" height="96" rx="6" fill="#141519" stroke="#34363d" stroke-width="1"/>
+<text x="284" y="240" fill="#8b8f98" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" letter-spacing="0.08em">06</text>
+<text x="284" y="272" fill="#f4f4f6" font-size="20" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">Build</text>
+<text x="284" y="296" fill="#a3a7b0" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">GSAP, cut to the beat</text>
+<rect x="500" y="216" width="192" height="96" rx="6" fill="#0b0b0c"/>
+<rect x="500" y="216" width="192" height="96" rx="6" fill="#141519" stroke="#34363d" stroke-width="1"/>
+<text x="516" y="240" fill="#8b8f98" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" letter-spacing="0.08em">07</text>
+<text x="516" y="272" fill="#f4f4f6" font-size="20" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">Review</text>
+<text x="516" y="296" fill="#a3a7b0" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">stills · critic · audit</text>
+<rect x="732" y="216" width="192" height="96" rx="6" fill="#0b0b0c"/>
+<rect x="732" y="216" width="192" height="96" rx="6" fill="#141519" stroke="#34363d" stroke-width="1"/>
+<text x="748" y="240" fill="#8b8f98" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" letter-spacing="0.08em">08</text>
+<rect x="872" y="228" width="40" height="16" rx="2" fill="none" stroke="#a3a7b0" stroke-width="0.8"/>
+<text x="892" y="240" fill="#a3a7b0" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">YOU</text>
+<text x="748" y="272" fill="#f4f4f6" font-size="20" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">Render</text>
+<text x="748" y="296" fill="#a3a7b0" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">1080p60 MP4</text>
+<line x1="36" y1="384" x2="924" y2="384" stroke="#24262b" stroke-width="0.8"/>
+<rect x="36" y="404" width="40" height="16" rx="2" fill="none" stroke="#a3a7b0" stroke-width="0.8"/>
+<text x="56" y="416" fill="#a3a7b0" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">YOU</text>
+<text x="88" y="416" fill="#a3a7b0" font-size="12" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">you decide here; everything else runs on its own</text>
+<rect x="488" y="404" width="24" height="16" rx="2" fill="#2a1810" stroke="#ff6a3d" stroke-width="1"/>
+<text x="524" y="416" fill="#a3a7b0" font-size="12" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">the one gate: nothing is built before you approve</text>
+</svg>

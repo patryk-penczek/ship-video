@@ -94,17 +94,7 @@ cp -R ship-video/skills/ship-video ~/.claude/skills/
 
 ## 🎬 How it works
 
-```mermaid
-flowchart LR
-    A["💬 Brief<br/><small>a few questions</small>"] --> B["🔍 Discovery<br/><small>every view of your app</small>"]
-    B --> C["🎵 Music<br/><small>tempo, hits, drop</small>"]
-    C --> D{"📋 Scenario<br/><small>you approve</small>"}
-    D --> E["🧩 Replicas<br/><small>your real DOM + CSS</small>"]
-    E --> F["🛠️ Build<br/><small>animated on the beat</small>"]
-    F --> G["👀 Review<br/><small>critique + audit</small>"]
-    G --> H["🎞️ Render<br/><small>you watch</small>"]
-    H -. "your notes" .-> F
-```
+<img alt="Eight steps: Brief, Discovery, Music and Scenario, which you approve; then Replicas, Build, Review and Render. You decide at the brief, the scenario and after watching the render, when your notes go back to the build." src="docs/readme/how-it-works.svg" width="100%">
 
 Everything on screen is code: one HTML page, one paused GSAP timeline, rendered frame by frame with Playwright and ffmpeg, so the MP4 matches the preview exactly. Stopped halfway? It picks up from the files in the film folder.
 
